@@ -262,7 +262,12 @@ describe("sharedSettingsFile", () => {
         collapsedProviders: [],
         selectedRingGroups: {},
       },
-      privacy: { productAnalytics: false, crashReports: false, consentDecided: false },
+      privacy: {
+        productAnalytics: false,
+        crashReports: false,
+        nativeCrashDumps: false,
+        consentDecided: false,
+      },
       hostResourceAdmission: {
         maxActiveAgentSessions: 0,
         maxActiveTerminalShells: 0,
@@ -439,7 +444,12 @@ describe("sharedSettingsFile", () => {
         collapsedProviders: [],
         selectedRingGroups: {},
       },
-      privacy: { productAnalytics: false, crashReports: false, consentDecided: false },
+      privacy: {
+        productAnalytics: false,
+        crashReports: false,
+        nativeCrashDumps: false,
+        consentDecided: false,
+      },
       hostResourceAdmission: {
         maxActiveAgentSessions: 0,
         maxActiveTerminalShells: 0,

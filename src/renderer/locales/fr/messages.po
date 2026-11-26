@@ -2045,8 +2045,12 @@ msgid "An agent is fixing this PR."
 msgstr "Un agent corrige cette PR."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "An environment variable on this machine keeps both options off."
-msgstr "Une variable d’environnement sur cette machine garde les deux options désactivées."
+#~ msgid "An environment variable on this machine keeps both options off."
+#~ msgstr "Une variable d’environnement sur cette machine garde les deux options désactivées."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "An environment variable on this machine keeps telemetry off."
+msgstr "Une variable d’environnement sur cette machine maintient la télémétrie désactivée."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -2066,14 +2070,14 @@ msgstr "Un serveur MCP portant ce nom existe déjà."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Anonymous feature-use events. No prompts, code, or location."
-msgstr "Événements d’utilisation anonymes. Aucun prompt, code ni localisation."
+#~ msgid "Anonymous feature-use events. No prompts, code, or location."
+#~ msgstr "Événements d’utilisation anonymes. Aucun prompt, code ni localisation."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Anonymous product analytics"
-msgstr "Analyse de produit anonyme"
+#~ msgid "Anonymous product analytics"
+#~ msgstr "Analyse de produit anonyme"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -3754,6 +3758,10 @@ msgstr "Choisissez ce qui se passe lorsqu’une heure planifiée a été manqué
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "Choisissez ce que Poracode fait pour les nouvelles pull requests : ne rien faire, corriger les blocages de fusion, ou les corriger puis fusionner."
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Choose what the desktop app sends."
+msgstr "Choisissez ce que l’app de bureau envoie."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
 msgstr "Choisissez où démarrent les nouvelles sessions. Utilisez /handoff dans le chat pour transférer une session existante."
@@ -5383,8 +5391,8 @@ msgstr "Couverture des devises déclarées"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Crash diagnostics with personal data removed."
-msgstr "Diagnostics de plantage sans données personnelles."
+#~ msgid "Crash diagnostics with personal data removed."
+#~ msgstr "Diagnostics de plantage sans données personnelles."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -7947,6 +7955,12 @@ msgstr "Favori"
 msgid "Favorites"
 msgstr "Favoris"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
+#~ msgstr "Événements d’utilisation liés à un ID d’installation aléatoire. Aucun prompt, code ni localisation."
+
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Retour"
@@ -9486,6 +9500,11 @@ msgstr "Inclure dans la synchronisation"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include memory when a thread starts."
 msgstr "Inclure la mémoire au démarrage d'un fil."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include native crash dumps"
+msgstr "Inclure les vidages de plantage natifs"
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
@@ -14238,8 +14257,12 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode déverrouille brièvement ce Mac pendant un tour d'Utilisation de l'ordinateur actif, recouvre tous les écrans pendant qu'il travaille et le verrouille à nouveau à la fin du tour. Toute frappe au clavier ou tout mouvement du pointeur sur ce Mac le verrouille immédiatement. L'installation nécessite une approbation administrateur unique. Sur un Mac géré par votre organisation, consultez d'abord votre service informatique."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-msgstr "Poracode peut envoyer des analyses d’utilisation anonymes et des rapports de plantage. Aucun prompt, code, nom de fichier ni sortie de terminal."
+#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
+#~ msgstr "Poracode peut envoyer des analyses d’utilisation anonymes et des rapports de plantage. Aucun prompt, code, nom de fichier ni sortie de terminal."
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Poracode can send product analytics and crash reports."
+msgstr "Poracode peut envoyer des analyses de produit et des rapports de plantage."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
@@ -14312,8 +14335,8 @@ msgid "Poracode remembers preferences and corrections across providers. Capture 
 msgstr "Poracode retient les préférences et les corrections entre les fournisseurs. La capture démarre à la fin d'un tour. Un passage quotidien les fusionne. Les skills appris d'un travail répété restent des suggestions jusqu'à votre approbation."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-msgstr "Poracode n’envoie rien sauf si vous l’activez. Prompts, code ou noms de fichiers — jamais."
+#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
+#~ msgstr "Poracode n’envoie rien sauf si vous l’activez. Prompts, code ou noms de fichiers — jamais."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14582,6 +14605,12 @@ msgstr "Vérification de {0} v{1}"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Probing v{0}"
 msgstr "Vérification de v{0}"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Product analytics"
+msgstr "Analyse de produit"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
@@ -17052,6 +17081,12 @@ msgstr "Faire défiler vers le bas"
 msgid "Scroll to prompt: {preview}"
 msgstr "Faire défiler jusqu'à l'invite : {preview}"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
+#~ msgstr "Diagnostics de plantage nettoyés envoyés à Sentry. Les vidages de plantage natifs sont un choix distinct."
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK installé"
@@ -17457,6 +17492,12 @@ msgstr "Envoyer"
 msgid "Send a message..."
 msgstr "Envoyer un message..."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send feature-use events and a random installation ID to PostHog."
+msgstr "Envoyez les événements d’utilisation et un ID d’installation aléatoire à PostHog."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Send feedback"
@@ -17471,6 +17512,12 @@ msgstr "Envoyez un texte générique au lieu des titres de conversation via le s
 msgid "Send message"
 msgstr "Envoyer un message"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send scrubbed crash diagnostics to Sentry."
+msgstr "Envoyez des diagnostics de plantage nettoyés à Sentry."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "Envoyer une entrée au terminal"
@@ -17478,6 +17525,11 @@ msgstr "Envoyer une entrée au terminal"
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Sending {sent} of {total}…"
 msgstr "Envoi de {sent} sur {total}…"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sends memory snapshots to Sentry that may contain sensitive data."
+msgstr "Envoie des instantanés de mémoire à Sentry pouvant contenir des données sensibles."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -21035,6 +21087,10 @@ msgstr "Essayer"
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Activez ou désactivez les plugins installés pour les fils de ce projet. Les choix de plugins propres à un fil restent prioritaires ; les fils en cours appliquent les changements à leur prochain lancement."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Turn on crash reports to include native dumps."
+msgstr "Activez les rapports de plantage pour inclure les vidages natifs."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."

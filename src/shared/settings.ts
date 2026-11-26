@@ -281,6 +281,12 @@ const privacySettingsSchema = z.object({
   productAnalytics: z.boolean().default(false),
   /** Scrubbed crash diagnostics. Opt-in, independent of product analytics. */
   crashReports: z.boolean().default(false),
+  /**
+   * Native crash memory dumps (minidumps). A separate opt-in that requires
+   * `crashReports`; files written before this field existed normalize to off,
+   * so an old crash-report opt-in never grants raw memory consent.
+   */
+  nativeCrashDumps: z.boolean().default(false),
   /** The first-run telemetry choice was shown and answered (either way). */
   consentDecided: z.boolean().default(false),
 });
@@ -2240,6 +2246,13 @@ export function migrateSharedSettingsValues(
   const antigravityMigrated = migrateAntigravityAcpAliasState(
     migrateRetiredModels({
       ...normalized,
+      // Raw memory dumps cannot outlive the ordinary crash-report stream they
+      // extend: a stale `true` from a hand-edited or newer document never
+      // grants raw consent while crash reports are off.
+      privacy: {
+        ...normalized.privacy,
+        nativeCrashDumps: normalized.privacy.crashReports && normalized.privacy.nativeCrashDumps,
+      },
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       // Older orders remain valid; normalization appends newly supported sections.
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),

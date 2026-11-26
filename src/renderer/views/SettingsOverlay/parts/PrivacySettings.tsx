@@ -13,30 +13,27 @@ export function PrivacySettings() {
   const { t } = useLingui();
   const productAnalytics = useSharedSettings((s) => s.privacy?.productAnalytics ?? false);
   const crashReports = useSharedSettings((s) => s.privacy?.crashReports ?? false);
+  const nativeCrashDumps = useSharedSettings((s) => s.privacy?.nativeCrashDumps ?? false);
   const setPrivacySetting = useSharedSettings((s) => s.setPrivacySetting);
   const hardDisabled = isTelemetryHardDisabled();
 
   return (
     <SettingsPage
       title={t`Privacy`}
-      description={
-        <Trans>
-          Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever.
-        </Trans>
-      }
+      description={<Trans>Choose what the desktop app sends.</Trans>}
     >
       {hardDisabled ? (
         <p className="text-xs text-muted">
-          <Trans>An environment variable on this machine keeps both options off.</Trans>
+          <Trans>An environment variable on this machine keeps telemetry off.</Trans>
         </p>
       ) : null}
       <SettingRow
         anchorId="privacy.productAnalytics"
-        title={t`Anonymous product analytics`}
-        description={t`Anonymous feature-use events. No prompts, code, or location.`}
+        title={t`Product analytics`}
+        description={t`Send feature-use events and a random installation ID to PostHog.`}
       >
         <ToggleSwitch
-          aria-label={t`Anonymous product analytics`}
+          aria-label={t`Product analytics`}
           isSelected={productAnalytics}
           isDisabled={hardDisabled}
           onChange={(selected) => setPrivacySetting("productAnalytics", selected)}
@@ -45,13 +42,32 @@ export function PrivacySettings() {
       <SettingRow
         anchorId="privacy.crashReports"
         title={t`Crash reports`}
-        description={t`Crash diagnostics with personal data removed.`}
+        description={t`Send scrubbed crash diagnostics to Sentry.`}
       >
         <ToggleSwitch
           aria-label={t`Crash reports`}
           isSelected={crashReports}
           isDisabled={hardDisabled}
           onChange={(selected) => setPrivacySetting("crashReports", selected)}
+        />
+      </SettingRow>
+      <SettingRow
+        anchorId="privacy.nativeCrashDumps"
+        title={t`Include native crash dumps`}
+        description={
+          <span id="privacy-native-crash-dumps-description">
+            {crashReports
+              ? t`Sends memory snapshots to Sentry that may contain sensitive data.`
+              : t`Turn on crash reports to include native dumps.`}
+          </span>
+        }
+      >
+        <ToggleSwitch
+          aria-describedby="privacy-native-crash-dumps-description"
+          aria-label={t`Include native crash dumps`}
+          isSelected={nativeCrashDumps}
+          isDisabled={hardDisabled || !crashReports}
+          onChange={(selected) => setPrivacySetting("nativeCrashDumps", selected)}
         />
       </SettingRow>
       <SettingRow

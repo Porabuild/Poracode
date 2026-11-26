@@ -2045,8 +2045,12 @@ msgid "An agent is fixing this PR."
 msgstr "에이전트가 이 PR을 수정하고 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "An environment variable on this machine keeps both options off."
-msgstr "이 컴퓨터의 환경 변수로 인해 두 옵션 모두 꺼진 상태로 유지됩니다."
+#~ msgid "An environment variable on this machine keeps both options off."
+#~ msgstr "이 컴퓨터의 환경 변수로 인해 두 옵션 모두 꺼진 상태로 유지됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "An environment variable on this machine keeps telemetry off."
+msgstr "이 컴퓨터의 환경 변수로 인해 텔레메트리가 꺼져 있습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -2066,14 +2070,14 @@ msgstr "이 이름의 MCP 서버가 이미 있습니다."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Anonymous feature-use events. No prompts, code, or location."
-msgstr "익명 기능 사용 이벤트. 프롬프트, 코드, 위치는 포함되지 않습니다."
+#~ msgid "Anonymous feature-use events. No prompts, code, or location."
+#~ msgstr "익명 기능 사용 이벤트. 프롬프트, 코드, 위치는 포함되지 않습니다."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Anonymous product analytics"
-msgstr "익명 제품 분석"
+#~ msgid "Anonymous product analytics"
+#~ msgstr "익명 제품 분석"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -3754,6 +3758,10 @@ msgstr "예약된 시간을 놓쳤을 때 수행할 작업을 선택하세요."
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세요: 아무 작업 안 함, 병합 차단 문제 수정, 또는 수정 후 병합."
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Choose what the desktop app sends."
+msgstr "데스크톱 앱이 보내는 내용을 선택하세요."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
 msgstr "새 세션을 시작할 위치를 선택하세요. 기존 세션을 옮기려면 채팅에서 /handoff를 사용하세요."
@@ -5383,8 +5391,8 @@ msgstr "보고된 통화 전체의 집계 범위"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Crash diagnostics with personal data removed."
-msgstr "개인 데이터가 없는 충돌 진단."
+#~ msgid "Crash diagnostics with personal data removed."
+#~ msgstr "개인 데이터가 없는 충돌 진단."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -7947,6 +7955,12 @@ msgstr "즐겨찾기"
 msgid "Favorites"
 msgstr "즐겨찾기"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
+#~ msgstr "무작위 설치 ID에 연결된 기능 사용 이벤트입니다. 프롬프트, 코드, 위치는 포함되지 않습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "피드백"
@@ -9486,6 +9500,11 @@ msgstr "동기화에 포함"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include memory when a thread starts."
 msgstr "스레드가 시작될 때 메모리를 포함합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include native crash dumps"
+msgstr "네이티브 충돌 덤프 포함"
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
@@ -14239,8 +14258,12 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode는 진행 중인 컴퓨터 사용 턴 동안 이 Mac의 잠금을 잠시 해제하고, 작업하는 동안 모든 디스플레이를 가리며, 턴이 끝나면 다시 잠급니다. 이 Mac에서 키를 누르거나 포인터를 움직이면 즉시 잠깁니다. 설치하려면 한 번의 관리자 승인이 필요합니다. 조직에서 관리하는 Mac이라면 먼저 IT 팀에 확인하세요."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-msgstr "Poracode는 익명 사용 분석과 충돌 보고서를 보낼 수 있습니다. 프롬프트, 코드, 파일 이름, 터미널 출력은 포함되지 않습니다."
+#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
+#~ msgstr "Poracode는 익명 사용 분석과 충돌 보고서를 보낼 수 있습니다. 프롬프트, 코드, 파일 이름, 터미널 출력은 포함되지 않습니다."
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Poracode can send product analytics and crash reports."
+msgstr "Poracode는 제품 분석과 충돌 보고서를 보낼 수 있습니다."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
@@ -14313,8 +14336,8 @@ msgid "Poracode remembers preferences and corrections across providers. Capture 
 msgstr "Poracode는 제공자를 넘어 선호와 수정을 기억합니다. 기록은 턴이 끝난 뒤 시작됩니다. 매일 한 번 합칩니다. 반복된 작업에서 배운 스킬은 승인할 때까지 제안으로 남습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-msgstr "켜지 않는 한 Poracode는 아무것도 보내지 않습니다. 프롬프트, 코드, 파일 이름은 절대 포함되지 않습니다."
+#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
+#~ msgstr "켜지 않는 한 Poracode는 아무것도 보내지 않습니다. 프롬프트, 코드, 파일 이름은 절대 포함되지 않습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14583,6 +14606,12 @@ msgstr "{0} v{1} 확인 중"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Probing v{0}"
 msgstr "v{0} 확인 중"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Product analytics"
+msgstr "제품 분석"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
@@ -17053,6 +17082,12 @@ msgstr "맨 아래로 스크롤"
 msgid "Scroll to prompt: {preview}"
 msgstr "프롬프트로 스크롤: {preview}"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
+#~ msgstr "정리된 충돌 진단이 Sentry로 전송됩니다. 네이티브 충돌 덤프는 별도 선택입니다."
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK 설치됨"
@@ -17458,6 +17493,12 @@ msgstr "보내기"
 msgid "Send a message..."
 msgstr "메시지 보내기..."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send feature-use events and a random installation ID to PostHog."
+msgstr "기능 사용 이벤트와 무작위 설치 ID를 PostHog로 전송합니다."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Send feedback"
@@ -17472,6 +17513,12 @@ msgstr "대화 제목 대신 일반 텍스트를 Apple 푸시 서비스로 전�
 msgid "Send message"
 msgstr "메시지 보내기"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send scrubbed crash diagnostics to Sentry."
+msgstr "정리된 충돌 진단을 Sentry로 전송합니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "터미널에 입력 보내기"
@@ -17479,6 +17526,11 @@ msgstr "터미널에 입력 보내기"
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Sending {sent} of {total}…"
 msgstr "{total} 중 {sent} 보내는 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sends memory snapshots to Sentry that may contain sensitive data."
+msgstr "민감한 데이터가 포함될 수 있는 메모리 스냅샷을 Sentry로 전송합니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -21036,6 +21088,10 @@ msgstr "지금 사용해보기"
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "이 프로젝트의 스레드에서 설치된 플러그인을 켜거나 끕니다. 스레드 자체의 플러그인 선택이 계속 우선하며, 실행 중인 스레드는 다음 실행 시 변경 사항을 적용합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Turn on crash reports to include native dumps."
+msgstr "네이티브 충돌 덤프를 포함하려면 충돌 보고서를 켜세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."

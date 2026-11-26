@@ -11,6 +11,7 @@ import {
 const optedIn: TelemetryConsent = {
   productAnalytics: true,
   crashReports: true,
+  nativeCrashDumps: true,
   consentDecided: true,
 };
 
@@ -19,6 +20,7 @@ describe("telemetry consent", () => {
     expect(DEFAULT_TELEMETRY_CONSENT).toEqual({
       productAnalytics: false,
       crashReports: false,
+      nativeCrashDumps: false,
       consentDecided: false,
     });
     expect(telemetryConsentFromPrivacy(undefined)).toEqual(DEFAULT_TELEMETRY_CONSENT);
@@ -30,6 +32,32 @@ describe("telemetry consent", () => {
 
   it("preserves an explicit opt-in from a stored settings value", () => {
     expect(telemetryConsentFromPrivacy(optedIn)).toEqual(optedIn);
+  });
+
+  it("fails raw native dumps closed unless they and crash reports are on", () => {
+    expect(
+      telemetryConsentFromPrivacy({
+        productAnalytics: false,
+        crashReports: true,
+        consentDecided: true,
+      }).nativeCrashDumps,
+    ).toBe(false);
+    expect(
+      telemetryConsentFromPrivacy({
+        productAnalytics: false,
+        crashReports: false,
+        nativeCrashDumps: true,
+        consentDecided: true,
+      }).nativeCrashDumps,
+    ).toBe(false);
+    expect(
+      telemetryConsentFromPrivacy({
+        productAnalytics: false,
+        crashReports: true,
+        nativeCrashDumps: true,
+        consentDecided: true,
+      }).nativeCrashDumps,
+    ).toBe(true);
   });
 
   it("lets environment hard-off switches win over an opt-in", () => {

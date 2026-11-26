@@ -30,21 +30,46 @@ describe("shared settings privacy consent", () => {
     expect(normalized.privacy).toEqual({
       productAnalytics: false,
       crashReports: false,
+      nativeCrashDumps: false,
       consentDecided: false,
     });
     expect(defaultSharedSettings.privacy).toEqual(normalized.privacy);
   });
 
   it("round-trips an explicit opt-in and fails closed on malformed values", () => {
-    const optedIn = { productAnalytics: true, crashReports: true, consentDecided: true };
+    const optedIn = {
+      productAnalytics: true,
+      crashReports: true,
+      nativeCrashDumps: true,
+      consentDecided: true,
+    };
     expect(normalizeSharedSettings({ privacy: optedIn }).privacy).toEqual(optedIn);
     expect(
       normalizeSharedSettings({ privacy: { productAnalytics: "yes", crashReports: 1 } }).privacy,
-    ).toEqual({ productAnalytics: false, crashReports: false, consentDecided: false });
+    ).toEqual({
+      productAnalytics: false,
+      crashReports: false,
+      nativeCrashDumps: false,
+      consentDecided: false,
+    });
     expect(normalizeSharedSettings({ privacy: { crashReports: true } }).privacy).toEqual({
       productAnalytics: false,
       crashReports: true,
+      nativeCrashDumps: false,
       consentDecided: false,
+    });
+  });
+
+  it("never grants raw native dumps without crash reports", () => {
+    expect(
+      normalizeSharedSettings({
+        privacy: { crashReports: false, nativeCrashDumps: true, consentDecided: true },
+      }).privacy,
+    ).toEqual({
+      productAnalytics: false,
+      crashReports: false,
+      nativeCrashDumps: false,
+      consentDecided: true,
     });
   });
 });

@@ -1,5 +1,5 @@
 import Module from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as SentryCore from "@sentry/core";
@@ -24,7 +24,11 @@ import { captureMainException, initializeMainSentry, isSentryConfigured } from "
 
 const sentryMock = vi.hoisted(() => ({
   init: vi.fn<
-    (options: Record<string, unknown> & { beforeSend: (event: never) => unknown }) => void
+    (
+      options: Record<string, unknown> & {
+        beforeSend: (event: never, hint?: never) => unknown;
+      },
+    ) => void
   >(),
   setContext: vi.fn<(name: string, value: Record<string, unknown>) => void>(),
   makeElectronTransport: vi.fn<() => unknown>(),
@@ -93,6 +97,19 @@ function clearTelemetryEnv(): () => void {
   };
 }
 
+/** Stub only `@sentry/electron/main`; every other require stays real. */
+function mockMainSentryLoad() {
+  const moduleLoader = Module as unknown as {
+    _load: (request: string, ...rest: unknown[]) => unknown;
+  };
+  const originalLoad = moduleLoader._load.bind(moduleLoader);
+  return vi
+    .spyOn(moduleLoader, "_load")
+    .mockImplementation((request, ...rest) =>
+      request === "@sentry/electron/main" ? sentryMock : originalLoad(request, ...rest),
+    );
+}
+
 describe("main Sentry configuration", () => {
   it("cannot be enabled by a local development override", () => {
     process.env.SENTRY_DSN = "https://public@example.test/1";
@@ -144,15 +161,7 @@ describe("main Sentry event admission", () => {
     sentryMock.setContext.mockReset();
     process.env.SENTRY_DSN = "https://public@example.test/1";
 
-    const moduleLoader = Module as unknown as {
-      _load: (request: string, ...rest: unknown[]) => unknown;
-    };
-    const originalLoad = moduleLoader._load.bind(moduleLoader);
-    const loadSpy = vi
-      .spyOn(moduleLoader, "_load")
-      .mockImplementation((request, ...rest) =>
-        request === "@sentry/electron/main" ? sentryMock : originalLoad(request, ...rest),
-      );
+    const loadSpy = mockMainSentryLoad();
 
     try {
       expect(
@@ -202,7 +211,66 @@ describe("main Sentry event admission", () => {
     }
   });
 
-  it("passes the default native minidump event and attachment through the Sentry client", async () => {
+  it("keeps only a native event.minidump attachment when both opt-ins are on", () => {
+    process.env.SENTRY_DSN = "https://public@example.test/1";
+    writeFileSync(
+      consentedSettingsPath,
+      JSON.stringify({
+        privacy: {
+          productAnalytics: false,
+          crashReports: true,
+          nativeCrashDumps: true,
+          consentDecided: true,
+        },
+      }),
+    );
+
+    const loadSpy = mockMainSentryLoad();
+
+    try {
+      expect(
+        initializeMainSentry({
+          appVersion: "test",
+          isDev: false,
+          channel: "stable",
+          settingsPath: consentedSettingsPath,
+        }),
+      ).toBe(true);
+      const beforeSend = sentryMock.init.mock.calls.at(-1)?.[0].beforeSend as unknown as (
+        event: Record<string, unknown>,
+        hint: { attachments?: Array<Record<string, unknown>> },
+      ) => Record<string, unknown> | null;
+      const minidump = {
+        attachmentType: "event.minidump",
+        filename: "crash.dmp",
+        data: Buffer.from("dump"),
+      };
+      const screenshot = {
+        attachmentType: "event.attachment",
+        filename: "screen.png",
+        data: Buffer.from("png"),
+      };
+
+      const nativeHint = { attachments: [minidump, screenshot] };
+      expect(
+        beforeSend(
+          { platform: "native", level: "fatal", message: "native crash" },
+          nativeHint as never,
+        ),
+      ).not.toBeNull();
+      expect(nativeHint.attachments).toEqual([minidump]);
+
+      const javascriptHint = { attachments: [minidump] };
+      expect(
+        beforeSend({ platform: "javascript", message: "js failure" }, javascriptHint as never),
+      ).not.toBeNull();
+      expect(javascriptHint.attachments).toEqual([]);
+    } finally {
+      loadSpy.mockRestore();
+    }
+  });
+
+  it("gates native dumps on their own live consent while sending the scrubbed summary", async () => {
     process.env.SENTRY_DSN = "https://public@example.test/1";
 
     const moduleLoader = Module as unknown as {
@@ -216,14 +284,19 @@ describe("main Sentry event admission", () => {
     );
     const attachmentData = Buffer.from("test minidump attachment");
     let minidumpLoadCount = 0;
-    let resolveInitialMinidumpLoad!: () => void;
-    let resolveRendererMinidumpLoad!: () => void;
-    const initialMinidumpLoaded = new Promise<void>((resolve) => {
-      resolveInitialMinidumpLoad = resolve;
-    });
-    const rendererMinidumpLoaded = new Promise<void>((resolve) => {
-      resolveRendererMinidumpLoad = resolve;
-    });
+    const minidumpLoadWaiters: Array<() => void> = [];
+    const nextMinidumpLoad = (): Promise<void> =>
+      new Promise<void>((resolve) => minidumpLoadWaiters.push(resolve));
+
+    let settingsWriteCount = 0;
+    function writeConsent(privacy: Record<string, unknown>): void {
+      writeFileSync(consentedSettingsPath, JSON.stringify({ privacy }));
+      // The live settings reader fingerprints file metadata. Nudge mtime so
+      // successive writes in one test always invalidate the cache.
+      const stamp = new Date(Date.now() + ++settingsWriteCount * 1000);
+      utimesSync(consentedSettingsPath, stamp, stamp);
+    }
+
     const sentryRequireSpy = vi
       .spyOn(moduleLoader, "_load")
       .mockImplementation((request, ...rest) => {
@@ -234,7 +307,7 @@ describe("main Sentry event admission", () => {
           return {
             CRASH_REASONS: ["crashed", "oom"],
             EXIT_REASONS: ["clean-exit", "abnormal-exit", "killed", "crashed", "oom"],
-            getSentryCachePath: () => ".tmp/sentry-sdk-test",
+            getSentryCachePath: () => join(directory, "sentry-sdk-test"),
           };
         }
         if (request === "./minidump-loader.js" && parent?.filename === minidumpIntegrationPath) {
@@ -245,25 +318,23 @@ describe("main Sentry event admission", () => {
                 _deleteAll: boolean,
                 callback: (result: unknown, attachment: unknown) => Promise<void>,
               ) => {
-                const loadIndex = minidumpLoadCount++;
+                minidumpLoadCount += 1;
+                const crashpadAnnotations =
+                  minidumpLoadCount === 2
+                    ? {
+                        "electron.v8-oom.stack": "    #0 crash (app:///main.cjs:10:2)",
+                        process_type: "renderer-process",
+                      }
+                    : { process_type: "renderer-process" };
                 await callback(
-                  {
-                    crashpadAnnotations:
-                      loadIndex === 0
-                        ? { process_type: "renderer-process" }
-                        : {
-                            "electron.v8-oom.stack": "    #0 crash (app:///main.cjs:10:2)",
-                            process_type: "renderer-process",
-                          },
-                  },
+                  { crashpadAnnotations },
                   {
                     attachmentType: "event.minidump",
                     filename: "renderer.dmp",
                     data: attachmentData,
                   },
                 );
-                if (loadIndex === 0) resolveInitialMinidumpLoad();
-                else resolveRendererMinidumpLoad();
+                minidumpLoadWaiters.shift()?.();
               },
           };
         }
@@ -274,8 +345,32 @@ describe("main Sentry event admission", () => {
     const envelopes: unknown[] = [];
     const eventsAtBeforeSend: Array<Record<string, unknown>> = [];
     const eventsAfterBeforeSend: Array<Record<string, unknown>> = [];
+    let injectSensitiveFields = true;
+
+    function envelopeItems(start: number): Array<[Record<string, unknown>, unknown]> {
+      return envelopes
+        .slice(start)
+        .flatMap(
+          (envelope) => (envelope as [unknown, Array<[Record<string, unknown>, unknown]>])[1],
+        );
+    }
+
+    function eventAndAttachments(start: number): {
+      events: Array<[Record<string, unknown>, Record<string, unknown>]>;
+      attachments: Array<[Record<string, unknown>, unknown]>;
+    } {
+      const items = envelopeItems(start);
+      return {
+        events: items.filter(
+          (item): item is [Record<string, unknown>, Record<string, unknown>] =>
+            item[0].type === "event",
+        ),
+        attachments: items.filter(([headers]) => headers.type === "attachment"),
+      };
+    }
 
     try {
+      const initialLoad = nextMinidumpLoad();
       expect(
         initializeMainSentry({
           appVersion: "test",
@@ -311,7 +406,10 @@ describe("main Sentry event admission", () => {
         genAI: { inputs: false, outputs: false },
         mcp: { inputs: false, outputs: false },
       });
-      const beforeSend = sentryOptions!.beforeSend;
+      const beforeSend = sentryOptions!.beforeSend as (
+        event: never,
+        hint?: never,
+      ) => Record<string, unknown> | null;
       const minidumpFactory = electronRequire(
         "./integrations/sentry-minidump/index.js",
       ).sentryMinidumpIntegration;
@@ -334,9 +432,26 @@ describe("main Sentry event admission", () => {
           },
           flush: () => Promise.resolve(true),
         }),
-        beforeSend(event: Record<string, unknown>) {
+        beforeSend(
+          event: Record<string, unknown>,
+          hint?: { attachments?: Array<{ attachmentType?: string }> },
+        ) {
           eventsAtBeforeSend.push(event);
-          const prepared = beforeSend(event as never) as Record<string, unknown> | null;
+          if (injectSensitiveFields) {
+            injectSensitiveFields = false;
+            // Simulate a provider payload carrying fields the scrubber must
+            // remove before the envelope leaves the process.
+            event.user = { id: "user-123", email: "person@example.test" };
+            event.request = { url: "https://secret.example/path" };
+            event.extra = { token: "secret" };
+            event.message = "Crash at /Users/alice/private/file.ts token=abc123";
+            event.tags = {
+              ...(event.tags as Record<string, unknown> | undefined),
+              "poracode.branch": "feature/secret",
+              "poracode.feature_area": "native",
+            };
+          }
+          const prepared = beforeSend(event as never, hint as never);
           if (prepared) eventsAfterBeforeSend.push(prepared);
           return prepared;
         },
@@ -351,8 +466,35 @@ describe("main Sentry event admission", () => {
         scope.setClient(sentryClient);
 
         minidumpIntegration!.setup(sentryClient);
-        await initialMinidumpLoaded;
+        await initialLoad;
         expect(await sentryClient.flush(2000)).toBe(true);
+
+        // Legacy privacy shape: crash reports on, no native-dump field. The
+        // scrubbed summary is sent and the unconsented minidump is dropped.
+        expect(minidumpLoadCount).toBe(1);
+        expect(envelopes).toHaveLength(1);
+        const legacy = eventAndAttachments(0);
+        expect(legacy.events).toHaveLength(1);
+        expect(legacy.attachments).toHaveLength(0);
+        const legacyEvent = legacy.events[0]![1];
+        expect(eventsAtBeforeSend[0]).toHaveProperty("user");
+        expect(eventsAtBeforeSend[0]).toHaveProperty("request");
+        expect(eventsAtBeforeSend[0]).toHaveProperty("extra");
+        expect(legacyEvent).toMatchObject({
+          platform: "native",
+          level: "fatal",
+          message: "Crash at [path] token=[redacted]",
+          tags: {
+            "event.environment": "native",
+            "event.process": "renderer",
+            "poracode.app_version": "test",
+            "poracode.feature_area": "native",
+          },
+        });
+        expect(legacyEvent).not.toHaveProperty("user");
+        expect(legacyEvent).not.toHaveProperty("request");
+        expect(legacyEvent).not.toHaveProperty("extra");
+        expect(legacyEvent.tags).not.toHaveProperty("poracode.branch");
 
         const rendererCrashHandler = electronMock.app.on.mock.calls.find(
           ([eventName]) => eventName === "render-process-gone",
@@ -364,57 +506,76 @@ describe("main Sentry event admission", () => {
             ) => Promise<void>)
           | undefined;
         expect(rendererCrashHandler).toBeDefined();
-        await rendererCrashHandler!({}, { id: 42 }, { reason: "oom" });
-        await rendererMinidumpLoaded;
-        expect(await sentryClient.flush(2000)).toBe(true);
 
-        expect(eventsAtBeforeSend).toHaveLength(2);
-        const event = eventsAtBeforeSend[1]!;
-        expect(event).toMatchObject({
-          level: "fatal",
+        // Separate explicit opt-in: the same native event ships with the
+        // byte-identical minidump attachment.
+        writeConsent({
+          productAnalytics: false,
+          crashReports: true,
+          nativeCrashDumps: true,
+          consentDecided: true,
+        });
+        let start = envelopes.length;
+        let load = nextMinidumpLoad();
+        await rendererCrashHandler!({}, { id: 42 }, { reason: "oom" });
+        await load;
+        expect(await sentryClient.flush(2000)).toBe(true);
+        const dumped = eventAndAttachments(start);
+        expect(dumped.events).toHaveLength(1);
+        expect(dumped.attachments).toHaveLength(1);
+        expect(dumped.events[0]![1]).toMatchObject({
           platform: "native",
-          tags: {
-            "event.environment": "native",
-            "event.process": "renderer",
-            "poracode.app_version": "test",
-          },
           exception: {
             values: [{ type: "OutOfMemoryError", value: "Renderer reached heap limit" }],
           },
-        });
-        expect(eventsAfterBeforeSend[1]).toMatchObject({
-          level: "fatal",
-          platform: "native",
-          tags: {
-            "event.environment": "native",
-            "event.process": "renderer",
-            "poracode.app_version": "test",
-          },
           fingerprint: ["poracode-native-crash", process.platform, "out-of-memory"],
+          tags: { "event.environment": "native" },
+        });
+        expect(dumped.attachments[0]![0]).toMatchObject({
+          type: "attachment",
+          filename: "renderer.dmp",
+          attachment_type: "event.minidump",
+        });
+        expect(Buffer.from(dumped.attachments[0]![1] as Uint8Array)).toEqual(attachmentData);
+
+        // Live revocation: the next event keeps the scrubbed summary but no
+        // longer carries the memory snapshot.
+        writeConsent({
+          productAnalytics: false,
+          crashReports: true,
+          nativeCrashDumps: false,
+          consentDecided: true,
+        });
+        start = envelopes.length;
+        load = nextMinidumpLoad();
+        await rendererCrashHandler!({}, { id: 43 }, { reason: "oom" });
+        await load;
+        expect(await sentryClient.flush(2000)).toBe(true);
+        const revoked = eventAndAttachments(start);
+        expect(revoked.events).toHaveLength(1);
+        expect(revoked.attachments).toHaveLength(0);
+        expect(revoked.events[0]![1]).toMatchObject({
+          platform: "native",
+          level: "fatal",
+          tags: { "event.environment": "native" },
         });
 
-        const sentItems = envelopes.map(
-          (envelope) => (envelope as [unknown, Array<[Record<string, unknown>, unknown]>])[1],
-        );
-        const allItems = sentItems.flatMap((items) => items);
-        const sentEvents = allItems.filter(([headers]) => headers.type === "event");
-        const sentAttachments = allItems.filter(([headers]) => headers.type === "attachment");
-        expect(sentEvents).toHaveLength(2);
-        expect(sentEvents[1]![1]).toMatchObject({
-          level: eventsAfterBeforeSend[1]!.level,
-          platform: eventsAfterBeforeSend[1]!.platform,
-          tags: eventsAfterBeforeSend[1]!.tags,
-          fingerprint: eventsAfterBeforeSend[1]!.fingerprint,
+        // General crash-report opt-out: nothing leaves, even though the
+        // native integration still produced an event and an attachment.
+        writeConsent({
+          productAnalytics: false,
+          crashReports: false,
+          nativeCrashDumps: false,
+          consentDecided: true,
         });
-        expect(sentAttachments).toHaveLength(2);
-        for (const attachment of sentAttachments) {
-          expect(attachment[0]).toMatchObject({
-            type: "attachment",
-            filename: "renderer.dmp",
-            attachment_type: "event.minidump",
-          });
-          expect(Buffer.from(attachment[1] as Uint8Array)).toEqual(attachmentData);
-        }
+        start = envelopes.length;
+        load = nextMinidumpLoad();
+        await rendererCrashHandler!({}, { id: 44 }, { reason: "oom" });
+        await load;
+        expect(await sentryClient.flush(2000)).toBe(true);
+        expect(envelopes).toHaveLength(start);
+        expect(eventsAfterBeforeSend).toHaveLength(3);
+        expect(eventsAtBeforeSend).toHaveLength(4);
       });
       expect(electronMock.crashReporter.start).toHaveBeenCalledWith(
         expect.objectContaining({ uploadToServer: false }),

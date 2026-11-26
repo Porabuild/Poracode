@@ -1,5 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PORACODE_TELEMETRY_DOC_URL } from "@/shared/communityLinks";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const bridge = vi.hoisted(() => ({
@@ -23,14 +24,18 @@ vi.mock("@/renderer/clientRuntime", async (importOriginal) => {
 });
 
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { TelemetryConsentPrompt } from "./TelemetryConsentPrompt";
+import { TelemetryConsentPrompt, WelcomeTelemetryChoices } from "./TelemetryConsentPrompt";
 
 function seedPrivacy(privacy: {
   productAnalytics: boolean;
   crashReports: boolean;
+  nativeCrashDumps?: boolean;
   consentDecided: boolean;
 }) {
-  useSharedSettings.setState({ privacy, sharedSettingsHydrated: true });
+  useSharedSettings.setState({
+    privacy: { ...privacy, nativeCrashDumps: privacy.nativeCrashDumps ?? false },
+    sharedSettingsHydrated: true,
+  });
 }
 
 describe("TelemetryConsentPrompt", () => {
@@ -39,6 +44,7 @@ describe("TelemetryConsentPrompt", () => {
     localStorage.setItem("poracode-welcome-seen-v16", "true");
     bridge.remote = false;
     bridge.telemetryHardDisabled = false;
+    bridge.openExternal.mockClear();
     seedPrivacy({ productAnalytics: false, crashReports: false, consentDecided: false });
   });
 
@@ -56,6 +62,10 @@ describe("TelemetryConsentPrompt", () => {
 
     const prompt = screen.getByRole("dialog", { name: "Help improve Poracode?" });
     expect(prompt).toHaveAttribute("aria-modal", "false");
+    expect(
+      screen.getByText("Send feature-use events and a random installation ID to PostHog."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Send scrubbed crash diagnostics to Sentry.")).toBeInTheDocument();
     expect(keepWorking.closest('[aria-hidden="true"], [inert]')).toBeNull();
     expect(document.activeElement).toBe(keepWorking);
   });
@@ -69,6 +79,7 @@ describe("TelemetryConsentPrompt", () => {
     expect(useSharedSettings.getState().privacy).toEqual({
       productAnalytics: false,
       crashReports: false,
+      nativeCrashDumps: false,
       consentDecided: false,
     });
   });
@@ -80,6 +91,7 @@ describe("TelemetryConsentPrompt", () => {
     expect(useSharedSettings.getState().privacy).toEqual({
       productAnalytics: false,
       crashReports: false,
+      nativeCrashDumps: false,
       consentDecided: false,
     });
 
@@ -88,23 +100,42 @@ describe("TelemetryConsentPrompt", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("Accept all turns both streams on and records the decision", () => {
+  it("Accept all turns both ordinary streams on and records the decision", () => {
     render(<TelemetryConsentPrompt />);
     fireEvent.click(screen.getByRole("button", { name: "Accept all" }));
     expect(useSharedSettings.getState().privacy).toEqual({
       productAnalytics: true,
       crashReports: true,
+      nativeCrashDumps: false,
+      consentDecided: true,
+    });
+  });
+
+  it("never enables native crash dumps through the ordinary first-run choice", () => {
+    seedPrivacy({
+      productAnalytics: false,
+      crashReports: true,
+      nativeCrashDumps: true,
+      consentDecided: false,
+    });
+    render(<TelemetryConsentPrompt />);
+    fireEvent.click(screen.getByRole("button", { name: "Accept all" }));
+    expect(useSharedSettings.getState().privacy).toEqual({
+      productAnalytics: true,
+      crashReports: true,
+      nativeCrashDumps: false,
       consentDecided: true,
     });
   });
 
   it("Save choices keeps the switch states", () => {
     render(<TelemetryConsentPrompt />);
-    fireEvent.click(screen.getByRole("switch", { name: "Anonymous product analytics" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Product analytics" }));
     fireEvent.click(screen.getByRole("button", { name: "Save choices" }));
     expect(useSharedSettings.getState().privacy).toEqual({
       productAnalytics: true,
       crashReports: false,
+      nativeCrashDumps: false,
       consentDecided: true,
     });
   });
@@ -117,8 +148,23 @@ describe("TelemetryConsentPrompt", () => {
     expect(useSharedSettings.getState().privacy).toEqual({
       productAnalytics: false,
       crashReports: false,
+      nativeCrashDumps: false,
       consentDecided: true,
     });
+  });
+
+  it("reuses the telemetry doc link on the first-launch welcome", () => {
+    render(
+      <WelcomeTelemetryChoices
+        productAnalytics={false}
+        crashReports={false}
+        onProductAnalyticsChange={() => {}}
+        onCrashReportsChange={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "See exactly what is collected" }));
+    expect(bridge.openExternal).toHaveBeenCalledWith(PORACODE_TELEMETRY_DOC_URL);
   });
 
   it("stays hidden once decided, in remote sessions, and under the env hard-off", () => {

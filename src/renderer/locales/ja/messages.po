@@ -2044,8 +2044,12 @@ msgid "An agent is fixing this PR."
 msgstr "エージェントがこのPRを修正しています。"
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "An environment variable on this machine keeps both options off."
-msgstr "このマシンの環境変数により、両オプションはオフのままになります。"
+#~ msgid "An environment variable on this machine keeps both options off."
+#~ msgstr "このマシンの環境変数により、両オプションはオフのままになります。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "An environment variable on this machine keeps telemetry off."
+msgstr "このマシンの環境変数により、テレメトリはオフのままです。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -2065,14 +2069,14 @@ msgstr "この名前のMCPサーバーはすでに存在します。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Anonymous feature-use events. No prompts, code, or location."
-msgstr "匿名の機能利用イベント。プロンプト、コード、位置情報は含みません。"
+#~ msgid "Anonymous feature-use events. No prompts, code, or location."
+#~ msgstr "匿名の機能利用イベント。プロンプト、コード、位置情報は含みません。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Anonymous product analytics"
-msgstr "匿名のプロダクト分析"
+#~ msgid "Anonymous product analytics"
+#~ msgstr "匿名のプロダクト分析"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -3753,6 +3757,10 @@ msgstr "スケジュール時刻を逃した場合の動作を選択します。
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "新しいプルリクエストに対するPoracodeの動作を選択します：何もしない、マージの妨げを修正する、または修正してマージする。"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Choose what the desktop app sends."
+msgstr "デスクトップアプリが送信する内容を選択します。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
 msgstr "新しいセッションの実行場所を選びます。既存のセッションを移すには、チャットで /handoff を使ってください。"
@@ -5382,8 +5390,8 @@ msgstr "報告された通貨全体のカバー範囲"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Crash diagnostics with personal data removed."
-msgstr "個人データを含まないクラッシュ診断。"
+#~ msgid "Crash diagnostics with personal data removed."
+#~ msgstr "個人データを含まないクラッシュ診断。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -7946,6 +7954,12 @@ msgstr "お気に入り"
 msgid "Favorites"
 msgstr "お気に入り"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
+#~ msgstr "ランダムなインストール ID に紐づく機能利用イベント。プロンプト、コード、位置情報は含みません。"
+
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "フィードバック"
@@ -9485,6 +9499,11 @@ msgstr "同期に追加"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include memory when a thread starts."
 msgstr "スレッド開始時にメモリを含める。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include native crash dumps"
+msgstr "ネイティブクラッシュダンプを含める"
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
@@ -14237,8 +14256,12 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode は、実行中のコンピュータ操作のターンのためにこの Mac のロックを一時的に解除し、作業中はすべてのディスプレイを覆い、ターンが終わると再びロックします。この Mac でキーを押したりポインタを動かしたりすると、すぐにロックされます。インストールには一度だけ管理者の承認が必要です。組織が管理している Mac では、事前に IT 部門に確認してください。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-msgstr "Poracode は匿名の利用分析とクラッシュレポートを送信できます。プロンプト、コード、ファイル名、ターミナル出力は含みません。"
+#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
+#~ msgstr "Poracode は匿名の利用分析とクラッシュレポートを送信できます。プロンプト、コード、ファイル名、ターミナル出力は含みません。"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Poracode can send product analytics and crash reports."
+msgstr "Poracode はプロダクト分析とクラッシュレポートを送信できます。"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
@@ -14311,8 +14334,8 @@ msgid "Poracode remembers preferences and corrections across providers. Capture 
 msgstr "Poracode はプロバイダをまたいで好みと修正を覚えます。取り込みはターン終了後に始まります。1 日 1 回の処理でまとめます。繰り返した作業から学んだスキルは、承認するまで提案のままです。"
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-msgstr "オンにしない限り、Poracode は何も送信しません。プロンプト、コード、ファイル名は決して含みません。"
+#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
+#~ msgstr "オンにしない限り、Poracode は何も送信しません。プロンプト、コード、ファイル名は決して含みません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14581,6 +14604,12 @@ msgstr "{0} v{1}を確認中"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Probing v{0}"
 msgstr "v{0}を確認中"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Product analytics"
+msgstr "プロダクト分析"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
@@ -17051,6 +17080,12 @@ msgstr "一番下までスクロール"
 msgid "Scroll to prompt: {preview}"
 msgstr "プロンプトまでスクロール: {preview}"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
+#~ msgstr "サニタイズ済みのクラッシュ診断を Sentry に送信します。ネイティブクラッシュダンプは別の選択です。"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK インストール済み"
@@ -17456,6 +17491,12 @@ msgstr "送信"
 msgid "Send a message..."
 msgstr "メッセージを入力..."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send feature-use events and a random installation ID to PostHog."
+msgstr "機能利用イベントとランダムなインストール ID を PostHog に送信します。"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Send feedback"
@@ -17470,6 +17511,12 @@ msgstr "会話のタイトルの代わりに一般的なテキストを Apple �
 msgid "Send message"
 msgstr "メッセージを送信する"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send scrubbed crash diagnostics to Sentry."
+msgstr "サニタイズ済みのクラッシュ診断を Sentry に送信します。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "ターミナルに入力を送信"
@@ -17477,6 +17524,11 @@ msgstr "ターミナルに入力を送信"
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Sending {sent} of {total}…"
 msgstr "{total} 中 {sent} を送信しています…"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sends memory snapshots to Sentry that may contain sensitive data."
+msgstr "機密データを含む可能性があるメモリスナップショットを Sentry に送信します。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -21034,6 +21086,10 @@ msgstr "試してみる"
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "このプロジェクトのスレッドで、インストール済みプラグインをオンまたはオフにします。スレッド自身のプラグイン選択が引き続き優先され、実行中のスレッドは次回の起動時に変更を適用します。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Turn on crash reports to include native dumps."
+msgstr "ネイティブクラッシュダンプを含めるには、クラッシュレポートをオンにしてください。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
