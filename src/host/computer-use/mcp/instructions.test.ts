@@ -101,15 +101,18 @@ describe("computer use instructions", () => {
 
   // Testers paid this string on every session before the first tool call.
   // Keep the safety wording; detailed tree/scroll reference stays in the core skill.
-  it("tells the agent to load the plugin core skill before acting", () => {
+  it("offers host skill lookup and desktop inspection when provider skill lookup fails", () => {
     expect(COMPUTER_USE_CORE_SKILL).toBe(
       computerUsePlugin.extensions[PORACODE_EXTENSION_NAMESPACE].coreSkill,
     );
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      `load the ${COMPUTER_USE_CORE_SKILL} skill by name`,
+      `load the ${COMPUTER_USE_CORE_SKILL} skill by name if your provider lists it`,
     );
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "These instructions are the contract for every tool result",
+      'use poracode_read on the Poracode MCP to run list_skills with query "Computer Use", then read_skill',
+    );
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "If you still cannot load it, follow these instructions and check desktop access with list_windows.",
     );
   });
 
