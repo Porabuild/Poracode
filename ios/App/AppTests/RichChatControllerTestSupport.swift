@@ -114,6 +114,57 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     stringResponse = response
   }
 
+  private(set) var delegatedSubscriptions: [(parentItemID: String, viewerID: String)] = []
+  private(set) var delegatedUnsubscriptions: [(parentItemID: String, viewerID: String)] = []
+  var delegatedSubscribeResponses: [RichChatControllerTestResponse<RichChatDelegatedWatchResult>] = []
+  var delegatedSubscribeBarrier: RichChatControllerTestBarrier?
+
+  func configureDelegatedSubscribe(
+    _ response: RichChatControllerTestResponse<RichChatDelegatedWatchResult>,
+    barrier: RichChatControllerTestBarrier? = nil
+  ) {
+    delegatedSubscribeResponses = [response]
+    delegatedSubscribeBarrier = barrier
+  }
+
+  func configureDelegatedSubscribe(
+    _ responses: [RichChatControllerTestResponse<RichChatDelegatedWatchResult>]
+  ) {
+    delegatedSubscribeResponses = responses
+    delegatedSubscribeBarrier = nil
+  }
+
+  func clearDelegatedSubscribeBarrier() {
+    delegatedSubscribeBarrier = nil
+  }
+
+  func subscribeRichDelegatedAgent(
+    target: RichChatThreadTarget,
+    parentItemID: String,
+    viewerID: String
+  ) async throws -> RichChatDelegatedWatchResult {
+    calls.append("delegated-subscribe")
+    delegatedSubscriptions.append((parentItemID, viewerID))
+    // Claim this call's response before suspending so a later remount cannot
+    // consume the deferred first subscription's reply.
+    let response =
+      delegatedSubscribeResponses.isEmpty ? nil : delegatedSubscribeResponses.removeFirst()
+    if let delegatedSubscribeBarrier { await delegatedSubscribeBarrier.suspend() }
+    guard let response else {
+      return RichChatDelegatedWatchResult(history: [], leaseMs: 90_000)
+    }
+    return try response.get()
+  }
+
+  func unsubscribeRichDelegatedAgent(
+    target _: RichChatThreadTarget,
+    parentItemID: String,
+    viewerID: String
+  ) async throws {
+    calls.append("delegated-unsubscribe")
+    delegatedUnsubscriptions.append((parentItemID, viewerID))
+  }
+
   func loadRichHistory(
     target _: RichChatThreadTarget,
     targetEntryCount _: Int?

@@ -28,12 +28,20 @@ struct RichToolActivityItemView: View {
           RichChatPresentedTool(item: displayed, presentation: presentation, mediaController: mediaController,
             expansion: expansion)
         } else {
+          let fallbackImages = RichChatPresentation.images(for: displayed)
           RichChatActivityRow(title: RichChatPresentation.typeLabel(for: item),
             text: item.detailsDeferred ? "" : fallbackText,
             icon: .init(category: RichChatActivityGroupSummary.category(for: item)), duration: nil,
             isWorking: displayed.state != .completed, disclosureID: "item:\(item.id)",
-            expandedBinding: expansion, detailsAvailable: item.detailsDeferred,
+            expandedBinding: expansion,
+            detailsAvailable: item.detailsDeferred || !fallbackImages.isEmpty,
             accessibilityID: "native-e2e.tool-details.\(item.id)")
+          if expansion.wrappedValue {
+            ForEach(fallbackImages) { image in
+              RichChatImageView(source: image, controller: mediaController)
+                .accessibilityIdentifier("native-e2e.tool-image.\(item.id)")
+            }
+          }
           if expansion.wrappedValue, item.detailsDeferred, !displayed.detailsDeferred {
             RichToolCodeBlock(text: Self.fullFallback(displayed),
               identifier: "native-e2e.history-details.fallback.\(item.id)")

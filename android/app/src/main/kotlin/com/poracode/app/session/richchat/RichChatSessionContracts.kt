@@ -147,6 +147,16 @@ data class RichChatHistoryPage(
     val runtimeNotice: com.poracode.app.model.RemoteRuntimeHistoryNotice? = null,
 )
 
+/**
+ * One scoped viewer admission for an active delegated roster row. Current
+ * hosts return empty [history] and stream child output on the normal live
+ * frame; legacy hosts may replay the drained buffer and omit [leaseMs].
+ */
+data class RichChatDelegatedWatchResult(
+    val history: List<RichRuntimeEvent>,
+    val leaseMs: Long?,
+)
+
 /** One `ct1.` older-completed-turn page; `nextCursor == null` ends the walk. */
 data class RichChatTurnsPage(
     val turns: List<com.poracode.app.chat.RichCompletedTurn>,
@@ -336,6 +346,30 @@ interface RichChatSessionGateway {
      * advertising a capability the session does not have.
      */
     suspend fun listSessionActions(lease: RichChatHostLease, threadId: String): List<String>
+
+    /**
+     * Scoped viewer lease for one active delegated parent. Current hosts drain
+     * child output into the normal live stream and return empty history; a
+     * legacy host may return the drained buffer and no lease duration.
+     */
+    suspend fun subscribeDelegatedAgent(
+        lease: RichChatHostLease,
+        threadId: String,
+        parentItemId: String,
+        viewerId: String,
+    ): RichChatDelegatedWatchResult = throw RichChatGatewayException(
+        501,
+        "delegated_watch_unavailable",
+        false,
+    )
+
+    /** Best-effort release using the same viewer id ever sent to subscribe. */
+    suspend fun unsubscribeDelegatedAgent(
+        lease: RichChatHostLease,
+        threadId: String,
+        parentItemId: String,
+        viewerId: String,
+    ) {}
 
     /**
      * Single-attempt neutral session-action mutation addressed by id only —

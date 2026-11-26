@@ -297,6 +297,12 @@ export function showSubAgentPanel(
       ? { returnToThreadInfo: true as const }
       : {}),
   });
+  // Compact has no right panel: the same context opens a full page whose
+  // Back/Forward history is owned by mobilePageHistory.
+  if (isCompactLayoutViewport()) {
+    panelStore.openMobileUtilityPage("subagent");
+    return;
+  }
   panelStore.setRightPanelTab("subagent");
 }
 

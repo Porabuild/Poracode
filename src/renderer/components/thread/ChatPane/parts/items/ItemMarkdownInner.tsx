@@ -196,7 +196,8 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     [actions, rootNames],
   );
   const mediaLocation = actions?.mediaLocation ?? actions?.projectLocation;
-  const projectRoot = mediaLocation ? getProjectFsPath(mediaLocation) : undefined;
+  const projectRoot =
+    actions?.markdownImageRoot ?? (mediaLocation ? getProjectFsPath(mediaLocation) : undefined);
   const extraRoots = actions?.markdownImageRoots;
   const formatTranscript = actions?.formatTranscriptMarkdown ?? identityMarkdown;
   const formattedText = formatTranscript(text);
@@ -542,11 +543,10 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
   if (!href) return <span>{props.children}</span>;
   const explicitPathRef = parsePathRefUrl(href);
   if (explicitPathRef) {
-    return actions ? (
-      renderPathChip(explicitPathRef, actions.projectLocation, actions)
-    ) : (
-      <span>{props.children}</span>
-    );
+    if (actions && (actions.projectLocation || actions.openProjectRelativePath)) {
+      return renderPathChip(explicitPathRef, actions.projectLocation, actions);
+    }
+    return <span>{props.children}</span>;
   }
 
   if (isChatVideoSource(href)) {

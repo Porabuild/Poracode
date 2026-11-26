@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 15
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:6a584faee494e702ea62f017efa2a2f792da2bfa95721d6627da87aabb14ecee"
+  public static let sourceHash = "sha256:3d0881a2b8371ca5dc1aad74f90689d81e37c04c0dd163aacd3811855a8998af"
   public static let manifestHash = "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -328,8 +328,8 @@ public enum RemoteContractMetadata {
     .init(name: "stageThreadInput", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurestageThreadInputRequest_d4db039cba", resultType: "RemoteUnit"),
     .init(name: "startThread", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedureensureThreadRunningRequest_f948b00041", resultType: "ProcedurecancelExtractContextRequest_09b78d9c1d"),
     .init(name: "steerQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
-    .init(name: "subagentSubscribe", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "ProceduresubagentSubscribeResult_1caa7842d1"),
-    .init(name: "subagentUnsubscribe", scope: "session:read", owner: "thread", resultKind: "omitted", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "RemoteUnit"),
+    .init(name: "subagentSubscribe", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProceduresubagentSubscribeRequest_830623dd7f", resultType: "ProceduresubagentSubscribeResult_fb8d487dc0"),
+    .init(name: "subagentUnsubscribe", scope: "session:read", owner: "thread", resultKind: "omitted", requestType: "ProceduresubagentSubscribeRequest_830623dd7f", resultType: "RemoteUnit"),
     .init(name: "uninstallAgentHookPlugin", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduregetNativeMcpSetupRequest_cb16458180", resultType: "ProcedureinstallAgentHookPluginResult_482260ac5d"),
     .init(name: "updateAcpRegistryAgent", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureinstallAcpRegistryAgentRequest_e484765a09", resultType: "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
     .init(name: "updateAgentBinary", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureupdateAgentBinaryRequest_580654e207", resultType: "ProcedureupdateAgentBinaryResult_0d863fe350"),

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -16,6 +16,13 @@ import {
   undockPanelTab,
 } from "./panelActions";
 
+const viewport = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/adaptiveLayout")>()),
+  isCompactLayoutViewport: () => viewport.compact,
+}));
+
 function resetDockState() {
   useSharedSettings.setState({ terminalPosition: "bottom", gitReviewMode: "panel" });
   usePanelStore.setState({
@@ -28,6 +35,9 @@ function resetDockState() {
     deviceWorkspaceThreadId: null,
     gitReviewContext: null,
     gitReviewAsPanel: false,
+    mobileUtilityPage: null,
+    subAgentPanelContext: null,
+    subAgentPanelOpen: false,
   });
   useDevTerminalStore.setState({
     isOpen: false,
@@ -181,7 +191,12 @@ describe("dockPanelTab", () => {
 describe("showSubAgentPanel", () => {
   beforeEach(() => {
     resetDockState();
+    viewport.compact = false;
     usePanelStore.setState({ subAgentPanelContext: null, threadDocksPanelOpen: true });
+  });
+
+  afterEach(() => {
+    viewport.compact = false;
   });
 
   it("remembers Thread Info only for opens from its selected panel", () => {
@@ -213,6 +228,24 @@ describe("showSubAgentPanel", () => {
     usePanelStore.setState({ rightPanelTab: "docks", threadDocksPanelOpen: false });
     showSubAgentPanel("thread-1", "agent-1", undefined, "thread-info");
     expect(usePanelStore.getState().subAgentPanelContext?.returnToThreadInfo).toBeUndefined();
+  });
+
+  it("opens the compact subagent page instead of the desktop side panel", () => {
+    viewport.compact = true;
+    usePanelStore.setState({ rightPanelTab: "git" });
+    const projectLocation = { kind: "posix" as const, path: "/work" };
+
+    showSubAgentPanel("thread-1", "agent-1", projectLocation);
+
+    expect(usePanelStore.getState()).toMatchObject({
+      mobileUtilityPage: "subagent",
+      rightPanelTab: "git",
+      subAgentPanelContext: {
+        threadId: "thread-1",
+        parentItemId: "agent-1",
+        projectLocation,
+      },
+    });
   });
 });
 

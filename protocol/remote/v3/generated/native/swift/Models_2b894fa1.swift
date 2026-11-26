@@ -194,15 +194,18 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117: Codabl
   }
 }
 
-public struct ProceduresubagentSubscribeResult_1caa7842d1: Codable, Sendable, RemoteModelMetadata {
+public struct ProceduresubagentSubscribeResult_fb8d487dc0: Codable, Sendable, RemoteModelMetadata {
   public var history: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117]
+  public var leaseMs: RemoteField<Int64> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "history", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "leaseMs", typeName: "Int64", required: false, nullable: false, minimum: nil, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case history = "history"
+    case leaseMs = "leaseMs"
   }
 }
 

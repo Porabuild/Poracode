@@ -138,11 +138,31 @@ describe("ThreadSessionManager sub-agent buffer", () => {
     expect(manager.subagentSubscribe({ threadId, parentItemId: parentId }).history).toEqual([]);
   });
 
+  it("returns a lease only for scoped viewers while preserving the legacy result", () => {
+    const { manager } = makeManager();
+    const threadId = "t1";
+    const parentId = "task-1";
+    const viewerId = "11111111-1111-4111-8111-111111111111";
+
+    const legacy = manager.subagentSubscribe({ threadId, parentItemId: parentId });
+    expect(legacy).toEqual({ history: [] });
+    expect("leaseMs" in legacy).toBe(false);
+
+    expect(manager.subagentSubscribe({ threadId, parentItemId: parentId, viewerId })).toEqual({
+      history: [],
+      leaseMs: 90_000,
+    });
+    expect(manager.subagentSubscribe({ threadId, parentItemId: parentId, viewerId })).toEqual({
+      history: [],
+      leaseMs: 90_000,
+    });
+    manager.subagentUnsubscribe({ threadId, parentItemId: parentId, viewerId });
+  });
+
   it("forwards child events live once the overlay is subscribed", () => {
     const { manager, emit } = makeManager();
     const threadId = "t1";
     const parentId = "task-1";
-
     enqueue(manager, threadId, {
       type: "item.started",
       threadId,

@@ -118,6 +118,8 @@
     <string name="rich_chat_subagent">Субагент</string>
     <string name="rich_chat_crossagent">Кросс-агент</string>
     <string name="rich_chat_workflow">Рабочий процесс</string>
+    <string name="rich_chat_watch_live">Смотреть в реальном времени</string>
+    <string name="rich_chat_stop_watching">Остановить просмотр</string>
     <string name="rich_chat_activity_count">Действия: %1$d</string>
     <string name="rich_chat_sign_in_required">Требуется вход</string>
     <string name="rich_chat_plan">План</string>

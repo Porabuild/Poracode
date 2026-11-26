@@ -39,6 +39,9 @@ class WireLabControl(controlBaseUrl: String, private val capability: String) {
 
     fun reset(): JSONObject = action(JSONObject().put("type", "reset"))
 
+    fun checkpoint(fixtureId: String): JSONObject =
+        post("/v1/checkpoints/${fixtureId}", body = null)
+
     fun pairingUrl(hostId: String? = null): JSONObject =
         action(JSONObject().put("type", "pairing-url").also { b ->
             if (hostId != null) b.put("hostId", hostId)

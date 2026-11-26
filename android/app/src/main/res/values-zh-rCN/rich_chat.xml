@@ -118,6 +118,8 @@
     <string name="rich_chat_subagent">子代理</string>
     <string name="rich_chat_crossagent">跨代理</string>
     <string name="rich_chat_workflow">工作流</string>
+    <string name="rich_chat_watch_live">实时查看</string>
+    <string name="rich_chat_stop_watching">停止查看</string>
     <string name="rich_chat_activity_count">活动：%1$d</string>
     <string name="rich_chat_sign_in_required">需要登录</string>
     <string name="rich_chat_plan">计划</string>

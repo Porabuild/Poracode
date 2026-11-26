@@ -85,6 +85,32 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         return downloadHandler(lease, request, projectLocation, destinationDirectory)
     }
 
+    val delegatedSubscriptions = mutableListOf<Pair<String, String>>()
+    val delegatedUnsubscriptions = mutableListOf<Pair<String, String>>()
+    var delegatedSubscribeHandler: suspend (parentItemId: String, viewerId: String) -> RichChatDelegatedWatchResult =
+        { _, _ -> RichChatDelegatedWatchResult(emptyList(), 90_000L) }
+
+    override suspend fun subscribeDelegatedAgent(
+        lease: RichChatHostLease,
+        threadId: String,
+        parentItemId: String,
+        viewerId: String,
+    ): RichChatDelegatedWatchResult {
+        calls += "delegated-subscribe"
+        delegatedSubscriptions += parentItemId to viewerId
+        return delegatedSubscribeHandler(parentItemId, viewerId)
+    }
+
+    override suspend fun unsubscribeDelegatedAgent(
+        lease: RichChatHostLease,
+        threadId: String,
+        parentItemId: String,
+        viewerId: String,
+    ) {
+        calls += "delegated-unsubscribe"
+        delegatedUnsubscriptions += parentItemId to viewerId
+    }
+
     override suspend fun history(
         lease: RichChatHostLease,
         threadId: String,

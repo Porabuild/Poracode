@@ -31,6 +31,16 @@ final class RichChatContentFixtureTests: XCTestCase {
     XCTAssertEqual(RichMcpAppPresentation(item: items[0])?.title, "deployment")
     XCTAssertNil(RichMcpAppPresentation(item: items[1]))
     XCTAssertNil(RichMcpAppPresentation(item: items[2]))
+    XCTAssertNotNil(interactiveMcpAppPresentation(for: items[0]))
+    let childApp = RichRuntimeItem(
+      id: "child-deployment-app",
+      type: items[0].type,
+      state: items[0].state,
+      payload: items[0].payload,
+      streams: items[0].streams,
+      parentItemID: "parent-tool"
+    )
+    XCTAssertNil(interactiveMcpAppPresentation(for: childApp))
     let projection = RichTimeline.project(items)
     XCTAssertTrue(projection.visibleEntries.contains { entry in
       if case .item(let node) = entry { return node.item.id == "live-deployment-app" }
@@ -73,8 +83,9 @@ final class RichChatContentFixtureTests: XCTestCase {
     let turns = try RichTimeline.decodeCompletedTurns(
       try XCTUnwrap(fixture["completedTurns"])
     )
-    XCTAssertEqual(items.count, 8)
-    XCTAssertEqual(items.filter { $0.parentItemID == "rich-parent-tool" }.count, 2)
+    XCTAssertEqual(items.count, 11)
+    XCTAssertEqual(items.filter { $0.parentItemID == "rich-parent-tool" }.count, 3)
+    XCTAssertEqual(items.filter { $0.parentItemID == "rich-crossagent-parent-tool" }.count, 1)
     XCTAssertEqual(items[1].streams["assistant_text"], "Starting review.")
     XCTAssertEqual(turns.map(\.anchorItemID), ["rich-assistant-1", "rich-assistant-2"])
     XCTAssertEqual(turns.map(\.durationMilliseconds), [2_000, 5_000])
@@ -83,16 +94,48 @@ final class RichChatContentFixtureTests: XCTestCase {
     XCTAssertEqual(
       projection.rawRoots.map(\.item.id),
       [
-        "rich-user-1", "rich-assistant-1", "rich-parent-tool", "rich-assistant-2",
-        "rich-model-switch-1", "rich-user-2",
+        "rich-user-1", "rich-assistant-1", "rich-parent-tool", "rich-crossagent-parent-tool",
+        "rich-assistant-2", "rich-model-switch-1", "rich-user-2",
       ]
     )
     XCTAssertEqual(
       projection.rawRoots[2].children.map(\.item.id),
       [
-        "rich-child-reasoning", "rich-child-answer",
+        "rich-child-reasoning", "rich-child-answer", "rich-child-image",
       ])
+    XCTAssertEqual(
+      projection.rawRoots[3].children.map(\.item.id),
+      ["rich-crossagent-child-image"])
     XCTAssertEqual(RichTimeline.visibleItemIDs(in: projection), items.map(\.id))
+
+    let subagentParent = try XCTUnwrap(items.first { $0.id == "rich-parent-tool" })
+    let crossagentParent = try XCTUnwrap(items.first { $0.id == "rich-crossagent-parent-tool" })
+    XCTAssertEqual(subagentParent.state, .completed)
+    XCTAssertEqual(crossagentParent.state, .completed)
+    XCTAssertEqual(subagentParent.payload?.objectValue?["isSubAgent"]?.boolValue, true)
+    XCTAssertEqual(crossagentParent.payload?.objectValue?["isCrossagent"]?.boolValue, true)
+
+    for itemID in [
+      "rich-child-image",
+      "rich-crossagent-child-image",
+    ] {
+      let child = try XCTUnwrap(items.first { $0.id == itemID })
+      XCTAssertTrue(RichTimeline.visibleItemIDs(in: projection).contains(itemID))
+      let images = RichChatPresentation.images(for: child)
+      XCTAssertEqual(images, [
+        .remote(
+          RichRemoteImageReference(
+            threadID: "thread-rich",
+            itemID: itemID,
+            path: [.key("result"), .key("content"), .index(0), .key("data")],
+            mimeType: "image/png",
+            bytes: 65_536,
+            width: 880,
+            height: 700,
+            preview: nil
+          ))
+      ])
+    }
     XCTAssertEqual(
       RichTimeline.resolveCompletedTurnAnchors(turns, in: projection),
       turns

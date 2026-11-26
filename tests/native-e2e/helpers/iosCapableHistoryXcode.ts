@@ -72,8 +72,10 @@ function xmlEscape(value: string): string {
 /**
  * Injects test-runner environment variables into the `NativeE2ETests`
  * blueprint's `EnvironmentVariables` dictionary and pins
- * `ParallelizationEnabled` to false, exactly like the mock ios-ui runner. The
- * pairing URL only ever reaches the 0o600 injected xctestrun file.
+ * `ParallelizationEnabled` to false when the key is present, exactly like the
+ * mock ios-ui runner. The runner also passes `-parallel-testing-enabled NO`,
+ * so an absent or already-false key is accepted unchanged. The pairing URL
+ * only ever reaches the 0o600 injected xctestrun file.
  */
 export function injectIosXctestEnvironment(
   plist: string,
@@ -107,10 +109,9 @@ export function injectIosXctestEnvironment(
   const parallelKey = "<key>ParallelizationEnabled</key>\n\t\t\t\t\t<true/>";
   const parallelIndex = withEnvironment.indexOf(parallelKey, blueprintIndex);
   if (parallelIndex < 0) {
-    throw capableHistoryJourneyError(
-      "xctestrun-parallelization-missing",
-      `${blueprintName} parallelization setting not found in the generated xctestrun`,
-    );
+    // Xcode 26 may omit the key or emit <false/>. The journey passes an
+    // explicit `-parallel-testing-enabled NO`, which remains authoritative.
+    return withEnvironment;
   }
   return `${withEnvironment.slice(0, parallelIndex)}${parallelKey.replace("<true/>", "<false/>")}${withEnvironment.slice(parallelIndex + parallelKey.length)}`;
 }

@@ -35,6 +35,8 @@ import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type {
   ResolveMcpSessionIdentityPayload,
   ResolveMcpSessionIdentityResult,
+  SubAgentSubscribePayload,
+  SubAgentSubscribeResult,
   SupervisorEvent,
 } from "@/shared/ipc";
 import {
@@ -1020,11 +1022,15 @@ export class ThreadSessionManager {
    * returns `history: []` — the field remains for backward compatibility with
    * older clients/hosts that still deliver drained buffer events in the body.
    */
-  subagentSubscribe(payload: { threadId: string; parentItemId: string }): {
-    history: RuntimeEvent[];
-  } {
+  subagentSubscribe(payload: SubAgentSubscribePayload): SubAgentSubscribeResult {
+    const subscription = this.runtimeEventRouter.subscribeWithLease(
+      payload.threadId,
+      payload.parentItemId,
+      payload.viewerId,
+    );
     return {
-      history: this.runtimeEventRouter.subscribe(payload.threadId, payload.parentItemId),
+      history: subscription.history,
+      ...(subscription.leaseMs !== undefined ? { leaseMs: subscription.leaseMs } : {}),
     };
   }
 
@@ -1032,10 +1038,11 @@ export class ThreadSessionManager {
    * Renderer-facing: unsubscribe a sub-agent overlay. Subsequent child events
    * are buffered again until the parent completes, at which point the buffer
    * is flushed to the renderer so the overlay can replay every turn even if
-   * it was closed while the sub-agent ran.
+   * it was closed while the sub-agent ran. A scoped `viewerId` releases only
+   * that lease; the id-less form keeps legacy parent-only semantics.
    */
-  subagentUnsubscribe(payload: { threadId: string; parentItemId: string }): void {
-    this.runtimeEventRouter.unsubscribe(payload.threadId, payload.parentItemId);
+  subagentUnsubscribe(payload: SubAgentSubscribePayload): void {
+    this.runtimeEventRouter.unsubscribe(payload.threadId, payload.parentItemId, payload.viewerId);
   }
 
   /**

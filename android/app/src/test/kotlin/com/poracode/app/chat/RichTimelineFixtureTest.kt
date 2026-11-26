@@ -1,7 +1,10 @@
 package com.poracode.app.chat
 
+import com.poracode.app.ui.richchat.RichChatUiLogic
+import com.poracode.app.ui.richchat.RichImageSource
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,12 +30,43 @@ class RichTimelineFixtureTest {
         val turns = RichSnapshotMapping.decodeCompletedTurns(fixture.getValue("completedTurns"))!!
         val projection = RichTimeline.project(items)
 
-        assertEquals(8, projection.rawItems.size)
-        assertEquals(6, projection.rawRoots.size)
+        assertEquals(11, projection.rawItems.size)
+        assertEquals(7, projection.rawRoots.size)
         val parent = projection.rawRoots.single { it.item.id == "rich-parent-tool" }
-        assertEquals(listOf("rich-child-reasoning", "rich-child-answer"), parent.children.map { it.item.id })
+        assertEquals(
+            listOf("rich-child-reasoning", "rich-child-answer", "rich-child-image"),
+            parent.children.map { it.item.id },
+        )
+        val crossagentParent = projection.rawRoots.single { it.item.id == "rich-crossagent-parent-tool" }
+        assertEquals(listOf("rich-crossagent-child-image"), crossagentParent.children.map { it.item.id })
         assertEquals(items.map { it.id }, RichTimeline.visibleItemIds(projection))
         assertEquals(turns, RichTimeline.resolveCompletedTurnAnchors(turns, projection))
+
+        assertEquals(RichItemState.COMPLETED, parent.item.state)
+        assertEquals(RichItemState.COMPLETED, crossagentParent.item.state)
+        assertEquals(true, parent.item.payload?.jsonObject?.get("isSubAgent")?.booleanOrStrictNull())
+        assertEquals(true, crossagentParent.item.payload?.jsonObject?.get("isCrossagent")?.booleanOrStrictNull())
+
+        listOf("rich-child-image", "rich-crossagent-child-image").forEach { itemId ->
+            val child = items.single { it.id == itemId }
+            assertTrue(RichTimeline.visibleItemIds(projection).contains(itemId))
+            val source = RichChatUiLogic.images(child).single() as RichImageSource.Runtime
+            assertEquals("thread-rich", source.ref.threadId)
+            assertEquals(itemId, source.ref.itemId)
+            assertEquals(
+                listOf(
+                    RichImagePathPart.Key("result"),
+                    RichImagePathPart.Key("content"),
+                    RichImagePathPart.Index(0),
+                    RichImagePathPart.Key("data"),
+                ),
+                source.ref.path,
+            )
+            assertEquals("image/png", source.ref.mimeType)
+            assertEquals(65_536L, source.ref.bytes)
+            assertEquals(880L, source.ref.width)
+            assertEquals(700L, source.ref.height)
+        }
     }
 
     @Test

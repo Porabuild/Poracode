@@ -439,6 +439,7 @@
 		A100000000000000000000AA /* RichChatControllerSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AA /* RichChatControllerSupport.swift */; };
 		A100000000000000000000AB /* RichChatRemoteModelBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AB /* RichChatRemoteModelBridge.swift */; };
 		A100000000000000000000AC /* RichChatControllerSuite.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AC /* RichChatControllerSuite.swift */; };
+		A10000000000000000000ABCD /* RichChatDelegatedWatchController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000ABCD /* RichChatDelegatedWatchController.swift */; };
 		A100000000000000000000AD /* RichChatConversationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AD /* RichChatConversationController.swift */; };
 		A100000000000000000000AE /* RichChatRequestController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AE /* RichChatRequestController.swift */; };
 		A100000000000000000000AF /* RichChatCheckpointController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AF /* RichChatCheckpointController.swift */; };
@@ -1448,6 +1449,7 @@
 		B100000000000000000000AA /* RichChatControllerSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatControllerSupport.swift; sourceTree = "<group>"; };
 		B100000000000000000000AB /* RichChatRemoteModelBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatRemoteModelBridge.swift; sourceTree = "<group>"; };
 		B100000000000000000000AC /* RichChatControllerSuite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatControllerSuite.swift; sourceTree = "<group>"; };
+		B10000000000000000000ABCD /* RichChatDelegatedWatchController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatDelegatedWatchController.swift; sourceTree = "<group>"; };
 		B100000000000000000000AD /* RichChatConversationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatConversationController.swift; sourceTree = "<group>"; };
 		B100000000000000000000AE /* RichChatRequestController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatRequestController.swift; sourceTree = "<group>"; };
 		B100000000000000000000AF /* RichChatCheckpointController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCheckpointController.swift; sourceTree = "<group>"; };
@@ -2740,6 +2742,7 @@
 				B100000000000000000000AA /* RichChatControllerSupport.swift */,
 				B100000000000000000000AB /* RichChatRemoteModelBridge.swift */,
 				B100000000000000000000AC /* RichChatControllerSuite.swift */,
+				B10000000000000000000ABCD /* RichChatDelegatedWatchController.swift */,
 				B100000000000000000000AD /* RichChatConversationController.swift */,
 				B100000000000000000000AE /* RichChatRequestController.swift */,
 				B100000000000000000000AF /* RichChatCheckpointController.swift */,
@@ -4363,6 +4366,7 @@
 				A100000000000000000000AA /* RichChatControllerSupport.swift in Sources */,
 				A100000000000000000000AB /* RichChatRemoteModelBridge.swift in Sources */,
 				A100000000000000000000AC /* RichChatControllerSuite.swift in Sources */,
+				A10000000000000000000ABCD /* RichChatDelegatedWatchController.swift in Sources */,
 				A100000000000000000000AD /* RichChatConversationController.swift in Sources */,
 				A100000000000000000000AE /* RichChatRequestController.swift in Sources */,
 				A100000000000000000000AF /* RichChatCheckpointController.swift in Sources */,

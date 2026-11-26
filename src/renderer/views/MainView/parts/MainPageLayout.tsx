@@ -39,6 +39,13 @@ const DeferredBottomDockDropStrip = lazy(() =>
     (module) => ({ default: module.BottomDockDropStrip }),
   ),
 );
+// Header-only lazy entry keeps the virtualized transcript module out of the
+// app shell until a compact Subagent page actually needs its identity.
+const DeferredSubAgentHeaderText = lazy(() =>
+  import("@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay").then((module) => ({
+    default: module.SubAgentHeaderText,
+  })),
+);
 
 export function MainPageLayout(props: { onTitleClick: () => void }) {
   const { onTitleClick } = props;
@@ -53,6 +60,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
   const view = useAppStore((state) => state.view);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
+  const subAgentContext = usePanelStore((state) => state.subAgentPanelContext);
   const activeMobileUtilityPage = compactLayout ? mobileUtilityPage : null;
   useAgentDevicePanelAutoOpen(!compactLayout && activeMobileUtilityPage === null);
   const compactHome = view.kind === "home" && activeMobileUtilityPage === null;
@@ -81,6 +89,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
     if (activeMobileUtilityPage === "pullRequests") return t`Pull requests`;
     if (activeMobileUtilityPage === "schedules") return t`Schedules`;
     if (activeMobileUtilityPage === "githubActions") return t`GitHub Actions`;
+    if (activeMobileUtilityPage === "subagent") return t`Subagent`;
     if (activeMobileUtilityPage === "settings") return t`Settings`;
     if (state.view.kind === "thread") {
       const focusedId = state.focusedPaneId;
@@ -114,7 +123,14 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       compactHome={compactHome}
       compactTitle={compactTitle}
       compactHeaderChildren={
-        activeMobileUtilityPage === null && compactThread && compactProject ? (
+        activeMobileUtilityPage === "subagent" && subAgentContext ? (
+          <Suspense fallback={null}>
+            <DeferredSubAgentHeaderText
+              threadId={subAgentContext.threadId}
+              parentItemId={subAgentContext.parentItemId}
+            />
+          </Suspense>
+        ) : activeMobileUtilityPage === null && compactThread && compactProject ? (
           <CompactThreadHeader thread={compactThread} project={compactProject} />
         ) : undefined
       }

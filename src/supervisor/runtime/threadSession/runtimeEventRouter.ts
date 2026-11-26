@@ -1,7 +1,11 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { RuntimeEventBuffer, type RuntimeEventBufferOptions } from "./runtimeEventBuffer";
-import { SubAgentRegistry, type BufferedSubAgentEvents } from "./subAgentRegistry";
+import {
+  SubAgentRegistry,
+  type BufferedSubAgentEvents,
+  type SubAgentSubscription,
+} from "./subAgentRegistry";
 
 interface PendingChildAdmission {
   events: RuntimeEvent[];
@@ -68,14 +72,22 @@ export class RuntimeEventRouter {
    * ordered stream. The empty `history` return is intentional — older clients
    * still accept an empty RPC history as a no-op.
    */
-  subscribe(threadId: string, parentItemId: string): RuntimeEvent[] {
-    const drained = this.subAgents.subscribe(threadId, parentItemId);
-    this.publishChildren([{ threadId, parentItemId, events: drained }]);
-    return [];
+  subscribe(threadId: string, parentItemId: string, viewerId?: string): RuntimeEvent[] {
+    return this.subscribeWithLease(threadId, parentItemId, viewerId).history;
   }
 
-  unsubscribe(threadId: string, parentItemId: string): void {
-    this.subAgents.unsubscribe(threadId, parentItemId);
+  subscribeWithLease(
+    threadId: string,
+    parentItemId: string,
+    viewerId?: string,
+  ): SubAgentSubscription {
+    const subscription = this.subAgents.subscribeWithLease(threadId, parentItemId, viewerId);
+    this.publishChildren([{ threadId, parentItemId, events: subscription.history }]);
+    return { history: [], ...(subscription.leaseMs ? { leaseMs: subscription.leaseMs } : {}) };
+  }
+
+  unsubscribe(threadId: string, parentItemId: string, viewerId?: string): void {
+    this.subAgents.unsubscribe(threadId, parentItemId, viewerId);
   }
 
   clearAllForThread(threadId: string): void {

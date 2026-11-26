@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 15
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:6a584faee494e702ea62f017efa2a2f792da2bfa95721d6627da87aabb14ecee"
+    const val sourceHash = "sha256:3d0881a2b8371ca5dc1aad74f90689d81e37c04c0dd163aacd3811855a8998af"
     const val manifestHash = "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -333,8 +333,8 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("stageThreadInput", "session:operate", "thread", "omitted", "ProcedurestageThreadInputRequest_d4db039cba", "RemoteUnit"),
         RemoteProcedureDescriptor("startThread", "session:operate", "projectLocation", "json", "ProcedureensureThreadRunningRequest_f948b00041", "ProcedurecancelExtractContextRequest_09b78d9c1d"),
         RemoteProcedureDescriptor("steerQueuedThreadFollowUp", "session:operate", "thread", "omitted", "ProcedurepauseThreadFollowUpsRequest_d42717fff2", "RemoteUnit"),
-        RemoteProcedureDescriptor("subagentSubscribe", "session:read", "thread", "json", "ProceduresubagentSubscribeRequest_ff495aee3e", "ProceduresubagentSubscribeResult_1caa7842d1"),
-        RemoteProcedureDescriptor("subagentUnsubscribe", "session:read", "thread", "omitted", "ProceduresubagentSubscribeRequest_ff495aee3e", "RemoteUnit"),
+        RemoteProcedureDescriptor("subagentSubscribe", "session:read", "thread", "json", "ProceduresubagentSubscribeRequest_830623dd7f", "ProceduresubagentSubscribeResult_fb8d487dc0"),
+        RemoteProcedureDescriptor("subagentUnsubscribe", "session:read", "thread", "omitted", "ProceduresubagentSubscribeRequest_830623dd7f", "RemoteUnit"),
         RemoteProcedureDescriptor("uninstallAgentHookPlugin", "session:operate", "desktop", "json", "ProceduregetNativeMcpSetupRequest_cb16458180", "ProcedureinstallAgentHookPluginResult_482260ac5d"),
         RemoteProcedureDescriptor("updateAcpRegistryAgent", "session:operate", "desktop", "json", "ProcedureinstallAcpRegistryAgentRequest_e484765a09", "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
         RemoteProcedureDescriptor("updateAgentBinary", "session:operate", "desktop", "json", "ProcedureupdateAgentBinaryRequest_580654e207", "ProcedureupdateAgentBinaryResult_0d863fe350"),

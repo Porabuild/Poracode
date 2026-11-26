@@ -5,9 +5,6 @@ import { toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { isRemoteSession } from "@/renderer/bridge";
-import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
-import { resolveRemoteBridgeLocalImagePath } from "@/renderer/browser/remoteBridge";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import {
   useThreadHasBackgroundActivity,
@@ -24,8 +21,6 @@ import {
   hydrateFileCheckpoints,
 } from "@/renderer/state/fileCheckpointActions";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
-import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { useThreadImageAuthority } from "../threadImageAuthority";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
@@ -50,7 +45,7 @@ import {
 } from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { createChatPaneFileActions } from "./chatPaneFileActions";
-import { createMarkdownLocalImageAuthority } from "./markdownLocalImageAuthority";
+import { useThreadTranscriptImageActions } from "./useThreadTranscriptImageActions";
 import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import {
@@ -123,9 +118,6 @@ export function ChatPane(props: ChatPaneProps) {
   } = props;
   const { t } = useLingui();
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
-  const imageAuthority = useThreadImageAuthority(thread);
-  const isManagedThread = managedRootOwner(thread) !== undefined;
-  const isRemoteThread = !hostRunsOnThisMachine(thread);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
@@ -197,6 +189,10 @@ export function ChatPane(props: ChatPaneProps) {
   const projectRootNames = useProjectRootNames(
     isHomeScope ? undefined : targetContext?.projectLocation,
   );
+  const transcriptImageActions = useThreadTranscriptImageActions(
+    thread,
+    targetContext?.projectLocation,
+  );
 
   // Session-media roots (e.g. Grok `image_gen` → session `images/N.jpg`) so
   // markdown can resolve those relative paths via poracode-local://.
@@ -226,32 +222,12 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
-    // Images follow the thread's own connection; only owner-less rows use the
-    // bound bridge host (see resolveThreadImageAuthority).
-    const contentImageReadiness = imageAuthority.readiness;
     const contentActions: ChatPaneActions = {
       threadId,
       ...(targetContext ? { mediaLocation: targetContext.projectLocation } : {}),
-      // Image custody is independent of project/file actions, including Home.
-      // An explicit empty owner resolver must never fall through globally.
-      remoteImageRefUrl: imageAuthority.refUrl,
-      ...(contentImageReadiness ? { remoteImageReadiness: contentImageReadiness } : {}),
-      ...createMarkdownLocalImageAuthority({
-        projectLocation: targetContext?.projectLocation,
-        isManagedThread,
-        ...(isRemoteSession() || isRemoteThread
-          ? {
-              remote: {
-                available: imageAuthority.available,
-                readiness: contentImageReadiness,
-                ...(!isRemoteThread && isRemoteSession()
-                  ? { pathForUrl: resolveRemoteBridgeLocalImagePath }
-                  : {}),
-                resolvePath: imageAuthority.localImageUrl,
-              },
-            }
-          : {}),
-      }),
+      // Images follow the thread's own connection; only owner-less rows use the
+      // bound bridge host (see resolveThreadImageAuthority).
+      ...transcriptImageActions,
       ...(hasOpenThread ? { openThread } : {}),
       ...(formatTranscriptMarkdown ? { formatTranscriptMarkdown } : {}),
       ...(splitHtmlVisualFileReferences ? { splitHtmlVisualFileReferences } : {}),
@@ -299,9 +275,7 @@ export function ChatPane(props: ChatPaneProps) {
     hasOpenThread,
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
-    imageAuthority,
-    isManagedThread,
-    isRemoteThread,
+    transcriptImageActions,
   ]);
 
   useEffect(() => {

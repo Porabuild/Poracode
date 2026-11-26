@@ -701,6 +701,8 @@ async function runIosUIJourney({ registerShutdown }) {
         "-resultBundlePath",
         resultBundle,
         ...iosOnlyTestingFlags(),
+        "-parallel-testing-enabled",
+        "NO",
         "test-without-building",
       ],
       process.env,
@@ -1073,8 +1075,13 @@ function injectXCTestEnvironment(plist, environment) {
   const withEnvironment = `${plist.slice(0, insertion)}${entries}${plist.slice(insertion)}`;
   const parallelKey = "<key>ParallelizationEnabled</key>\n\t\t\t\t\t<true/>";
   const parallelIndex = withEnvironment.indexOf(parallelKey, blueprintIndex);
-  if (parallelIndex < 0) throw new Error("NativeE2ETests parallelization setting missing");
-  return `${withEnvironment.slice(0, parallelIndex)}${parallelKey.replace("<true/>", "<false/>")}${withEnvironment.slice(parallelIndex + parallelKey.length)}`;
+  if (parallelIndex >= 0) {
+    return `${withEnvironment.slice(0, parallelIndex)}${parallelKey.replace("<true/>", "<false/>")}${withEnvironment.slice(parallelIndex + parallelKey.length)}`;
+  }
+  // Xcode 26 may omit the key or emit <false/>. The test command passes an
+  // explicit `-parallel-testing-enabled NO`, which remains authoritative, so
+  // an already-serial or key-less xctestrun is accepted unchanged.
+  return withEnvironment;
 }
 
 function xmlEscape(value) {

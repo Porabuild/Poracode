@@ -16,6 +16,13 @@ struct AdvancedFinalizeFileCheckpointRequest: Codable, Equatable, Sendable {
 struct AdvancedSubagentSubscriptionRequest: Codable, Equatable, Sendable {
   let threadId: String
   let parentItemId: String
+  let viewerId: String?
+
+  init(threadId: String, parentItemId: String, viewerId: String? = nil) {
+    self.threadId = threadId
+    self.parentItemId = parentItemId
+    self.viewerId = viewerId
+  }
 }
 
 enum AdvancedDiffSide: String, Codable, Sendable {

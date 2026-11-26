@@ -122,7 +122,7 @@ export const ImageGroup = memo(function ImageGroup({ threadId, itemIds }: ImageG
     return (
       <>
         {fallbackItems.map((item) => (
-          <ImageView key={item.id} item={item} />
+          <ImageView key={item.id} item={item} threadId={threadId} />
         ))}
       </>
     );
@@ -134,7 +134,7 @@ export const ImageGroup = memo(function ImageGroup({ threadId, itemIds }: ImageG
         <ImageMosaic sources={sources} pendingTileCount={pendingTileCount} />
       </Surface>
       {fallbackItems.map((item) => (
-        <ImageView key={item.id} item={item} />
+        <ImageView key={item.id} item={item} threadId={threadId} />
       ))}
     </>
   );

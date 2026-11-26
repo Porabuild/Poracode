@@ -123,6 +123,8 @@
     <string name="rich_chat_subagent">Alt ajan</string>
     <string name="rich_chat_crossagent">Çapraz ajan</string>
     <string name="rich_chat_workflow">İş akışı</string>
+    <string name="rich_chat_watch_live">Canlı izle</string>
+    <string name="rich_chat_stop_watching">İzlemeyi durdur</string>
     <string name="rich_chat_activity_count">Etkinlik: %1$d</string>
     <string name="rich_chat_sign_in_required">Oturum açmanız gerekiyor</string>
     <string name="rich_chat_plan">Plan</string>

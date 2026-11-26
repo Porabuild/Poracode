@@ -38,6 +38,7 @@ import { buildTurnTimingStory } from "./timingFixtures.ts";
 import {
   longFindReplyItem,
   transcriptCodeItems,
+  delegatedWatchItems,
   transcriptEditableFileItems,
   transcriptFileItems,
   transcriptHtmlVisualItems,
@@ -243,6 +244,13 @@ export class LabLifecycleState {
 
   prepareTranscriptImage(withGallery = false): void {
     this.setFinishedItems(transcriptImageItems(withGallery));
+  }
+
+  prepareDelegatedWatch(): void {
+    this.thread.status = "working";
+    this.thread.attention = "none";
+    delete this.thread.activeTurnStartedAt;
+    this.runtimeItems = delegatedWatchItems();
   }
 
   prepareToolPresentation(options?: Parameters<typeof toolPresentationItems>[0]): void {

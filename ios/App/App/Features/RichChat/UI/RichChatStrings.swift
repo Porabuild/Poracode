@@ -101,6 +101,8 @@ enum RichChatStrings {
   static let playVideo = value("rich_chat_play_video", "Play video")
   static let pauseVideo = value("rich_chat_pause_video", "Pause video")
   static let delegatedAgents = value("rich_chat_agents", "Agents")
+  static let watchLive = value("rich_chat_watch_live", "Watch live")
+  static let stopWatching = value("rich_chat_stop_watching", "Stop watching")
   static let moveSectionUp = value("rich_chat_section_move_up", "Move up")
   static let moveSectionDown = value("rich_chat_section_move_down", "Move down")
   static let sectionCollapsed = value("rich_chat_section_collapsed", "Collapsed")

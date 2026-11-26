@@ -1,6 +1,7 @@
 package com.poracode.app.session.richchat
 
 import com.poracode.app.chat.RichCheckpoint
+import com.poracode.app.chat.RichEventDecoder
 import com.poracode.app.chat.RichSnapshotMapping
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteRuntimeGapAck
@@ -27,6 +28,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
 /** Host-routed adapter that revalidates lease and exact capability around every call. */
@@ -269,6 +271,46 @@ class GeneratedRichChatSessionGateway(
                 ?.takeIf { it.isString && it.content.isNotEmpty() }
                 ?.content
                 ?: invalidResponse()
+        }
+    }
+
+    override suspend fun subscribeDelegatedAgent(
+        lease: RichChatHostLease,
+        threadId: String,
+        parentItemId: String,
+        viewerId: String,
+    ): RichChatDelegatedWatchResult = invoke(lease, RichChatCapability.Read, false) {
+        val result = rich.subagentSubscribe(
+            buildJsonObject {
+                put("threadId", threadId)
+                put("parentItemId", parentItemId)
+                put("viewerId", viewerId)
+            },
+        )
+        val rawHistory = result["history"] as? JsonArray ?: invalidResponse()
+        val history = rawHistory.map { value ->
+            RichEventDecoder.decode(lease.connectionId, value)
+                ?.takeIf { it.threadKey.threadId == threadId }
+                ?: invalidResponse()
+        }
+        val leaseMs = (result["leaseMs"] as? JsonPrimitive)?.longOrNull
+        RichChatDelegatedWatchResult(history = history, leaseMs = leaseMs)
+    }
+
+    override suspend fun unsubscribeDelegatedAgent(
+        lease: RichChatHostLease,
+        threadId: String,
+        parentItemId: String,
+        viewerId: String,
+    ) {
+        invoke(lease, RichChatCapability.Read, false) {
+            rich.subagentUnsubscribe(
+                buildJsonObject {
+                    put("threadId", threadId)
+                    put("parentItemId", parentItemId)
+                    put("viewerId", viewerId)
+                },
+            )
         }
     }
 

@@ -155,7 +155,7 @@ function renderItem(
     case "tool_call":
     case "mcp_tool_call":
     case "dynamic_tool_call":
-      return <ImageView item={item} />;
+      return <ImageView item={item} threadId={threadId} />;
     case "web_search":
       return <WebSearchItem item={item} />;
     case "provider_handoff":

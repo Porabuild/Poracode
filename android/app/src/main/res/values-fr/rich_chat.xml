@@ -118,6 +118,8 @@
     <string name="rich_chat_subagent">Sous-agent</string>
     <string name="rich_chat_crossagent">Agent croisé</string>
     <string name="rich_chat_workflow">Flux de travail</string>
+    <string name="rich_chat_watch_live">Suivre en direct</string>
+    <string name="rich_chat_stop_watching">Arrêter le suivi</string>
     <string name="rich_chat_activity_count">Activité : %1$d</string>
     <string name="rich_chat_sign_in_required">Connexion requise</string>
     <string name="rich_chat_plan">Plan</string>

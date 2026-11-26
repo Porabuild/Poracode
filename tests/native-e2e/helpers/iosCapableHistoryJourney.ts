@@ -799,6 +799,8 @@ export async function runIosCapableHistoryJourney(
         "-resultBundlePath",
         resultBundlePath,
         `-only-testing:NativeE2ETests/${IOS_CAPABLE_HISTORY_TEST_CLASS}`,
+        "-parallel-testing-enabled",
+        "NO",
         "test-without-building",
       ],
       { cwd: inputs.repoRoot, stdio: ["ignore", "pipe", "pipe"] },

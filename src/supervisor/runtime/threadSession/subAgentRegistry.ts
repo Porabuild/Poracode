@@ -8,7 +8,22 @@ export interface SubAgentBufferLimits {
   maxBytesGlobal?: number;
   maxEventsPerParent?: number;
   maxEventsGlobal?: number;
+  /** Maximum simultaneous viewer leases across every parent (default 512). */
+  maxLiveViewers?: number;
+  /** Granted/ renewed viewer lease duration (default 90 seconds). */
+  viewerLeaseMs?: number;
+  /** Injectable clock for deterministic expiry tests. */
+  now?: () => number;
 }
+
+export interface SubAgentSubscription {
+  history: RuntimeEvent[];
+  /** Present only when `viewerId` was granted or renewed. */
+  leaseMs?: number;
+}
+
+export const SUB_AGENT_VIEWER_LEASE_MS = 90_000;
+export const MAX_LIVE_SUB_AGENT_VIEWERS = 512;
 
 export interface BufferedSubAgentEvents {
   threadId: string;
@@ -30,6 +45,8 @@ interface BufferedParent extends BufferedSubAgentEvents {
 export class SubAgentRegistry {
   /** Renderer-subscribed sub-agents (`${threadId}\0${parentItemId}`). */
   private readonly subscribed = new Set<string>();
+  /** Scoped viewer leases: parent key → viewer UUID → expiration epoch ms. */
+  private readonly viewers = new Map<string, Map<string, number>>();
   /** Buffered child events per sub-agent parent. Drained on subscribe; cleared on parent completion. */
   private readonly buffers = new Map<string, BufferedParent>();
   /** `${threadId}\0${itemId}` → `parentItemId`. Built from `item.started` with `parentItemId`. */
@@ -39,8 +56,56 @@ export class SubAgentRegistry {
 
   constructor(private readonly limits: SubAgentBufferLimits = {}) {}
 
+  private now(): number {
+    return this.limits.now?.() ?? Date.now();
+  }
+
+  private viewerLeaseMs(): number {
+    return this.limits.viewerLeaseMs ?? SUB_AGENT_VIEWER_LEASE_MS;
+  }
+
+  private maxLiveViewers(): number {
+    return this.limits.maxLiveViewers ?? MAX_LIVE_SUB_AGENT_VIEWERS;
+  }
+
+  /** Drop expired viewer entries; runs lazily on reads and admissions. */
+  private sweepExpiredViewers(now = this.now()): void {
+    for (const [key, leases] of this.viewers) {
+      for (const [viewerId, expiresAt] of leases) {
+        if (expiresAt <= now) leases.delete(viewerId);
+      }
+      if (leases.size === 0) this.viewers.delete(key);
+    }
+  }
+
+  private liveViewerCount(): number {
+    let count = 0;
+    for (const leases of this.viewers.values()) count += leases.size;
+    return count;
+  }
+
+  /** Diagnostic snapshot of non-expired viewer leases after lazy sweeping. */
+  liveViewerLeaseCount(): number {
+    this.sweepExpiredViewers();
+    return this.liveViewerCount();
+  }
+
   isSubscribed(threadId: string, parentItemId: string): boolean {
-    return this.subscribed.has(subAgentKey(threadId, parentItemId));
+    const key = subAgentKey(threadId, parentItemId);
+    if (this.subscribed.has(key)) return true;
+    const leases = this.viewers.get(key);
+    if (!leases) return false;
+    // Prune only the parent being queried; new admissions still sweep the
+    // whole map, so unrelated expired leases cannot accumulate past a read.
+    const now = this.now();
+    for (const [viewerId, expiresAt] of leases) {
+      if (expiresAt <= now) leases.delete(viewerId);
+    }
+    if (leases.size === 0) {
+      this.viewers.delete(key);
+      return false;
+    }
+    return true;
   }
 
   hasBuffer(threadId: string, parentItemId: string): boolean {
@@ -175,25 +240,67 @@ export class SubAgentRegistry {
 
   /**
    * Renderer-facing: subscribe a sub-agent overlay. Returns buffered child
-   * events for hydration; subsequent events stream live.
+   * events for hydration; subsequent events stream live. With `viewerId`, the
+   * admission is a renewable scoped lease; ID-less callers keep legacy
+   * parent-only subscription semantics.
    */
-  subscribe(threadId: string, parentItemId: string): RuntimeEvent[] {
-    const key = subAgentKey(threadId, parentItemId);
-    this.subscribed.add(key);
-    return this.removeBuffer(key)?.events ?? [];
+  subscribe(threadId: string, parentItemId: string, viewerId?: string): RuntimeEvent[] {
+    return this.subscribeWithLease(threadId, parentItemId, viewerId).history;
   }
 
-  unsubscribe(threadId: string, parentItemId: string): void {
-    this.subscribed.delete(subAgentKey(threadId, parentItemId));
+  subscribeWithLease(
+    threadId: string,
+    parentItemId: string,
+    viewerId?: string,
+  ): SubAgentSubscription {
+    const key = subAgentKey(threadId, parentItemId);
+    if (viewerId === undefined) {
+      this.subscribed.add(key);
+      return { history: this.removeBuffer(key)?.events ?? [] };
+    }
+
+    const now = this.now();
+    this.sweepExpiredViewers(now);
+    const leaseMs = this.viewerLeaseMs();
+    const existing = this.viewers.get(key);
+    if (existing?.has(viewerId)) {
+      // Renewal is idempotent: it extends expiry without another admission or drain.
+      existing.set(viewerId, now + leaseMs);
+      return { history: [], leaseMs };
+    }
+    if (this.liveViewerCount() >= this.maxLiveViewers()) {
+      throw new Error(
+        `Too many active subagent viewers (${this.maxLiveViewers()}); ` +
+          "retry after an existing viewer expires or unsubscribes.",
+      );
+    }
+    const leases = existing ?? new Map<string, number>();
+    leases.set(viewerId, now + leaseMs);
+    this.viewers.set(key, leases);
+    return { history: this.removeBuffer(key)?.events ?? [], leaseMs };
+  }
+
+  unsubscribe(threadId: string, parentItemId: string, viewerId?: string): void {
+    const key = subAgentKey(threadId, parentItemId);
+    if (viewerId === undefined) {
+      // Legacy release must never evict a scoped viewer.
+      this.subscribed.delete(key);
+      return;
+    }
+    const leases = this.viewers.get(key);
+    if (!leases) return;
+    leases.delete(viewerId);
+    if (leases.size === 0) this.viewers.delete(key);
   }
 
   /**
-   * Drop all sub-agent state for a single parent: subscription, buffer, and
-   * its child→parent index entries.
+   * Drop all sub-agent state for a single parent: both subscription forms,
+   * buffer, and its child→parent index entries.
    */
   clear(threadId: string, parentItemId: string): void {
     const key = subAgentKey(threadId, parentItemId);
     this.subscribed.delete(key);
+    this.viewers.delete(key);
     this.removeBuffer(key);
     const childPrefix = `${threadId}\0`;
     for (const ckey of this.childToParent.keys()) {
@@ -209,6 +316,9 @@ export class SubAgentRegistry {
     const subPrefix = `${threadId}\0`;
     for (const key of this.subscribed) {
       if (key.startsWith(subPrefix)) this.subscribed.delete(key);
+    }
+    for (const key of this.viewers.keys()) {
+      if (key.startsWith(subPrefix)) this.viewers.delete(key);
     }
     for (const key of this.buffers.keys()) {
       if (key.startsWith(subPrefix)) this.removeBuffer(key);

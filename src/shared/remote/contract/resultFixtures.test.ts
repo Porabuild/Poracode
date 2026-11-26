@@ -16,7 +16,11 @@ import {
   readProjectFileResultSchema,
   skillScanResultSchema,
 } from "../../contracts";
-import { subAgentSubscribeResultSchema, workflowGetRunResultSchema } from "../../ipc/schemas";
+import {
+  subAgentSubscribePayloadSchema,
+  subAgentSubscribeResultSchema,
+  workflowGetRunResultSchema,
+} from "../../ipc/schemas";
 import { omittedResultSchema, remoteProcedureCallEnvelopeSchema } from "../../ipc/resultCodec";
 
 describe("remote procedure result fixtures", () => {
@@ -140,6 +144,28 @@ describe("remote procedure result fixtures", () => {
     expect(mcpOauthBeginResultSchema.parse({ status: "authorized" }).status).toBe("authorized");
     expect(workflowGetRunResultSchema.parse({ run: null }).run).toBeNull();
     expect(subAgentSubscribeResultSchema.parse({ history: [] }).history).toEqual([]);
+  });
+
+  it("accepts legacy and viewer-leased subagent subscription shapes", () => {
+    const legacyRequest = { threadId: "thread-1", parentItemId: "agent-1" };
+    expect(subAgentSubscribePayloadSchema.parse(legacyRequest)).toEqual(legacyRequest);
+
+    const viewerId = "11111111-1111-4111-8111-111111111111";
+    expect(subAgentSubscribePayloadSchema.parse({ ...legacyRequest, viewerId })).toMatchObject({
+      viewerId,
+    });
+    expect(
+      subAgentSubscribePayloadSchema.safeParse({ ...legacyRequest, viewerId: "not-a-uuid" })
+        .success,
+    ).toBe(false);
+
+    expect(subAgentSubscribeResultSchema.parse({ history: [] })).toEqual({ history: [] });
+    expect(subAgentSubscribeResultSchema.parse({ history: [], leaseMs: 90_000 })).toMatchObject({
+      leaseMs: 90_000,
+    });
+    expect(subAgentSubscribeResultSchema.safeParse({ history: [], leaseMs: 0 }).success).toBe(
+      false,
+    );
   });
 
   it("rejects missing-vs-null and invalid enum/number mutations", () => {

@@ -23,14 +23,14 @@ val RemoteRootCodecs.procedureU2EStartThreadU2EResult: RemoteRootCodec<Procedure
 val RemoteRootCodecs.procedureU2ESteerQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurepauseThreadFollowUpsRequest_d42717fff2>
     get() = RemoteRootCodec("procedure.steerQueuedThreadFollowUp.request", serializer<ProcedurepauseThreadFollowUpsRequest_d42717fff2>(), schema_d42717fff211bd92)
 
-val RemoteRootCodecs.procedureU2ESubagentSubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_ff495aee3e>
-    get() = RemoteRootCodec("procedure.subagentSubscribe.request", serializer<ProceduresubagentSubscribeRequest_ff495aee3e>(), schema_ff495aee3e719fab)
+val RemoteRootCodecs.procedureU2ESubagentSubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_830623dd7f>
+    get() = RemoteRootCodec("procedure.subagentSubscribe.request", serializer<ProceduresubagentSubscribeRequest_830623dd7f>(), schema_830623dd7fb1dd6e)
 
-val RemoteRootCodecs.procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_1caa7842d1>
-    get() = RemoteRootCodec("procedure.subagentSubscribe.result", serializer<ProceduresubagentSubscribeResult_1caa7842d1>(), schema_1caa7842d12d0d9e)
+val RemoteRootCodecs.procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_fb8d487dc0>
+    get() = RemoteRootCodec("procedure.subagentSubscribe.result", serializer<ProceduresubagentSubscribeResult_fb8d487dc0>(), schema_fb8d487dc0b16899)
 
-val RemoteRootCodecs.procedureU2ESubagentUnsubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_ff495aee3e>
-    get() = RemoteRootCodec("procedure.subagentUnsubscribe.request", serializer<ProceduresubagentSubscribeRequest_ff495aee3e>(), schema_ff495aee3e719fab)
+val RemoteRootCodecs.procedureU2ESubagentUnsubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_830623dd7f>
+    get() = RemoteRootCodec("procedure.subagentUnsubscribe.request", serializer<ProceduresubagentSubscribeRequest_830623dd7f>(), schema_830623dd7fb1dd6e)
 
 val RemoteRootCodecs.procedureU2EUninstallAgentHookPluginU2ERequest: RemoteRootCodec<ProceduregetNativeMcpSetupRequest_cb16458180>
     get() = RemoteRootCodec("procedure.uninstallAgentHookPlugin.request", serializer<ProceduregetNativeMcpSetupRequest_cb16458180>(), schema_cb164581809b29f0)

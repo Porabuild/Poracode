@@ -9,7 +9,9 @@ import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -117,6 +119,56 @@ class Android37WireLabFamilyInstrumentedTest {
             .assertIsEnabled()
             .performClick()
         waitForOperation("route:thread-steer-set")
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 37)
+    fun familyDelegatedWatchShowsChildImages() {
+        Assume.assumeFalse("delegated watch drives mock-only child output", isRealPeer)
+        control.checkpoint("delegated-watch-ready")
+        pairUntilHome()
+        compose.onNodeWithText("Fixture thread").performClick()
+        waitForText("Delegated watch ready.")
+        compose.onNodeWithText("Activity: 2").performClick()
+        compose.onAllNodesWithText("Watch live").onFirst().performClick()
+        compose.waitUntil(10_000) {
+            application.richChat.delegatedWatch.isWatching("fixture-subagent-live")
+        }
+        compose.waitUntil(10_000) {
+            application.richChat.chat.state.value.transcript?.itemsById
+                ?.containsKey("fixture-subagent-live-image") == true
+        }
+        compose.onAllNodesWithText("screenshot").onFirst().performClick()
+        compose.waitUntil(10_000) {
+            runCatching {
+                compose.onAllNodesWithContentDescription(
+                    context.getString(R.string.rich_chat_image_description),
+                ).onFirst().assertIsDisplayed()
+            }.isSuccess
+        }
+        compose.onNodeWithText("Activity: 2").performClick()
+        compose.onAllNodesWithText("Stop watching").onFirst().performClick()
+        compose.waitUntil(10_000) {
+            !application.richChat.delegatedWatch.isWatching("fixture-subagent-live")
+        }
+        instrumentation.uiAutomation.performGlobalAction(
+            android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK,
+        )
+
+        compose.onNodeWithText("Activity: 2").performClick()
+        compose.onAllNodesWithText("Watch live")[1].performClick()
+        compose.waitUntil(10_000) {
+            application.richChat.delegatedWatch.isWatching("fixture-crossagent-live")
+        }
+        compose.waitUntil(10_000) {
+            application.richChat.chat.state.value.transcript?.itemsById
+                ?.containsKey("fixture-crossagent-live-image") == true
+        }
+        compose.onNodeWithText("Activity: 2").performClick()
+        compose.onAllNodesWithText("Stop watching").onFirst().performClick()
+        compose.waitUntil(10_000) {
+            !application.richChat.delegatedWatch.isWatching("fixture-crossagent-live")
+        }
     }
 
     @Test

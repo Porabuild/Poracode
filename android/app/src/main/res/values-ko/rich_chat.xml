@@ -118,6 +118,8 @@
     <string name="rich_chat_subagent">하위 에이전트</string>
     <string name="rich_chat_crossagent">크로스에이전트</string>
     <string name="rich_chat_workflow">워크플로</string>
+    <string name="rich_chat_watch_live">실시간 보기</string>
+    <string name="rich_chat_stop_watching">보기 중지</string>
     <string name="rich_chat_activity_count">활동: %1$d개</string>
     <string name="rich_chat_sign_in_required">로그인이 필요합니다</string>
     <string name="rich_chat_plan">계획</string>
