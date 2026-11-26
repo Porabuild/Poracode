@@ -11,6 +11,7 @@ import {
 } from "@/shared/plugins/spec";
 import { PluginRegistry } from "@/supervisor/plugins/PluginRegistry";
 import { PluginCatalogService } from "@/supervisor/plugins/PluginCatalogService";
+import { SkillsService } from "@/supervisor/skills/SkillsService";
 import { GitService } from "@/supervisor/git";
 import { disposeGitExecWorker, disposeNativeGitHelper } from "@/supervisor/git/exec";
 import { agentCapabilitySchema, getGitFileContentPayloadSchema } from "@/shared/contracts";
@@ -413,6 +414,58 @@ async function callTool(
 }
 
 describe("AppControlsMcpIngress", () => {
+  it("reads the bundled Computer Use skill through poracode_read without a provider catalog", async () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-mcp-skills-"));
+    try {
+      const registry = new PluginRegistry({
+        bundledPluginsDir: () => join(process.cwd(), "resources", "plugins"),
+        userPluginsDir: () => join(root, "plugins"),
+      });
+      const skills = new SkillsService({
+        adapters: new Map(),
+        env: {},
+        homeDirectory: () => root,
+        readPlugins: () => registry.listPlugins(),
+      });
+      const base = deps();
+      ingress = new AppControlsMcpIngress({
+        ...base,
+        supervisor: { ...base.supervisor, scanSkills: (payload) => skills.scan(payload) },
+      });
+      const { url, token } = await ingress.start();
+      const listed = await rawCallTool(url, token, "poracode_read", {
+        operation: "list_skills",
+        params: { query: "Computer Use" },
+      });
+      expect(listed.isError).toBe(false);
+      const entries = z
+        .array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            provider: z.string(),
+            enabled: z.boolean(),
+          }),
+        )
+        .parse(listed.payload?.global);
+      const core = entries.find(
+        ({ name, provider }) => name === "computer-use" && provider === "Computer Use",
+      );
+      expect(core?.enabled).toBe(true);
+      await expect(
+        rawCallTool(url, token, "poracode_read", {
+          operation: "read_skill",
+          params: { skillId: core?.id },
+        }),
+      ).resolves.toMatchObject({
+        isError: false,
+        payload: { name: "computer-use", content: expect.stringContaining("computer_use.enable") },
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("advertises the compact hot-path + gateway catalog and exposes all operations via poracode_discover", async () => {
     ingress = new AppControlsMcpIngress(deps());
     const info = await ingress.start();

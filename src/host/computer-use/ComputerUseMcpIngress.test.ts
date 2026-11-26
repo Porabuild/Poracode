@@ -173,6 +173,8 @@ describe("ComputerUseMcpIngress", () => {
     expect(body.result.serverInfo.version).toBe("0.2.0");
     expect(body.result.instructions).toContain("call api only when");
     expect(body.result.instructions).toContain("load the computer-use skill by name");
+    expect(body.result.instructions).toContain("use poracode_read");
+    expect(body.result.instructions).toContain("check desktop access with list_windows");
     expect(body.result.instructions).toContain("computer_use.enable");
     expect(body.result.instructions).toContain("computer_use.disable");
     expect(body.result.instructions).toContain('mode:"background" by default');

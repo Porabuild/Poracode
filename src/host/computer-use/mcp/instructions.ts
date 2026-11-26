@@ -12,13 +12,13 @@ export const COMPUTER_USE_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("computer-us
 // platform scroll rules live in the core skill so sessions don't pay that prose
 // tax before computer_use is actually used.
 export const COMPUTER_USE_MCP_INSTRUCTIONS =
-  `Use computer_use to inspect and control native Windows, macOS, or Linux apps. Before the first control action, load the ${COMPUTER_USE_CORE_SKILL} skill by name — it holds tree conventions, scrolling, and verification rules. These instructions are the contract for every tool result. ` +
+  `Use computer_use to inspect and control native Windows, macOS, or Linux apps. Before the first control action, load the ${COMPUTER_USE_CORE_SKILL} skill by name if your provider lists it. If it is missing or the lookup fails, use poracode_read on the Poracode MCP to run list_skills with query "Computer Use", then read_skill with the enabled ${COMPUTER_USE_CORE_SKILL} plugin skill's ID. If you still cannot load it, follow these instructions and check desktop access with list_windows. ` +
   "Work in the background: Background is the only mode you may choose on your own. " +
   'mode:"foreground" and activate_window are takeovers; use them only when the user asked for a takeover, and tell them first. ' +
   "Never activate or raise a window to make an action land, and never alternate between background and foreground. " +
   "Start with list_apps or list_windows, then get_window_state (include_text:true, include_screenshot:false for semantic tasks); call api only when capability or permission details are needed. Prefer invoke_element or set_element_value over coordinates. " +
   "Call computer_use.enable before the first control action and computer_use.disable before pausing, waiting, or finishing. " +
-  'Input tools use mode:"background" by default. Use perform for a short deterministic sequence of background actions and always read delivery or refused. ' +
+  'Input tools use mode:"background" by default. Use perform for a short deterministic sequence of background actions, read delivery or refused, and verify effects with get_window_state. ' +
   "A browser or Electron window ignores raw background mouse events; recover with find_elements plus invoke_element or set_element_value, or use the browser MCP server. That refusal is not a reason to take the window over. " +
   "If no background route can do the job, stop and ask the user for a takeover instead of taking one. " +
   "If locked, call enable once before inspection; if still screen_locked or a locked_use_ note, stop and ask the user to unlock. " +
