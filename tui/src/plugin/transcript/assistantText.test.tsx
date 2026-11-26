@@ -1,12 +1,36 @@
 import "../../../opencode/packages/tui/test/preload";
 import { expect, test } from "bun:test";
+import { createSignal } from "solid-js";
 import { createTestRenderer } from "@opentui/core/testing";
 import { render } from "@opentui/solid";
 import { SyntaxStyle } from "@opentui/core";
 import { resolveThemeDocument } from "@opencode/theme/tui";
 import { getPoracodeTheme, parseTheme } from "../../../opencode/packages/tui/src/theme";
 import type { Plugin } from "@opencode/plugin/tui";
-import { AssistantText } from "./assistantText";
+import { AssistantText, revealStreamedText } from "./assistantText";
+
+test("assistant text reveals appended chunks, then flushes immediately on completion", async () => {
+  const output = await createTestRenderer({ width: 100, height: 8 });
+  const [text, setText] = createSignal("Already visible. ");
+  const [streaming, setStreaming] = createSignal(true);
+  await render(() => {
+    const shown = revealStreamedText(text, streaming);
+    return <text>{shown()}</text>;
+  }, output.renderer);
+  try {
+    output.renderer.start();
+    await output.waitForFrame((frame) => frame.includes("Already visible."));
+    const full = `Already visible. Streaming this chunk over multiple frames.`;
+    setText(full);
+    await output.waitForFrame(
+      (frame) => frame.includes("Already visible. Str") && !frame.includes(full),
+    );
+    setStreaming(false);
+    await output.waitForFrame((frame) => frame.includes(full));
+  } finally {
+    output.renderer.destroy();
+  }
+});
 
 async function mountAssistant(streaming: boolean) {
   const output = await createTestRenderer({ width: 60, height: 16 });
@@ -14,6 +38,7 @@ async function mountAssistant(streaming: boolean) {
   const context = {
     theme,
     themeMode: "dark",
+    ui: { animationsEnabled: () => false },
     renderer: output.renderer,
     syntax: SyntaxStyle.fromStyles(
       { default: { fg: "#ffffff" }, "markup.raw": { fg: "#888888" } },
@@ -100,5 +125,111 @@ test("streaming code rows keep in-place rendering without the panel", async () =
       throw new Error(`streaming code row has panel bg\n${dump.join("\n")}`);
   } finally {
     output.renderer.destroy();
+  }
+});
+
+test("revealStreamedText does not slice from the end on a leading low surrogate", async () => {
+  const output = await createTestRenderer({ width: 60, height: 6 });
+  const [text, setText] = createSignal("");
+  const emitted: string[] = [];
+  await render(() => {
+    const shown = revealStreamedText(text, () => true, "");
+    return (
+      <text>
+        {(() => {
+          const value = shown();
+          emitted.push(value);
+          return value;
+        })()}
+      </text>
+    );
+  }, output.renderer);
+  try {
+    output.renderer.start();
+    setText("\uDC00abcdefghijklmnop");
+    await output.waitForFrame((frame) => frame.includes("abcdefghijklmnop"));
+    expect(
+      emitted.some(
+        (value) =>
+          value.includes("o") &&
+          !value.includes("p") &&
+          value.length >= 15 &&
+          emitted.indexOf(value) <= 1,
+      ),
+    ).toBe(false);
+    for (let i = 1; i < emitted.length; i++)
+      expect(emitted[i]!.length).toBeGreaterThanOrEqual(emitted[i - 1]!.length);
+  } finally {
+    output.renderer.destroy();
+  }
+});
+
+test("AssistantText animates a revealKey once and renders immediately on remount", async () => {
+  const full = "Smooth streaming across multiple frames for a new assistant part.";
+  const first = await createTestRenderer({ width: 80, height: 8 });
+  const theme = resolveThemeDocument(parseTheme(getPoracodeTheme()), "dark");
+  const context = {
+    theme,
+    themeMode: "dark",
+    ui: { animationsEnabled: () => true },
+    renderer: first.renderer,
+    syntax: SyntaxStyle.fromStyles(
+      { default: { fg: "#ffffff" }, "markup.raw": { fg: "#888888" } },
+      first.renderer.nativeScene,
+    ),
+    client: { file: { list: async () => ({ data: [] }) } },
+  } as unknown as Plugin.Context;
+  const [streaming, setStreaming] = createSignal(true);
+  await render(
+    () => (
+      <AssistantText
+        context={context}
+        markdown={{ mode: "rendered", renderNode: undefined }}
+        text={full}
+        streaming={streaming()}
+        revealKey="part-reveal-once"
+        root="/repo"
+        rootNames={new Set(["src"])}
+      />
+    ),
+    first.renderer,
+  );
+  try {
+    first.renderer.start();
+    await first.waitForFrame((frame) => frame.includes("Smooth") && !frame.includes(full));
+    setStreaming(false);
+    await first.waitForFrame((frame) => frame.includes(full));
+  } finally {
+    first.renderer.destroy();
+  }
+
+  const second = await createTestRenderer({ width: 80, height: 8 });
+  const secondContext = {
+    ...context,
+    renderer: second.renderer,
+    syntax: SyntaxStyle.fromStyles(
+      { default: { fg: "#ffffff" }, "markup.raw": { fg: "#888888" } },
+      second.renderer.nativeScene,
+    ),
+  } as unknown as Plugin.Context;
+  await render(
+    () => (
+      <AssistantText
+        context={secondContext}
+        markdown={{ mode: "rendered", renderNode: undefined }}
+        text={full}
+        streaming={true}
+        revealKey="part-reveal-once"
+        root="/repo"
+        rootNames={new Set(["src"])}
+      />
+    ),
+    second.renderer,
+  );
+  try {
+    await second.renderOnce();
+    expect(second.captureCharFrame()).toContain(full);
+  } finally {
+    second.renderer.destroy();
   }
 });

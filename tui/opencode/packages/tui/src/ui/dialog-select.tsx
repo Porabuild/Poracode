@@ -1,6 +1,7 @@
 import { CliRenderEvents, InputRenderable, RGBA, ScrollBoxRenderable, TextAttributes } from "@opentui/core"
 import { Keymap, type KeymapCommand } from "../context/keymap"
-import { useTheme } from "../context/theme"
+import { usePoracodeActiveBg, usePoracodeOverlayBg, useTheme } from "../context/theme"
+import { useIsPoracode } from "../context/runtime"
 import { entries, flatMap, groupBy, pipe } from "remeda"
 import { batch, createEffect, createMemo, createSignal, For, Show, type JSX, on, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -145,6 +146,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const config = useConfig().data
   const cursorStyle = useCursorStyle()
   const newDesigns = useNewDesigns()
+  const poracode = useIsPoracode()
   const scrollAcceleration = createMemo(() => getScrollAcceleration(config))
   const renderer = useRenderer()
 
@@ -645,7 +647,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 
   const searchInTitle = () => newDesigns() && props.searchInTitle === true && props.renderFilter !== false
 
-  const searchCursorColor = () => (newDesigns() ? theme.text.base : theme.text.formfield.focused)
+  const searchCursorColor = () => (newDesigns() ? theme.text.base : poracode ? theme.text.brand : theme.text.formfield.focused)
 
   const searchInput = () => (
     <input
@@ -657,10 +659,10 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           props.onFilter?.(e)
         })
       }}
-      focusedBackgroundColor={theme.background.formfield.focused}
+      focusedBackgroundColor={poracode && !newDesigns() ? undefined : theme.background.formfield.focused}
       cursorColor={searchCursorColor()}
       cursorStyle={cursorStyle()}
-      focusedTextColor={newDesigns() ? theme.text.formfield.base : theme.text.formfield.focused}
+      focusedTextColor={newDesigns() || poracode ? theme.text.base : theme.text.formfield.focused}
       ref={(r) => {
         input = r
         input.traits = { status: "FILTER" }
@@ -692,7 +694,13 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                   onClose={props.onCancel}
                 />
                 <Show when={props.renderFilter !== false}>
-                  <box paddingTop={1}>{searchInput()}</box>
+                  <box
+                    paddingTop={1}
+                    border={poracode && !newDesigns() ? ["bottom"] : undefined}
+                    borderColor={poracode && !newDesigns() ? theme.border.base : undefined}
+                  >
+                    {searchInput()}
+                  </box>
                 </Show>
               </>
             }
@@ -855,19 +863,23 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
  */
 export function DialogSelectChoice(props: { value: string; active: boolean; open?: boolean }) {
   const theme = useTheme().surface("dialog")
+  const newDesigns = useNewDesigns()
+  const poracode = useIsPoracode()
   const text = () => {
     if (!props.active) return `  ${props.value}  `
     return props.open ? `  ${props.value} ↵` : `‹ ${props.value} ›`
   }
-  return <span style={{ fg: props.active ? theme.text.action.primary.focused : theme.text.muted }}>{text()}</span>
+  const activeColor = () => (poracode && !newDesigns() ? theme.text.base : theme.text.action.primary.focused)
+  return <span style={{ fg: props.active ? activeColor() : theme.text.muted }}>{text()}</span>
 }
 
 function DialogSelectCategory(props: { title: string; first: boolean }) {
   const theme = useTheme().surface("dialog")
   const newDesigns = useNewDesigns()
+  const poracode = useIsPoracode()
   return (
     <box paddingTop={props.first ? 0 : 1} paddingLeft={DIALOG_LIST_INSET - (newDesigns() ? 0 : 1)}>
-      <text fg={newDesigns() ? theme.text.muted : theme.hue.accent[200]} attributes={TextAttributes.BOLD}>
+      <text fg={newDesigns() || poracode ? theme.text.muted : theme.hue.accent[200]} attributes={TextAttributes.BOLD}>
         {props.title}
       </text>
     </box>
@@ -891,14 +903,21 @@ function DialogSelectRow(props: {
   activeColor?: RGBA
 }) {
   const theme = useTheme().surface("dialog")
+  const overlayBg = usePoracodeOverlayBg(() => theme.background.base)
   const newDesigns = useNewDesigns()
+  const poracode = useIsPoracode()
+  const poracodeRow = () => poracode && !newDesigns()
+  const poracodeNeutralActive = () => poracodeRow() && !(props.active && props.activeBackground)
+  const poracodeActiveBg = usePoracodeActiveBg(overlayBg, theme)
+  const showActiveIndicator = () => poracodeRow() && props.active && !props.current && !props.gutter && !props.margin
   const text = createMemo(() => {
-    if (props.active) return props.activeColor ?? theme.text.action.primary.focused
-    if (props.current && !newDesigns()) return theme.text.formfield.selected
+    if (props.active) return props.activeColor ?? (poracodeRow() ? theme.text.base : theme.text.action.primary.focused)
+    if (props.current && !newDesigns()) return poracodeRow() ? theme.text.brand : theme.text.formfield.selected
     return theme.text.base
   })
   // Secondary text (description and footer).
   const secondary = () => {
+    if (poracodeNeutralActive()) return theme.text.muted
     if (!newDesigns()) return props.active ? text() : theme.text.muted
     return props.active ? theme.text.action.secondary.focused : theme.text.muted
   }
@@ -909,11 +928,13 @@ function DialogSelectRow(props: {
     <box
       flexDirection="row"
       flexGrow={newDesigns() ? 1 : undefined}
-      paddingLeft={props.current || props.gutter ? DIALOG_LIST_INSET - 3 : DIALOG_LIST_INSET - 1}
+      paddingLeft={props.current || props.gutter || showActiveIndicator() ? DIALOG_LIST_INSET - 3 : DIALOG_LIST_INSET - 1}
       paddingRight={DIALOG_LIST_INSET - (newDesigns() ? 0 : 1)}
       gap={1}
       backgroundColor={
-        props.active ? (props.activeBackground ?? theme.background.action.primary.focused) : RGBA.fromInts(0, 0, 0, 0)
+        props.active
+          ? (props.activeBackground ?? (poracodeRow() ? poracodeActiveBg() : theme.background.action.primary.focused))
+          : RGBA.fromInts(0, 0, 0, 0)
       }
     >
       <Show when={!props.current && props.margin}>
@@ -921,8 +942,16 @@ function DialogSelectRow(props: {
           {props.margin}
         </box>
       </Show>
+      <Show when={showActiveIndicator()}>
+        <text flexShrink={0} fg={props.activeBackground ? text() : theme.text.brand}>
+          {"›"}
+        </text>
+      </Show>
       <Show when={props.current && !props.gutter}>
-        <text flexShrink={0} fg={newDesigns() ? theme.text.formfield.selected : text()}>
+        <text
+          flexShrink={0}
+          fg={newDesigns() ? theme.text.formfield.selected : poracodeNeutralActive() ? theme.text.brand : text()}
+        >
           {newDesigns() ? "▪" : "●"}
         </text>
       </Show>

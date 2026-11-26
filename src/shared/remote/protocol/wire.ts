@@ -154,15 +154,19 @@ export const remoteSettingsSchema = sharedSettingsSchema
     // Additive: older hosts omit it, and older clients strip it. Plugin
     // enablement is host-owned, so a paired machine reports its own record.
     installedPlugins: sharedSettingsSchema.shape.installedPlugins.removeDefault().optional(),
+    // Read-only projection for attached clients. Older hosts omit these fields.
+    newsLineEnabled: sharedSettingsSchema.shape.newsLineEnabled.optional(),
+    newsLineActivity: sharedSettingsSchema.shape.newsLineActivity.optional(),
   });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
-export const REMOTE_SETTINGS_KEYS = Object.keys(
-  remoteSettingsSchema.shape,
-) as readonly (keyof RemoteSettings)[];
-
 export const remoteSettingsPatchSchema = remoteSettingsSchema
-  .omit({ enabledMcpServers: true, disabledBuiltInMcpServers: true })
+  .omit({
+    enabledMcpServers: true,
+    disabledBuiltInMcpServers: true,
+    newsLineEnabled: true,
+    newsLineActivity: true,
+  })
   .partial()
   .extend({
     // These full-settings fields have `{}` defaults. Remove them for the patch
@@ -179,6 +183,10 @@ export const remoteSettingsPatchSchema = remoteSettingsSchema
     memory: sharedSettingsSchema.shape.memory.removeDefault().optional(),
   });
 export type RemoteSettingsPatch = z.infer<typeof remoteSettingsPatchSchema>;
+
+export const REMOTE_SETTINGS_KEYS = Object.keys(
+  remoteSettingsPatchSchema.shape,
+) as readonly (keyof RemoteSettingsPatch)[];
 
 /** Extracts the remote-editable subset from a full settings object (zod
  * object parsing strips the keys that are not in the schema). */

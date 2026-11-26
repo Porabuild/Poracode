@@ -1,6 +1,7 @@
 import { createContext, createSignal, onCleanup, useContext, type ParentProps, Show } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useTheme } from "../context/theme"
+import { usePoracodeOverlayBg, useTheme } from "../context/theme"
+import { useIsPoracode } from "../context/runtime"
 import { useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { SplitBorder } from "./border"
 import { TextAttributes } from "@opentui/core"
@@ -24,6 +25,8 @@ function ToastSurface(props: {
   onActivate: () => void
 }) {
   const theme = useTheme()
+  const overlayBg = usePoracodeOverlayBg(() => theme.background.raised.high)
+  const poracode = useIsPoracode()
   const dimensions = useTerminalDimensions()
   const renderer = useRenderer()
   const [hovered, setHovered] = createSignal(false)
@@ -37,11 +40,17 @@ function ToastSurface(props: {
       marginLeft={2}
       wrapMode="none"
       attributes={hovered() && props.toast.action ? TextAttributes.BOLD : undefined}
-      fg={hovered() ? theme.text.action.primary.base : theme.text.muted}
+      fg={hovered() ? (poracode ? theme.text.brand : theme.text.action.primary.base) : theme.text.muted}
     >
       {props.toast.action ? `› ${props.toast.action.label}` : "x"}
     </text>
   )
+  const borderColor = () =>
+    poracode
+      ? props.toast.variant === "error" || props.toast.variant === "warning"
+        ? theme.text.feedback[props.toast.variant].base
+        : theme.border.base
+      : theme.text.feedback[props.toast.variant].base
 
   return (
     <box
@@ -51,9 +60,11 @@ function ToastSurface(props: {
       maxWidth={Math.min(60, dimensions().width - 6)}
       justifyContent="center"
       alignItems="flex-start"
-      borderColor={theme.text.feedback[props.toast.variant].base}
-      border={["left", "right"]}
-      customBorderChars={SplitBorder.customBorderChars}
+      borderColor={borderColor()}
+      border={poracode ? true : ["left", "right"]}
+      borderStyle={poracode ? "rounded" : undefined}
+      customBorderChars={poracode ? undefined : SplitBorder.customBorderChars}
+      backgroundColor={poracode ? overlayBg() : undefined}
       renderAfter={function () {
         // The host terminal draws its cursor above TUI cells, regardless of paint order.
         const cursor = renderer.getCursorState()
@@ -73,15 +84,18 @@ function ToastSurface(props: {
         width="100%"
         paddingLeft={2}
         paddingRight={2}
-        paddingTop={1}
-        paddingBottom={1}
-        backgroundColor={theme.background.raised.high}
+        paddingTop={poracode ? 0 : 1}
+        paddingBottom={poracode ? 0 : 1}
+        backgroundColor={poracode ? overlayBg() : theme.background.raised.high}
       >
         <Show
           when={props.toast.title}
           fallback={
             <box flexDirection="row" width="100%">
               <text fg={theme.text.base} wrapMode="word" flexGrow={1}>
+                <Show when={poracode}>
+                  <span style={{ fg: theme.text.feedback[props.toast.variant].base }}>{"● "}</span>
+                </Show>
                 {props.toast.message}
               </text>
               {affordance()}
@@ -90,6 +104,9 @@ function ToastSurface(props: {
         >
           <box flexDirection="row" width="100%" marginBottom={1}>
             <text attributes={TextAttributes.BOLD} fg={theme.text.base}>
+              <Show when={poracode}>
+                <span style={{ fg: theme.text.feedback[props.toast.variant].base }}>{"● "}</span>
+              </Show>
               {props.toast.title}
             </text>
             <box flexGrow={1} />

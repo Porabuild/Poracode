@@ -47,8 +47,10 @@ type ServerAdapter = {
  */
 export function registerServerUi(context: Plugin.Context, adapter: ServerAdapter) {
   const label = () => serverLabel(adapter.server, adapter.savedServers().length);
-  for (const append of ["home.footer.status", "prompt.footer.status"] as const)
-    context.ui.slot({ append, render: () => createComponent(SlotText, { value: label }) });
+  context.ui.slot({
+    append: "prompt.footer.status",
+    render: (input) => (input.sessionID ? createComponent(SlotText, { value: label }) : null),
+  });
 
   const askForLink = async (): Promise<TuiServerSwitchTarget | undefined> => {
     const link = (

@@ -1,8 +1,24 @@
 diff --git a/packages/tui/src/plugin/api.tsx b/packages/tui/src/plugin/api.tsx
-index c79b86a..e726420 100644
+index c79b86a..887d3ed 100644
 --- a/packages/tui/src/plugin/api.tsx
 +++ b/packages/tui/src/plugin/api.tsx
-@@ -183,6 +183,10 @@ export function createPluginContext(input: {
+@@ -46,6 +46,7 @@ import { useOptionalPanel } from "../context/panel"
+ import { useLocal } from "../context/local"
+ import { errorMessage } from "../util/error"
+ import { abbreviateHome } from "../util/path-format"
++import { useConfig } from "../config"
+ 
+ export type Dispose = () => Promise<void>
+ 
+@@ -96,6 +97,7 @@ export function usePluginHost() {
+     sessionTabs: useSessionTabs(),
+     panel: useOptionalPanel(),
+     local: useLocal(),
++    config: useConfig().data,
+   }
+ }
+ 
+@@ -183,6 +185,10 @@ export function createPluginContext(input: {
      get themeMode() {
        return host.themes.mode()
      },
@@ -13,7 +29,15 @@ index c79b86a..e726420 100644
      markdown: {
        registerCodeBlockRenderer(language, render) {
          const name = infoStringToFiletype(language)
-@@ -303,6 +307,18 @@ export function createPluginContext(input: {
+@@ -220,6 +226,7 @@ export function createPluginContext(input: {
+       memory: (key, options) => host.storage.memory(`plugin.${input.id}.${key}`, options),
+     },
+     ui: {
++      animationsEnabled: () => host.config.animations ?? true,
+       dialog: dialogApi,
+       toast: toastApi,
+       format: {
+@@ -303,6 +310,18 @@ export function createPluginContext(input: {
            if (!selection) return
            return { providerID: selection.providerID, modelID: selection.modelID, variant: selection.variant }
          },

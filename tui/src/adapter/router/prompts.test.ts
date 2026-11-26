@@ -1547,3 +1547,56 @@ test("a provider switch proceeds without a summary when context extraction fails
     contextStrategy: "context-file",
   });
 });
+
+test("preserves remote thread effort on follow-up prompts unless switching models", async () => {
+  const sends: { config: Record<string, unknown> }[] = [];
+  const status = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      fastModels: ["m1"],
+      defaultEffort: "medium",
+      modelDefaultEfforts: { m1: "medium", m2: "low" },
+      modelEfforts: { m1: ["low", "medium", "high"], m2: ["low", "high"] },
+      models: [
+        { id: "m1", label: "M1" },
+        { id: "m2", label: "M2" },
+      ],
+    },
+  };
+  const thread = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.thread)),
+    config: { model: "m1", effort: "high" },
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [status], wsl: [] }),
+    boundedThreadListPage: async () => ({ page: { threads: [thread] } }),
+    sendThreadInput: async (payload: unknown) => {
+      sends.push(payload as { config: Record<string, unknown> });
+      return {};
+    },
+  });
+  const { value } = S.router(client);
+  const post = (path: string, body: unknown) =>
+    value.handle(
+      new Request(`http://poracode.invalid/api/session/ses_thread-1/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  // Cold session follow-up keeps the persisted remote effort ("high"), not model default ("medium").
+  expect((await post("prompt", { text: "cold follow-up" })).status).toBe(200);
+  expect(sends.at(-1)?.config.effort).toBe("high");
+
+  // Updating another option keeps the persisted effort as well.
+  expect(await value.setSessionOptions("ses_thread-1", { fast: true })).toEqual({ ok: true });
+  expect((await post("prompt", { text: "after option change" })).status).toBe(200);
+  expect(sends.at(-1)?.config.effort).toBe("high");
+
+  // Switching models without an explicit effort applies the new model's default effort.
+  expect((await post("model", { model: { providerID: "codex", id: "m2" } })).status).toBe(204);
+  expect((await post("prompt", { text: "switched model" })).status).toBe(200);
+  expect(sends.at(-1)?.config).toMatchObject({ model: "m2", effort: "low" });
+});

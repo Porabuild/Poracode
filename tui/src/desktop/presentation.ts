@@ -94,6 +94,7 @@ export { isReadLikeToolPayload } from "@/renderer/components/thread/ChatPane/par
 export { getBasename } from "@/shared/pathUtils";
 export { formatDuration, formatElapsed } from "@/renderer/utils/formatTime";
 export { formatEffortLabel } from "@/renderer/components/common/effortLabel";
+export { pickUsageFact } from "@/renderer/components/newsLine/newsFacts";
 export { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 export { getToolLikePayload, isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
 export { stripAnsiPreservingLayout } from "@/shared/ansi";

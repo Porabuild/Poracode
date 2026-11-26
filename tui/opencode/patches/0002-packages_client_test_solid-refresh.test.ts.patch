@@ -1,0 +1,10 @@
+diff --git a/packages/client/test/solid-refresh.test.ts b/packages/client/test/solid-refresh.test.ts
+index 3c4439f..73eb67a 100644
+--- a/packages/client/test/solid-refresh.test.ts
++++ b/packages/client/test/solid-refresh.test.ts
+@@ -411,4 +411,4 @@ test("delayed metadata and family reads do not resurrect sessions deleted while
+     familyRelease.resolve()
+     setup.dispose()
+   }
+-})
++})

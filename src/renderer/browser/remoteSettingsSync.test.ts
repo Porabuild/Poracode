@@ -392,4 +392,25 @@ describe("pushDesktopSettingsDiff push ordering", () => {
     pushDesktopSettingsDiff(client, input("desktop-b-edit"));
     expect(client.updateSettings).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps host newsLine settings read-only and never pushes local changes", () => {
+    const initial = {
+      ...settings("v0"),
+      newsLineEnabled: false,
+      newsLineActivity: false,
+    } as RemoteSettings;
+    applyDesktopSettings(initial);
+    expect(h.applyExternalSharedSettings).toHaveBeenLastCalledWith(settings("v0"));
+
+    const client = {
+      updateSettings: vi.fn<RemoteDesktopClient["updateSettings"]>(),
+    } as unknown as RemoteDesktopClient;
+    pushDesktopSettingsDiff(client, {
+      ...input("v0"),
+      newsLineEnabled: true,
+      newsLineActivity: true,
+    } as SharedSettingsInput);
+
+    expect(client.updateSettings).not.toHaveBeenCalled();
+  });
 });

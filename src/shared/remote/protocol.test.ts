@@ -108,6 +108,27 @@ describe("device-local terminal settings", () => {
       remoteSettingsPatchSchema.parse({ sidebarShortcutOrder: ["settings:profile"] }),
     ).not.toHaveProperty("sidebarShortcutOrder");
   });
+
+  it("projects the news line preference without requiring it from older hosts", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      newsLineEnabled: false,
+      newsLineActivity: false,
+    });
+    expect(remoteSettingsSchema.parse(settings)).toMatchObject({
+      newsLineEnabled: false,
+      newsLineActivity: false,
+    });
+    delete settings.newsLineEnabled;
+    delete settings.newsLineActivity;
+    expect(remoteSettingsSchema.parse(settings)).not.toHaveProperty("newsLineEnabled");
+    expect(remoteSettingsSchema.parse(settings)).not.toHaveProperty("newsLineActivity");
+    expect(REMOTE_SETTINGS_KEYS).not.toContain("newsLineEnabled");
+    expect(REMOTE_SETTINGS_KEYS).not.toContain("newsLineActivity");
+    expect(
+      remoteSettingsPatchSchema.parse({ newsLineEnabled: true, newsLineActivity: true }),
+    ).toEqual({});
+  });
   it("never exposes network enablement in the remote-editable settings subset", () => {
     expect(REMOTE_SETTINGS_KEYS).not.toContain("remoteAccessLanEnabled");
     expect(pickRemoteSettings(defaultSharedSettings)).not.toHaveProperty("remoteAccessLanEnabled");

@@ -1,5 +1,6 @@
 import type { Thread } from "@/shared/contracts";
-import { gitStatusResultSchema } from "@/shared/contracts/gitResults";
+import type { RemoteProject } from "@/shared/remote";
+import { gitBranchListResultSchema, gitStatusResultSchema } from "@/shared/contracts/gitResults";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { hostSupportsThreadLaunchMetadata } from "@/shared/remote/protocol/threadLaunchMetadata";
 import { sideChatLaunchInput } from "@/shared/sideChatLaunchInput";
@@ -7,7 +8,7 @@ import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { historyMessagePage } from "../history";
 import { parseSubSessionId, sessionId, threadId } from "../ids";
-import { record, supportsGui } from "./helpers";
+import { guiModelReasoning, record, supportsGui } from "./helpers";
 import type { RouterContext } from "./context";
 
 /** Plugin-facing API surface returned to the TUI plugin entry point. */
@@ -32,17 +33,11 @@ export function createFacade(ctx: RouterContext) {
     listThreads,
     cachedThreadById,
   } = ctx;
-  const sessionOptions = async (session: string, remoteThread?: Thread | null) => {
-    const current = sessions.get(session);
-    const remote =
-      remoteThread === undefined
-        ? (await listThreads()).find((value) => value.id === threadId(session))
-        : (remoteThread ?? undefined);
-    const status = (await agentStatuses()).find(
-      (value) => value.kind === (current?.providerID ?? remote?.agentKind ?? ctx.activeProviderID),
-    );
+  let draftApproval: { providerID: string; policy: string } | undefined;
+  let draftWorktree: { projectId: string; startPoint: string } | undefined;
+  const optionsFor = async (providerID: string | undefined, model?: string) => {
+    const status = (await agentStatuses()).find((value) => value.kind === providerID);
     const caps = status?.capabilities.presentationCapabilities?.gui ?? status?.capabilities;
-    const model = current?.model ?? remote?.config.model;
     const fastModels = caps?.fastModels ?? status?.capabilities.fastModels ?? [];
     const thinkingModels = caps?.thinkingModels ?? status?.capabilities.thinkingModels ?? [];
     const workflowModels = caps?.workflowModels ?? status?.capabilities.workflowModels ?? [];
@@ -74,17 +69,35 @@ export function createFacade(ctx: RouterContext) {
     };
   };
 
-  const setSessionOptions = async (
-    session: string,
-    choice: {
-      approvalPolicy?: string;
-      sandboxMode?: string;
-      fast?: boolean;
-      thinking?: boolean;
-      workflows?: boolean;
-      contextSize?: string;
-    },
-  ) => {
+  const sessionOptions = async (session: string, remoteThread?: Thread | null) => {
+    const current = sessions.get(session);
+    const remote =
+      remoteThread === undefined
+        ? (await listThreads()).find((value) => value.id === threadId(session))
+        : (remoteThread ?? undefined);
+    return optionsFor(
+      current?.providerID ?? remote?.agentKind ?? ctx.activeProviderID,
+      current?.model ?? remote?.config.model,
+    );
+  };
+
+  function approvalState(offered: Awaited<ReturnType<typeof optionsFor>>, preferred?: string) {
+    const options = offered.approvalPolicies;
+    const option =
+      options.find((entry) => entry.id === preferred) ??
+      options.find((entry) => entry.id === offered.defaults.approvalPolicy) ??
+      options[0];
+    return option && { current: option.id, label: option.label, options };
+  }
+
+  const draftProjectInfo = (project: RemoteProject) => ({
+    id: project.id,
+    name: project.name,
+    directory: ctx.directoryOf(project.location),
+    defaultBranch: project.worktreeBaseBranch,
+  });
+
+  const setSessionOptions: RouterContext["setSessionOptions"] = async (session, choice) => {
     let current = sessions.get(session);
     // A thread opened from the session list was never prompted in this run,
     // so it has no record; look the remote thread up once (as composerState
@@ -187,19 +200,11 @@ export function createFacade(ctx: RouterContext) {
         options: readonly { id: string; label: string }[];
       };
     } = {};
-    if (offered.approvalPolicies.length > 0) {
-      const approval =
-        current?.approvalPolicy ??
-        remoteString("approvalPolicy") ??
-        offered.defaults.approvalPolicy;
-      const option = offered.approvalPolicies.find((entry) => entry.id === approval);
-      if (approval && option)
-        state.approval = {
-          current: approval,
-          label: option.label,
-          options: offered.approvalPolicies,
-        };
-    }
+    const approval = approvalState(
+      offered,
+      current?.approvalPolicy ?? remoteString("approvalPolicy"),
+    );
+    if (approval) state.approval = approval;
     if (offered.fast.offered) {
       state.fast = {
         on: current?.fast ?? remoteBool("fast") ?? false,
@@ -464,6 +469,56 @@ export function createFacade(ctx: RouterContext) {
     sessionOptions,
     setSessionOptions,
     composerState,
+    async draftProjects() {
+      return [...(await ctx.projectInventory()).values()].map(draftProjectInfo);
+    },
+    async draftProject(directory: string) {
+      return draftProjectInfo(await ctx.projectForDirectory(directory));
+    },
+    async newsLineSettings() {
+      const { newsLineEnabled, newsLineActivity, usage } = await input.client.settings();
+      return {
+        enabled: newsLineEnabled !== false,
+        activity: newsLineActivity !== false,
+        disabledProviders: usage?.disabledProviders ?? [],
+      };
+    },
+    async draftBranches(projectId: string) {
+      const project = await ctx.projectById(projectId);
+      if (!project) return;
+      const result = await input.client.callRemoteProcedure("gitListBranches", {
+        projectLocation: project.location,
+        includeRemote: true,
+      });
+      return gitBranchListResultSchema.safeParse(result).data;
+    },
+    setDraftWorktree(projectId: string, startPoint?: string) {
+      draftWorktree = startPoint ? { projectId, startPoint } : undefined;
+    },
+    draftWorktreeStartPoint(projectId: string) {
+      return draftWorktree?.projectId === projectId ? draftWorktree.startPoint : undefined;
+    },
+    async modelReasoning(providerID: string, modelID: string) {
+      const status = (await agentStatuses()).find((value) => value.kind === providerID);
+      return status && guiModelReasoning(status, modelID);
+    },
+    async draftApprovalState(providerID: string) {
+      const offered = await optionsFor(providerID);
+      return approvalState(
+        offered,
+        draftApproval?.providerID === providerID ? draftApproval.policy : undefined,
+      );
+    },
+    async setDraftApproval(providerID: string, policy: string) {
+      const offered = await optionsFor(providerID);
+      if (offered.approvalPolicies.some((option) => option.id === policy))
+        draftApproval = { providerID, policy };
+    },
+    takeDraftApproval(providerID: string) {
+      const pending = draftApproval;
+      draftApproval = undefined;
+      return pending?.providerID === providerID ? pending.policy : undefined;
+    },
     gitChanges,
     exportSession,
     offeredProviders,

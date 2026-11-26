@@ -141,7 +141,8 @@ describe("remote v3 native binding generator", () => {
         // Optional UsageWindow.breakdown adds one structural type and moves the source hash.
         // Additive optional subagent viewerId/leaseMs fields keep older peers
         // valid but move the source hash.
-        sourceHash: "sha256:3d0881a2b8371ca5dc1aad74f90689d81e37c04c0dd163aacd3811855a8998af",
+        // Read-only news line preferences add optional settings fields.
+        sourceHash: "sha256:6f50d877932513398e6593729906bd53a7df341c22750484060c234612596292",
         manifestHash: "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
         counts: {
           routes: 128,

@@ -54,7 +54,7 @@ public struct RoutesettingsU2DReadResponseU2DSettingsU2DUsage_18dc352c9a: Codabl
 
 public typealias RoutesettingsU2DReadResponseU2DSettingsU2DWslCrews_1af2c4430c = [String: [RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItem_261c257787]]
 
-public struct RoutesettingsU2DReadResponseU2DSettings_9e69a11cc2: Codable, Sendable, RemoteModelMetadata {
+public struct RoutesettingsU2DReadResponseU2DSettings_be232916cd: Codable, Sendable, RemoteModelMetadata {
   public var agentSettings: RoutesettingsU2DReadResponseU2DSettingsU2DAgentSettings_deb61378c1
   public var autoArchiveDoneAfterDays: RemoteField<Int64> = .missing
   public var commitGenEffort: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b
@@ -79,6 +79,8 @@ public struct RoutesettingsU2DReadResponseU2DSettings_9e69a11cc2: Codable, Senda
   public var hiddenModels: RoutesettingsU2DReadResponseU2DSettingsU2DCrossagentHiddenModels_86d5d72e84
   public var installedPlugins: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DInstalledPlugins_e356e4b5f6> = .missing
   public var memory: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DMemory_df5d50a751> = .missing
+  public var newsLineActivity: RemoteField<Bool> = .missing
+  public var newsLineEnabled: RemoteField<Bool> = .missing
   public var prAutomationDefault: RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8
   public var prCreateMode: RemoteField<RoutesettingsU2DReadResponseU2DSettingsU2DPrCreateMode_bed2580f4e> = .missing
   public var prMergeMethod: ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DMergeMethodsU2DItem_9c01de6b08
@@ -137,6 +139,8 @@ public struct RoutesettingsU2DReadResponseU2DSettings_9e69a11cc2: Codable, Senda
     .init(wireName: "hiddenModels", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DCrossagentHiddenModels_86d5d72e84", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "installedPlugins", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DInstalledPlugins_e356e4b5f6", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "memory", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DMemory_df5d50a751", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "newsLineActivity", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "newsLineEnabled", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prAutomationDefault", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prCreateMode", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DPrCreateMode_bed2580f4e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prMergeMethod", typeName: "ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DMergeMethodsU2DItem_9c01de6b08", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -196,6 +200,8 @@ public struct RoutesettingsU2DReadResponseU2DSettings_9e69a11cc2: Codable, Senda
     case hiddenModels = "hiddenModels"
     case installedPlugins = "installedPlugins"
     case memory = "memory"
+    case newsLineActivity = "newsLineActivity"
+    case newsLineEnabled = "newsLineEnabled"
     case prAutomationDefault = "prAutomationDefault"
     case prCreateMode = "prCreateMode"
     case prMergeMethod = "prMergeMethod"

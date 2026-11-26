@@ -6,6 +6,9 @@ import { json, record } from "../helpers";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { hostSupportsCatalogMutations } from "@/shared/remote/protocol/catalogMutations";
 import { canForkThread } from "@/shared/threadFork";
+import { generateWorktreeBranch } from "@/shared/worktreeBranch";
+import { threadWorktreeCreationOptions } from "@/shared/threadWorktreeLaunch";
+import { samePath } from "../../paths";
 import type {
   ExperimentalPersistentPtyListOutput,
   SessionActiveOutput,
@@ -120,7 +123,7 @@ export async function handleSessionRoutes({
     const providerID = String(model.providerID ?? "");
     const modelID = String(model.id ?? "");
     const effort = typeof model.variant === "string" ? model.variant : undefined;
-    const approvalPolicy =
+    const requestedApproval =
       typeof body.approvalPolicy === "string" ? body.approvalPolicy : undefined;
     const sandboxMode = typeof body.sandboxMode === "string" ? body.sandboxMode : undefined;
     const remoteThreadID = threadId(id);
@@ -160,7 +163,27 @@ export async function handleSessionRoutes({
     // the host runs prepare-worktree setup via the worktree fields.
     let worktreePath: string | undefined;
     let worktreeBranch: string | undefined;
-    if (requestedDirectory && requestedDirectory !== directoryOf(current.location)) {
+    const startPoint = ctx.draftWorktreeStartPoint(current.id);
+    const atProjectRoot =
+      !requestedDirectory || samePath(requestedDirectory, directoryOf(current.location));
+    if (startPoint) {
+      const branch = generateWorktreeBranch();
+      const result = record(
+        await input.client.callRemoteProcedure("gitAddWorktree", {
+          projectLocation: current.location,
+          ...threadWorktreeCreationOptions({ branch, startPoint }),
+          ...(current.scripts?.worktreeCopyPatterns?.length
+            ? { copyIgnoredPatterns: current.scripts.worktreeCopyPatterns }
+            : {}),
+        }),
+      );
+      if (typeof result.path !== "string" || !result.path)
+        throw new Error("Worktree creation returned no path");
+      worktreePath = result.path;
+      worktreeBranch = branch;
+      createdWorktrees.set(worktreePath, branch);
+      if (ctx.draftWorktreeStartPoint(current.id) === startPoint) ctx.setDraftWorktree(current.id);
+    } else if (!atProjectRoot) {
       const listed = record(
         await input.client.callRemoteProcedure("gitListWorktrees", {
           projectLocation: current.location,
@@ -174,6 +197,8 @@ export async function handleSessionRoutes({
         worktreeBranch = String(match.branch ?? "") || undefined;
       }
     }
+    const draftApproval = ctx.takeDraftApproval(providerID);
+    const approvalPolicy = requestedApproval ?? draftApproval;
     const createdAt = Date.now();
     sessions.set(id, {
       threadId: remoteThreadID,

@@ -30,7 +30,7 @@ function BubbleSegment(props: { segment: UserTextSegment; fg: RGBA; chipBg: RGBA
   );
 }
 
-/** The desktop user bubble: a raised, hairline-bordered surface that clamps long prompts. */
+/** A softly filled user message that clamps long prompts. */
 export function UserBubble(props: Props & { message: SessionMessageUser }) {
   const theme = () => props.context.theme;
   const [hover, setHover] = createSignal(false);
@@ -59,16 +59,13 @@ export function UserBubble(props: Props & { message: SessionMessageUser }) {
     () => `poracode:user:${props.message.id}`,
     () => false,
   );
-  const overflow = createMemo(() => wrappedLines(text(), props.input.width - 4) > USER_LINES);
+  const overflow = createMemo(() => wrappedLines(text(), props.input.width - 2) > USER_LINES);
   const background = () =>
-    hover() ? theme().decrease(theme().background.raised.base) : theme().background.raised.base;
+    hover() ? theme().background.raised.base : theme().decrease(theme().background.raised.base);
   const fg = () => (pending() ? theme().text.muted : theme().text.base);
   return (
     <Show when={text() || chips().length}>
       <box
-        border={true}
-        borderStyle="rounded"
-        borderColor={theme().border.base}
         backgroundColor={background()}
         paddingLeft={1}
         paddingRight={1}

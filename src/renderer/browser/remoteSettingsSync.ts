@@ -67,6 +67,8 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
     prCreateMode,
     memory,
     installedPlugins,
+    newsLineEnabled: _hostNewsLineEnabled,
+    newsLineActivity: _hostNewsLineActivity,
     ...requiredSettings
   } = settings;
   applyExternalSharedSettings({

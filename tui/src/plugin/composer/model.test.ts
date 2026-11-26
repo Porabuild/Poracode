@@ -29,7 +29,7 @@ test("the model chip always leads in normal mode", () => {
   });
 });
 
-test("options label joins effort, context, and workflows like the desktop", () => {
+test("effort has its own chip alongside the remaining options", () => {
   const chips = composerChips({
     ...base,
     variants: ["low", "high"],
@@ -48,14 +48,14 @@ test("options label joins effort, context, and workflows like the desktop", () =
     },
   });
   const options = chips.find((chip) => chip.kind === "options");
-  expect(options).toMatchObject({ label: "High · 200K · Workflows", variants: true });
+  expect(options).toMatchObject({ label: "200K · Workflows" });
+  expect(chips[1]).toEqual({ kind: "effort", label: "High" });
 });
 
-test("options falls back to Thinking then Options", () => {
+test("options shows Thinking when a model offers the thinking toggle", () => {
   const thinking = composerChips({ ...base, state: { thinking: { on: false } } });
   expect(thinking.find((chip) => chip.kind === "options")).toMatchObject({
     label: "Thinking",
-    variants: false,
   });
   const bare = composerChips({
     ...base,
@@ -71,7 +71,7 @@ test("options is hidden when nothing offers a choice", () => {
   expect(chips.some((chip) => chip.kind === "fast")).toBe(true);
 });
 
-test("approval and changes chips require a session", () => {
+test("draft approval is independent of session approval and git changes", () => {
   const state: ComposerState = {
     approval: {
       current: "auto",
@@ -83,6 +83,9 @@ test("approval and changes chips require a session", () => {
   expect(
     composerChips({ ...base, sessionID: undefined, state, changes }).map((chip) => chip.kind),
   ).toEqual(["model"]);
+  expect(
+    composerChips({ ...base, sessionID: undefined, approval: state.approval, changes })[1],
+  ).toEqual({ kind: "approval", label: "Auto" });
   expect(composerChips({ ...base, state, changes }).map((chip) => chip.kind)).toEqual([
     "model",
     "approval",

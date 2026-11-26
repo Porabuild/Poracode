@@ -18,7 +18,7 @@ import { resolveProjectLocation } from "@/shared/worktree";
 import { logAdapterError } from "../diagnostics";
 import { itemId, messageId, threadId } from "../ids";
 import { selectPermissionOption } from "../permissions";
-import { record } from "./helpers";
+import { guiModelReasoning, record } from "./helpers";
 import type { RouterContext } from "./context";
 import { CREW_PROVIDER_ID, resolveCrewPick, type CrewPick } from "./crews";
 
@@ -87,9 +87,11 @@ export function createPrompt(ctx: RouterContext) {
     }
     const providerID = pick ? pick.lead.agentKind : pickedProviderID;
     const selectedModel = pick ? pick.lead.model : pickedModel;
-    const effort = pick
+    const savedEffort =
+      raw?.providerID === pickedProviderID && raw.model === pickedModel ? raw.effort : undefined;
+    const requestedEffort = pick
       ? (pick.lead.effort ?? "")
-      : String(model.variant ?? raw?.effort ?? body.effort ?? "");
+      : String(model.variant ?? body.effort ?? savedEffort ?? "");
     // Only a model in the body is an explicit pick — the vendored composer
     // sends none, and the selection route already applied the crew choice.
     const explicitPick = model.providerID !== undefined;
@@ -376,6 +378,10 @@ export function createPrompt(ctx: RouterContext) {
     const savedConfigMatches = raw?.providerID === providerID && raw.model === selectedModel;
     const remoteConfigMatches =
       remoteThread?.agentKind === providerID && remoteThread.config.model === selectedModel;
+    const effort =
+      requestedEffort ||
+      (!pick && remoteConfigMatches ? remoteThread?.config.effort : undefined) ||
+      (pick ? "" : (guiModelReasoning(selectedStatus, selectedModel).default ?? ""));
     // Same-provider threads keep their host config (executionEnvironment,
     // MCP/tool overrides, reviewer, importedFrom) — only the fields the TUI
     // owns are overlaid. A model change drops the stale selectionBinding; a
@@ -386,6 +392,7 @@ export function createPrompt(ctx: RouterContext) {
     const modelChanged = "model" in base && base.model !== selectedModel;
     const {
       selectionBinding: _droppedBinding,
+      effort: _droppedEffort,
       workflows: baseWorkflows,
       ...baseRest
     } = base as ThreadConfig;
@@ -786,7 +793,7 @@ export function createPrompt(ctx: RouterContext) {
       }
       const startWorktreePath = raw?.worktreePath;
       const startIsNewWorktree = startWorktreePath
-        ? createdWorktrees.delete(startWorktreePath)
+        ? createdWorktrees.has(startWorktreePath)
         : undefined;
       const startRequest = {
         threadId: id,
@@ -807,6 +814,7 @@ export function createPrompt(ctx: RouterContext) {
           resolveProjectLocation(currentProject.location, startRequest.worktreePath),
         );
         await input.client.startNewThread(startRequest);
+        if (startWorktreePath && startIsNewWorktree) createdWorktrees.delete(startWorktreePath);
         sessionMcpPending.delete(session);
         sessionMcpPending.delete("");
         autoTitle(id, text, currentProject);

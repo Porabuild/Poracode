@@ -25,7 +25,8 @@ export type ComposerChanges = {
 export type ComposerChip =
   | { kind: "shell" }
   | { kind: "model"; model: string; provider: string }
-  | { kind: "options"; label: string; variants: boolean }
+  | { kind: "effort"; label: string }
+  | { kind: "options"; label: string }
   | { kind: "fast"; on: boolean; disabledReason?: string }
   | { kind: "approval"; label: string }
   | { kind: "plan" }
@@ -47,6 +48,7 @@ export function composerChips(input: {
   variants: readonly string[];
   /** Selected variant id; undefined for the model default. */
   variant?: string;
+  approval?: ComposerState["approval"];
   state: ComposerState | undefined;
   changes: ComposerChanges | undefined;
 }): ComposerChip[] {
@@ -54,23 +56,23 @@ export function composerChips(input: {
   if (input.agent === undefined) return [];
   const chips: ComposerChip[] = [{ kind: "model", model: input.model, provider: input.provider }];
   const state = input.state;
-  const variants = input.variants.length > 1;
+  if (input.variants.length > 1 && input.variant)
+    chips.push({ kind: "effort", label: formatEffortLabel(input.variant) });
   const contextSizes = (state?.context?.options.length ?? 0) > 1;
   const parts: string[] = [];
-  if (variants && input.variant) parts.push(formatEffortLabel(input.variant));
   if (contextSizes && state?.context?.label) parts.push(state.context.label);
   if (state?.workflows?.on) parts.push(state.workflows.label);
   const optionsLabel = parts.join(" · ") || (state?.thinking ? "Thinking" : "Options");
-  if (variants || contextSizes || state?.thinking || state?.workflows)
-    chips.push({ kind: "options", label: optionsLabel, variants });
+  if (contextSizes || state?.thinking || state?.workflows)
+    chips.push({ kind: "options", label: optionsLabel });
   if (state?.fast)
     chips.push({
       kind: "fast",
       on: state.fast.on,
       ...(state.fast.disabledReason ? { disabledReason: state.fast.disabledReason } : {}),
     });
-  if (input.sessionID && state?.approval)
-    chips.push({ kind: "approval", label: state.approval.label });
+  const approval = input.sessionID ? state?.approval : input.approval;
+  if (approval) chips.push({ kind: "approval", label: approval.label });
   if (input.agent === "Plan") chips.push({ kind: "plan" });
   if (input.auto) chips.push({ kind: "auto" });
   if (
