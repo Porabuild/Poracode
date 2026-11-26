@@ -52,8 +52,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function fixture(width: number, font = "14px") {
-  const sizes = new Map([["stable", 184]]);
+function fixture(width: number, font = "14px", sizes = new Map([["stable", 184]])) {
   const readSizes = vi.fn<() => { sizes: Map<string, number> }>(() => ({ sizes }));
   const setItemSize = vi.fn<(key: string, size: { height: number; width: number }) => void>();
   const list = { getState: readSizes, setItemSize } as unknown as LegendListRef;
@@ -124,7 +123,7 @@ function fixture(width: number, font = "14px") {
 describe("timeline measurement lifecycle", () => {
   it("restores at the first usable width and admits that restoration only once", () => {
     writeTimelineMeasurements("t", "500:14px", [{ key: "stable", index: 0, size: 184 }]);
-    const f = fixture(0);
+    const f = fixture(0, "14px", new Map());
     expect(f.setItemSize).not.toHaveBeenCalled();
     f.rerender(500);
     f.resize();
@@ -132,6 +131,18 @@ describe("timeline measurement lifecycle", () => {
     f.resize();
     expect(f.setItemSize).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps current measurements when a late restore includes their rows", () => {
+    writeTimelineMeasurements("t", "500:14px", [
+      { key: "stable", index: 0, size: 890 },
+      { key: "unmeasured", index: 1, size: 96 },
+    ]);
+    const f = fixture(0, "14px", new Map([["stable", 71]]));
+    f.rerender(500, "14px", [...entries, { kind: "item", id: "unmeasured" }]);
+    f.resize();
+    expect(f.setItemSize).toHaveBeenCalledExactlyOnceWith("unmeasured", { height: 96, width: 500 });
+  });
+
   it("does not read the layout signature on structural transcript updates", () => {
     const f = fixture(500);
     const computedStyle = vi.spyOn(window, "getComputedStyle");
@@ -174,7 +185,7 @@ describe("timeline measurement lifecycle", () => {
     first.view.unmount();
     expect(readTimelineMeasurements("t", "500:14px")).toHaveLength(1);
 
-    const second = fixture(500);
+    const second = fixture(500, "14px", new Map());
     expect(second.setItemSize).toHaveBeenCalledExactlyOnceWith("stable", {
       height: 184,
       width: 500,

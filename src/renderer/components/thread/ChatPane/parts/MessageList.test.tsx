@@ -1049,6 +1049,7 @@ describe("MessageList", () => {
       <MessageList threadId="thread-1" entries={makeEntries(["assistant-1"])} />,
     );
     first.unmount();
+    legendSizes.clear();
     setItemSizeMock.mockClear();
 
     const second = render(<MessageList threadId="thread-1" entries={[]} />);

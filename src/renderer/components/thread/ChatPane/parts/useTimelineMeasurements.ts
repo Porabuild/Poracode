@@ -61,11 +61,17 @@ export function useTimelineMeasurements({
       layout.signature = signature;
       if (layout.restored) return;
       layout.restored = true;
+      const measurements = readTimelineMeasurements(threadId, signature);
+      if (measurements.length === 0) return;
       const entryIds = new Set(entriesRef.current.map((entry) => entry.id));
       const width = scrollElement.clientWidth;
-      for (const measurement of readTimelineMeasurements(threadId, signature)) {
-        if (!entryIds.has(String(measurement.key))) continue;
-        instance.setItemSize(String(measurement.key), { height: measurement.size, width });
+      const currentSizes = instance.getState().sizes;
+      for (const measurement of measurements) {
+        const key = String(measurement.key);
+        // A late restore can run after the new list measured its rows. Using
+        // an old height then moves the scroll end away from the rendered tail.
+        if (!entryIds.has(key) || currentSizes.has(key)) continue;
+        instance.setItemSize(key, { height: measurement.size, width });
       }
     };
     observeLayout();
