@@ -166,6 +166,7 @@ export {
   antigravityQuotaSummaryWindows,
   antigravityRingGroups,
   antigravityWindowId,
+  hasAntigravityQuotaSummaryGroups,
 } from "./collectors/antigravity";
 export type {
   AntigravityCadence,

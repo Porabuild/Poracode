@@ -1,4 +1,5 @@
 import { resolveDevinToken } from "../agents/devin/usageCredentials";
+import { retireAntigravityUsageCredential } from "../agents/antigravity/usageCredentialMigration";
 import type { CredentialStore } from "@poracode/agents-usage";
 import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
@@ -63,12 +64,24 @@ const tokenRefreshers: Record<string, (token: OAuthToken) => Promise<OAuthToken 
   kimi: refreshRejectedKimiToken,
 };
 
+/**
+ * Provider credential slots Poracode no longer reads. The factory owns the
+ * cache directory, so it can retire legacy slots once per construction before
+ * any resolver or secret read observes them.
+ */
+const RETIRED_CREDENTIAL_MIGRATIONS: readonly ((cacheDir: string) => void)[] = [
+  retireAntigravityUsageCredential,
+];
+
 /** Build the native credential store consumed by the usage HostPort. */
 export function createNativeCredentialStore(
   cacheDir?: string,
   settingsPath?: string,
 ): CredentialStore {
   const resolvers = tokenResolvers(settingsPath);
+  if (cacheDir) {
+    for (const retire of RETIRED_CREDENTIAL_MIGRATIONS) retire(cacheDir);
+  }
   return {
     getOAuthToken: async (providerId) => resolvers[providerId]?.(),
     refreshOAuthToken: async (providerId, token) => tokenRefreshers[providerId]?.(token),

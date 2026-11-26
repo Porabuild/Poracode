@@ -55,7 +55,8 @@ import { providerUsageResponse } from "./usageRingPresentation";
 // v17 refreshes Gemini snapshots that now include paidTier/credits and token refresh.
 // v18 refreshes Cursor snapshots with split Cursor Models/API spend, stringified pooled limits, breakdowns, and cycle tokens.
 // v19 refreshes Cursor snapshots whose API dollars or on-demand percent used combined/personal spend instead of the split API and pooled team scopes.
-const USAGE_CACHE_VERSION = 19;
+// v20 discards Antigravity allowances that may have come from the retired cloud collector.
+const USAGE_CACHE_VERSION = 20;
 // Ring layouts are response-only and recomputed from current descriptors and
 // settings; they do not require cache invalidation.
 /** The full default provider set, from the package catalog (single source of truth). */
@@ -127,6 +128,8 @@ export class UsageService {
   private loadedFromCache = false;
   /** In-flight refreshes keyed by their sorted id-set, so identical concurrent refreshes coalesce. */
   private readonly refreshesInFlight = new Map<string, Promise<ProviderUsageResponse>>();
+  /** Aborts vendor-local readers (CLI/ACP probes) when the service stops. */
+  private readonly localAbort = new AbortController();
   private autoRefreshTimer: NodeJS.Timeout | undefined;
   /** Serializes best-effort cache writes so concurrent refreshes cannot tear the file. */
   private cacheWrite: Promise<void> = Promise.resolve();
@@ -469,7 +472,7 @@ export class UsageService {
     const now = this.host.now();
     try {
       const collector = this.localCollectors.get(id);
-      if (collector) return await collector.collect(now, this.host);
+      if (collector) return await collector.collect(now, this.host, this.localAbort.signal);
     } catch {
       // fall through to an error snapshot
     }
@@ -526,6 +529,7 @@ export class UsageService {
 
   stop(): void {
     this.stopped = true;
+    this.localAbort.abort();
     if (this.autoRefreshTimer) clearTimeout(this.autoRefreshTimer);
     this.autoRefreshTimer = undefined;
   }

@@ -387,9 +387,9 @@ export function SingleAgentSettings(props: {
     };
   }, [agentHost, hasCombinedRuntimeUpdates, props.agentKind, registryAgentId]);
 
-  // Resolve the provider account on open. Resolvers may briefly spawn a
-  // helper process (e.g. Antigravity's `agy` language server), so this can
-  // take a moment; it stays undefined (no account line) when unavailable.
+  // Resolve the provider account on open. Resolvers read an already-running
+  // local session when one exists; the account stays undefined (no account
+  // line) when unavailable.
   const accountResolver = providerEntry?.accountResolver;
   useEffect(() => {
     setProviderAccount(undefined);

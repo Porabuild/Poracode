@@ -18,8 +18,8 @@ export const ANTIGRAVITY_DEFAULT_MODEL_ID = "Gemini 3.5 Flash";
 // OS hands that console off, popping a stray terminal window mid-session.
 // Poracode owns agent updates (Settings update button -> `agy update`), so we
 // set `AGY_CLI_DISABLE_AUTO_UPDATE` on every `agy` spawn we make (detection
-// probes, account probe, PTY launches, one-shots). `agy update` runs without
-// this env (separate path), so explicit updates still work.
+// probes, PTY launches, one-shots, quota reports). `agy update` runs without this env
+// (separate path), so explicit updates still work.
 export const ANTIGRAVITY_DISABLE_AUTO_UPDATE_ENV: Record<string, string> = {
   // The CLI checks for the literal "true"; "1" still launches its updater.
   AGY_CLI_DISABLE_AUTO_UPDATE: "true",
