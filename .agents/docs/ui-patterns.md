@@ -13,6 +13,7 @@ Before creating a new component, check whether an existing one handles the use c
 - **`ProviderIcon`** renders the correct icon by agent kind and tone from the registry. Use it rather than importing provider icons directly.
 - **`BranchSelector`** handles branch picking and worktree creation in `ThreadDraftView`. Reuse it for any branch-related UI.
 - **`OptionMenu`** is the dropdown for model/effort/permission selections. It supports custom label formatters via the provider registry.
+- **Form tabs** use HeroUI’s standard `Tabs`, `Tabs.List`, `Tabs.Tab`, `Tabs.Indicator`, and `Tabs.Panel` when a choice switches between groups of fields. Keep the default tab styling and keyboard navigation. The connection tabs in `AgentProfileDialog` are an example.
 
 ### Dialogs
 

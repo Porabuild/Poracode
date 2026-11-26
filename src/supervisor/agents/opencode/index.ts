@@ -1,5 +1,15 @@
 import { OPENCODE_PROVIDER_KIND } from "@/shared/agents/opencode";
-import type { AgentCapability, PromptSegment } from "@/shared/contracts";
+import {
+  parseOpenCodeProfileInstanceConfig,
+  opencodeProfileKind,
+} from "@/shared/agents/opencode/profileConfig";
+import {
+  type AgentCapability,
+  type AgentInstanceConfig,
+  type AgentStatus,
+  type PromptSegment,
+} from "@/shared/contracts";
+import { parseOpenCodeProfileRuntime, type OpenCodeProfileRuntime } from "./profileConfig";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
   bracketedPasteDirectInput,
@@ -22,54 +32,106 @@ import { OpenCodeSession } from "./session";
 import { detectOpenCodeTerminalStatus, opencodeOscHint, opencodeOscTitleHint } from "./terminal";
 import { buildOpenCodeTerminalLaunch } from "./terminalLaunch";
 
-export function createOpenCodeAdapter(): AgentAdapter {
+export interface OpenCodeAdapterOptions {
+  kind?: string;
+  label?: string;
+  /** Isolated model profile. The base adapter omits this. */
+  profile?: OpenCodeProfileRuntime;
+}
+
+function profileCapabilities(profile: OpenCodeProfileRuntime, label: string): AgentCapability {
+  return {
+    ...opencodeDefaultCapabilities,
+    models: [{ id: profile.model, label: profile.modelLabel }],
+    subProviders: [{ id: profile.model.slice(0, profile.model.indexOf("/")), label }],
+  };
+}
+
+function applyProfileModel(
+  status: AgentStatus,
+  profile: OpenCodeProfileRuntime,
+  kind: string,
+  label: string,
+): AgentStatus {
+  const next: AgentStatus = {
+    ...status,
+    kind,
+    label,
+    // A local profile is credential-free: its private provider uses a dummy key
+    // and never borrows the base account's auth or identity.
+    authState: "authenticated",
+    capabilities: profileCapabilities(profile, label),
+  };
+  delete next.providerMetadata;
+  delete next.loginCommand;
+  delete next.loginCommandDisplay;
+  delete next.authMethods;
+  delete next.authLogoutSupported;
+  return next;
+}
+
+export function createOpenCodeAdapter(options: OpenCodeAdapterOptions = {}): AgentAdapter {
   let capabilities: AgentCapability = opencodeDefaultCapabilities;
+  const kind = options.kind ?? OPENCODE_PROVIDER_KIND;
+  const label = options.label ?? openCodeDetectionSpec.label;
+  const profileScoped = options.kind !== undefined || options.label !== undefined;
+  if (options.profile) capabilities = profileCapabilities(options.profile, label);
 
   return {
-    managePlugins: manageOpenCodePlugins,
-    listNativePlugins: listNativeOpenCodePlugins,
-    manageCredentials: manageOpenCodeCredentials,
-    kind: OPENCODE_PROVIDER_KIND,
-    label: openCodeDetectionSpec.label,
+    // A private profile owns an isolated config dir and dummy credential; the
+    // base provider's plugin and credential mutations must not reach it.
+    ...(options.profile
+      ? {}
+      : {
+          managePlugins: manageOpenCodePlugins,
+          listNativePlugins: listNativeOpenCodePlugins,
+          manageCredentials: manageOpenCodeCredentials,
+        }),
+    kind,
+    label,
     binary: openCodeDetectionSpec.binary,
     poolsDirectoryMcp: true,
-    skillSupport: {
-      roots: [
-        {
-          id: "opencode",
-          label: openCodeDetectionSpec.label,
-          globalPath: ".config/opencode/skills",
-          projectPath: ".opencode/skills",
-          globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skills" },
-        },
-        {
-          id: "opencode-singular",
-          label: openCodeDetectionSpec.label,
-          globalPath: ".config/opencode/skill",
-          projectPath: ".opencode/skill",
-          globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skill" },
-        },
-        {
-          id: "claude",
-          label: "Claude-compatible skills",
-          globalPath: ".claude/skills",
-          projectPath: ".claude/skills",
-        },
-        {
-          // OpenCode auto-loads `~/.agents/skills` and project `.agents/skills`
-          // (verified against the shipped binary's scan globs).
-          id: "agents",
-          label: "Shared agent skills",
-          globalPath: ".agents/skills",
-          projectPath: ".agents/skills",
-        },
-      ],
-      invocation: "prompt",
-      precedence: {
-        global: ["opencode", "opencode-singular", "agents", "claude"],
-        project: ["opencode", "opencode-singular", "agents", "claude"],
-      },
-    },
+    ...(options.profile
+      ? {}
+      : {
+          skillSupport: {
+            roots: [
+              {
+                id: "opencode",
+                label: openCodeDetectionSpec.label,
+                globalPath: ".config/opencode/skills",
+                projectPath: ".opencode/skills",
+                globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skills" },
+              },
+              {
+                id: "opencode-singular",
+                label: openCodeDetectionSpec.label,
+                globalPath: ".config/opencode/skill",
+                projectPath: ".opencode/skill",
+                globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skill" },
+              },
+              {
+                id: "claude",
+                label: "Claude-compatible skills",
+                globalPath: ".claude/skills",
+                projectPath: ".claude/skills",
+              },
+              {
+                // OpenCode auto-loads `~/.agents/skills` and project `.agents/skills`
+                // (verified against the shipped binary's scan globs).
+                id: "agents",
+                label: "Shared agent skills",
+                globalPath: ".agents/skills",
+                projectPath: ".agents/skills",
+              },
+            ],
+            invocation: "prompt",
+            precedence: {
+              global: ["opencode", "opencode-singular", "agents", "claude"],
+              project: ["opencode", "opencode-singular", "agents", "claude"],
+            },
+          },
+        }),
     ...(openCodeDetectionSpec.update ? { update: openCodeDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -82,9 +144,17 @@ export function createOpenCodeAdapter(): AgentAdapter {
       const location = detectProbeLocation(ctx);
       const binary = await resolveOpenCodeBinary(location, ctx?.signal, true);
       if (!binary) {
-        return notInstalledAgentStatus(openCodeDetectionSpec, opencodeDefaultCapabilities);
+        return notInstalledAgentStatus(
+          profileScoped ? { ...openCodeDetectionSpec, kind, label } : openCodeDetectionSpec,
+          options.profile
+            ? profileCapabilities(options.profile, label)
+            : opencodeDefaultCapabilities,
+        );
       }
-      const status = await detectAgentInstall(ctx, { ...openCodeDetectionSpec, binary });
+      const detected = await detectAgentInstall(ctx, { ...openCodeDetectionSpec, binary });
+      const status = options.profile
+        ? applyProfileModel(detected, options.profile, kind, label)
+        : { ...detected, kind, label };
       capabilities = status.capabilities;
       return status;
     },
@@ -105,6 +175,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
         launchOptions?.resumeThreadId ?? _sessionRef?.providerSessionId,
         launchOptions?.mcpServers,
         launchOptions?.onTerminalStatusUpdate,
+        options.profile,
       );
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
@@ -115,6 +186,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
         sessionRef.providerSessionId,
         launchOptions?.mcpServers,
         launchOptions?.onTerminalStatusUpdate,
+        options.profile,
       );
     },
     createInitialSessionRef() {
@@ -133,12 +205,12 @@ export function createOpenCodeAdapter(): AgentAdapter {
     // that release and passes `--server` + `--session`, keeping dynamic MCP
     // permissions and L1 SSE status synced until its PTY cleanup runs.
     async createStructuredSession(input: CreateStructuredSessionInput) {
-      return OpenCodeSession.create(input);
+      return OpenCodeSession.create(input, options.profile);
     },
 
-    shutdown: shutdownSpawnedOpenCodeServers,
-    runOneShot: runOpenCodeOneShot,
-    runTextOnlyOneShot: runOpenCodeOneShot,
+    ...(options.profile ? {} : { shutdown: shutdownSpawnedOpenCodeServers }),
+    runOneShot: (input) => runOpenCodeOneShot(input, options.profile),
+    runTextOnlyOneShot: (input) => runOpenCodeOneShot(input, options.profile),
 
     // ── Input ────────────────────────────────────────────────────────────
     buildDirectInput: bracketedPasteDirectInput,
@@ -171,4 +243,20 @@ export function createOpenCodeAdapter(): AgentAdapter {
     handleOscTitle: opencodeOscTitleHint,
     workingSilenceTimeoutMs: null,
   };
+}
+
+/**
+ * A named OpenCode model profile: its own provider config and database on the
+ * same host, launched as `opencode:<id>`. A profile never shares a server lease
+ * with the base agent or another profile.
+ */
+export function createOpenCodeProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const config = parseOpenCodeProfileInstanceConfig(instance.config);
+  const label = `OpenCode ${instance.displayName ?? instance.id}`;
+  const profile = config.connection === "local" ? parseOpenCodeProfileRuntime(instance) : undefined;
+  return createOpenCodeAdapter({
+    kind: opencodeProfileKind(instance.id),
+    label,
+    ...(profile ? { profile } : {}),
+  });
 }

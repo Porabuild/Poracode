@@ -68,6 +68,7 @@ import {
 } from "./eventMapping";
 import { readOpenCodeContextWindowTokens } from "./contextWindow";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
+import type { OpenCodeProfileRuntime } from "./profileConfig";
 import { openCodeFormRequestId, openCodePermissionRequestId } from "./requestPayloads";
 import { buildOpenCodePromptPayload } from "./promptText";
 import { buildOpenCodeSessionPermissions } from "./permissions";
@@ -158,7 +159,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
     resolve: () => void;
   }>();
 
-  private constructor(input: CreateStructuredSessionInput) {
+  private constructor(
+    input: CreateStructuredSessionInput,
+    private readonly profile?: OpenCodeProfileRuntime,
+  ) {
     this.input = input;
     this.threadId = input.threadId;
     this.isGui = input.presentationMode === "gui";
@@ -175,10 +179,13 @@ export class OpenCodeSession implements StructuredSessionHandle {
    * while a server is around to serve it, so a failed spawn fails the start
    * before the runtime records anything.
    */
-  static async create(input: CreateStructuredSessionInput): Promise<OpenCodeSession> {
-    const session = new OpenCodeSession(input);
+  static async create(
+    input: CreateStructuredSessionInput,
+    profile?: OpenCodeProfileRuntime,
+  ): Promise<OpenCodeSession> {
+    const session = new OpenCodeSession(input, profile);
     try {
-      session.acquired = await acquireOpenCodeServer(session.buildAcquireInput());
+      session.acquired = await acquireOpenCodeServer(await session.buildAcquireInput());
     } catch (cause) {
       throw new Error(classifyOpenCodeError({ cause, operation: "start opencode serve" }), {
         cause,
@@ -880,7 +887,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
     sessionID: string,
     config: ThreadConfig,
   ): Promise<void> {
-    const model = parseOpenCodeModelRef(config.model, config.effort);
+    const model = parseOpenCodeModelRef(
+      this.profile?.model ?? config.model,
+      this.profile ? undefined : config.effort,
+    );
     if (!model) return;
     const windowKey = modelCatalogKey(model);
     const key = modelRefKey(model);
@@ -907,7 +917,10 @@ export class OpenCodeSession implements StructuredSessionHandle {
    * already left.
    */
   private async applyContextWindow(config: ThreadConfig): Promise<void> {
-    const model = parseOpenCodeModelRef(config.model, config.effort);
+    const model = parseOpenCodeModelRef(
+      this.profile?.model ?? config.model,
+      this.profile ? undefined : config.effort,
+    );
     if (!this.isGui || !model) return;
     const acquired = this.acquired;
     if (!acquired) return;
@@ -1150,7 +1163,7 @@ export class OpenCodeSession implements StructuredSessionHandle {
     });
     if (this.disposed) return;
 
-    const acquired = await acquireOpenCodeServer(this.buildAcquireInput());
+    const acquired = await acquireOpenCodeServer(await this.buildAcquireInput());
     if (this.disposed) {
       await acquired.dispose({ closeServerIfIdle: true });
       return;
@@ -1175,15 +1188,24 @@ export class OpenCodeSession implements StructuredSessionHandle {
 
   /**
    * Assemble a provider-neutral acquisition for this session. The shared
-   * server owns the directory-scoped client and MCP state.
+   * server owns the directory-scoped client and MCP state. A profile's config/
+   * DB environment is resolved for this execution runtime so native and WSL
+   * projects never share a leaked path.
    */
-  private buildAcquireInput() {
+  private async buildAcquireInput() {
     const { mcpServers } = this;
     const resumeSessionId = this.sessionId ?? this.input.sessionRef?.providerSessionId;
+    const profile = this.profile
+      ? {
+          key: this.profile.key,
+          env: await this.profile.env(this.input.projectLocation),
+        }
+      : undefined;
     return {
       projectLocation: this.input.projectLocation,
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(mcpServers !== undefined ? { mcpServers } : {}),
+      ...(profile ? { profile } : {}),
     };
   }
 

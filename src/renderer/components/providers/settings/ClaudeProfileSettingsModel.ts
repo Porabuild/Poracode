@@ -6,7 +6,10 @@ import type {
   AgentInstanceEnvVar,
   ClaudeProfileInstanceConfig,
   ClaudeProfileModel,
+  CreateProfilePayload,
 } from "@/shared/contracts";
+import { claudeLocalProfileConfigDir } from "@/shared/agents/claude/localProfile";
+import { isOllamaContextLength } from "@/shared/agents/ollamaContext";
 import { isEncryptedSecret, isRedactedSecret } from "@/shared/secretFormat";
 import { slugifyProfileName } from "../../../views/SettingsOverlay/parts/profileIds";
 
@@ -243,6 +246,44 @@ export interface ModelRow {
 
 export function defaultConfigDir(name: string): string {
   return `~/.poracode/claude-profiles/${slugifyProfileName(name)}`;
+}
+
+/**
+ * Provider-owned resolver for a Claude profile pointed at one local or
+ * self-hosted Anthropic-compatible endpoint. The route lives in typed profile
+ * config, and the runtime supplies the scoped env on every lane; nothing in
+ * the persisted environment can override its endpoint or inherit a cloud
+ * credential. The config directory comes from the allocated unique id, not
+ * the display name, so two names that slugify alike cannot share it.
+ */
+export function claudeLocalProfileCreatePayload(input: {
+  id: string;
+  displayName: string;
+  endpoint: string;
+  model: string;
+  baseModel?: string;
+  contextLength?: number;
+}): CreateProfilePayload {
+  const model = input.model.trim();
+  const endpoint = input.endpoint.trim();
+  return {
+    driver: "claude",
+    id: input.id,
+    displayName: input.displayName,
+    config: {
+      configDir: claudeLocalProfileConfigDir(input.id),
+      models: [{ id: model }],
+      local: {
+        endpoint,
+        model,
+        ...(input.baseModel &&
+        input.contextLength !== undefined &&
+        isOllamaContextLength(input.contextLength)
+          ? { baseModel: input.baseModel.trim(), contextLength: input.contextLength }
+          : {}),
+      },
+    } satisfies ClaudeProfileInstanceConfig,
+  };
 }
 
 export function shouldTreatEnvKeyAsSensitive(key: string): boolean {

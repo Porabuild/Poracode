@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { type PoracodeChannel, resolvePoracodeChannel, userDataDirNameFor } from "./channel";
 
 export interface PoracodePaths {
@@ -58,6 +59,37 @@ export function resolvePoracodeBaseDir(
 export function poracodeBaseDirFromEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const raw = env["PORACODE_DATA_DIR"]?.trim();
   return raw && raw !== "undefined" && isAbsolute(raw) ? raw : undefined;
+}
+
+/**
+ * Stable namespace for automatically managed per-profile homes/databases.
+ *
+ * Two Poracode instances can legally share a Mac (nightly versus an isolated
+ * standalone profile) and create the same profile id. The authoritative host
+ * data root is part of the digest, so their managed runtime artifacts never
+ * collide while user-chosen account-profile homes stay untouched.
+ */
+export function poracodeManagedProfileNamespace(env: NodeJS.ProcessEnv = process.env): string {
+  const baseDir = poracodeBaseDirFromEnv(env) ?? resolvePoracodeBaseDir();
+  return createHash("sha256").update(resolve(baseDir)).digest("hex").slice(0, 16);
+}
+
+/** `~`-relative managed profile directory for a provider family and profile id. */
+export function poracodeManagedProfileDir(
+  family: string,
+  profileId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return `~/.poracode/${family}/${poracodeManagedProfileNamespace(env)}/${encodeURIComponent(profileId)}`;
+}
+
+/** Collision-safe file stem for a managed per-profile artifact. */
+export function poracodeManagedProfileStem(
+  family: string,
+  profileId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return `${family}-${poracodeManagedProfileNamespace(env)}-${encodeURIComponent(profileId)}`;
 }
 
 export function resolvePoracodePaths(baseDir: string = resolvePoracodeBaseDir()): PoracodePaths {

@@ -1,4 +1,10 @@
 import { createCodexProfileContext, type CodexAdapterOptions } from "./profileContext";
+import {
+  clampCodexLocalCapabilities,
+  codexLocalProfileArgs,
+  codexManagedLocalProfileHome,
+} from "@/shared/agents/codex/localProfile";
+import { poracodeManagedProfileNamespace } from "@/shared/poracodePaths";
 import type { AgentCapability, AgentInstanceConfig, ProjectLocation } from "@/shared/contracts";
 import { codexProfileKind, parseCodexProfileInstanceConfig } from "@/shared/contracts";
 import type { OscNotification } from "@/shared/osc";
@@ -126,12 +132,17 @@ export function createCodexProfileAdapter(instance: AgentInstanceConfig): AgentA
     kind: codexProfileKind(instance.id),
     label: `Codex ${profileLabel}`,
     profileId: instance.id,
-    homeDir: cfg.homeDir,
+    homeDir: cfg.local
+      ? codexManagedLocalProfileHome(instance.id, poracodeManagedProfileNamespace())
+      : cfg.homeDir,
+    ...(cfg.local ? { local: cfg.local } : {}),
   });
 }
 
 export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdapter {
-  let capabilities: AgentCapability = codexDefaultCapabilities;
+  let capabilities: AgentCapability = options.local
+    ? clampCodexLocalCapabilities(codexDefaultCapabilities, options.local.model)
+    : codexDefaultCapabilities;
   let preSpawnRolloutIds = new Set<string>();
   let preSpawnStartedAt = 0;
   const kind = options.kind ?? codexDetectionSpec.kind;
@@ -269,8 +280,25 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       if (status.installed && status.version) {
         primeCodexAgentsConfigSupport(location, status.version);
       }
-      capabilities = status.capabilities;
-      return { ...status, kind, label };
+      const local = options.local;
+      if (!local) {
+        capabilities = status.capabilities;
+        return { ...status, kind, label };
+      }
+      capabilities = clampCodexLocalCapabilities(status.capabilities, local.model);
+      const identity = { ...status };
+      delete identity.providerMetadata;
+      delete identity.loginCommand;
+      delete identity.loginCommandDisplay;
+      delete identity.authMethods;
+      delete identity.authLogoutSupported;
+      return {
+        ...identity,
+        kind,
+        label,
+        authState: "authenticated",
+        capabilities,
+      };
     },
     async buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
       preSpawnStartedAt = Date.now();
@@ -297,6 +325,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
         sessionRef,
         launchOptions,
         await profileEnv(location),
+        options.local,
       );
     },
     async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
@@ -307,6 +336,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
         sessionRef,
         launchOptions,
         await profileEnv(location),
+        options.local,
       );
     },
     extraArgsPosition: codexExtraArgsPosition,
@@ -326,6 +356,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       return CodexStructuredSession.create(
         await withProfileEnv(input, input.projectLocation),
         wslExecPath,
+        options.local,
       );
     },
     shutdown: shutdownSpawnedCodexAppServers,
@@ -424,12 +455,33 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
         return undefined;
       }
     },
-    defaultOneShotModel: "gpt-5.5",
+    defaultOneShotModel: options.local?.model ?? "gpt-5.5",
     async buildOneShotCommand(model, effort, _prompt, location, fast, oneShotOptions) {
       const selection = resolveCheckedOneShotBuilderSelection(
         { model, effort, fast },
         oneShotOptions,
       );
+      if (options.local) {
+        if (selection.model !== options.local.model) {
+          throw new Error(
+            `This local profile serves only "${options.local.model}", not "${selection.model}".`,
+          );
+        }
+        assertOneShotControlsMapped(selection, {
+          effort: { inactive: [""] },
+          fast: { inactive: [false] },
+        });
+        const args = [
+          "exec",
+          "--skip-git-repo-check",
+          ...codexLocalProfileArgs(options.local),
+          "-m",
+          options.local.model,
+          "-",
+        ];
+        const env = location ? await profileEnv(location) : undefined;
+        return { command: "codex", args, ...(env ? { env } : {}) };
+      }
       // Both carriers map natively: reasoning effort and — exactly like the
       // interactive launch lane — Codex's `service_tier="fast"` priority lane.
       assertOneShotControlsMapped(selection, { effort: true, fast: true });

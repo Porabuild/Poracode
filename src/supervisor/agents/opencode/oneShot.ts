@@ -2,14 +2,21 @@ import { assertOneShotControlsMapped, type RunOneShotInput } from "../base";
 import { awaitOpenCodeActivation } from "./readiness";
 import { acquireOpenCodeServer, resolveOpenCodeSessionDirectory } from "./client";
 import { parseOpenCodeModelRef } from "./model";
+import type { OpenCodeProfileRuntime } from "./profileConfig";
 
 /** Native generation has no tool loop and keeps project-specific model routing. */
-export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string> {
+export async function runOpenCodeOneShot(
+  input: RunOneShotInput,
+  profile?: OpenCodeProfileRuntime,
+): Promise<string> {
   // Model routing maps model + nonempty effort through the V2 model ref; the
   // V2 SDK has no Fast lane, so false Fast is the declared-inactive legacy
   // carrier while meaningful Fast — and every other present carrier — refuses
   // before the server is acquired.
-  const model = parseOpenCodeModelRef(input.selection.model, input.selection.effort);
+  const model = parseOpenCodeModelRef(
+    profile?.model ?? input.selection.model,
+    profile ? undefined : input.selection.effort,
+  );
   assertOneShotControlsMapped(input.selection, {
     effort: model?.id ? true : { inactive: [""] },
     fast: { inactive: [false] },
@@ -18,7 +25,10 @@ export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string
     ? AbortSignal.any([input.signal, AbortSignal.timeout(120_000)])
     : AbortSignal.timeout(120_000);
   signal.throwIfAborted();
-  const acquired = await acquireOpenCodeServer({ projectLocation: input.location });
+  const acquired = await acquireOpenCodeServer({
+    projectLocation: input.location,
+    ...(profile ? { profile: { key: profile.key, env: await profile.env(input.location) } } : {}),
+  });
   let sessionID: string | undefined;
   try {
     const location = { directory: resolveOpenCodeSessionDirectory(input.location) };

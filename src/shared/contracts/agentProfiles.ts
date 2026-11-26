@@ -14,6 +14,7 @@ import {
 } from "./agentInstance";
 import { validateDevinProfileConfig } from "../agents/devin/profileConfig";
 import { geminiProfileDriver } from "../agents/gemini/profileConfig";
+import { opencodeProfileDriver } from "../agents/opencode/profileConfig";
 
 /**
  * Multi-profile providers.
@@ -53,6 +54,7 @@ export interface AgentProfileDriver {
 export const AGENT_PROFILE_DRIVERS: readonly AgentProfileDriver[] = [
   { driver: "claude", validateConfig: parseClaudeProfileInstanceConfig },
   { driver: "codex", validateConfig: parseCodexProfileInstanceConfig },
+  opencodeProfileDriver,
   { driver: "cursor", credentialEnvVar: "CURSOR_API_KEY" },
   geminiProfileDriver,
   {

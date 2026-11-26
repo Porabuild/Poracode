@@ -151,12 +151,13 @@ describe("dialog Header producer admission", () => {
     expect(issues).toEqual([]);
     // Include saved run details, browser editors, model-provider management,
     // native and HTML inline visuals, marketplace sources, device settings, Hex management,
-    // feedback, plan review, thread moves, the memory catalog and editor, and remote MCP OAuth.
-    expect(sites).toHaveLength(54);
-    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(49);
+    // feedback, plan review, thread moves, the memory catalog and editor, remote MCP OAuth,
+    // the shared Add profile dialog, and its nested Add model dialog.
+    expect(sites).toHaveLength(56);
+    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(51);
     expect(sites.filter((site) => site.family === "AlertDialog")).toHaveLength(5);
     expect(sites.filter((site) => site.marked)).toHaveLength(6);
-    expect(sites.filter((site) => !site.marked)).toHaveLength(48);
+    expect(sites.filter((site) => !site.marked)).toHaveLength(50);
   });
 
   it.each([

@@ -284,6 +284,44 @@ describe("settings command service", () => {
     ).resolves.toMatchObject({ status: "conflict", reason: "revision-changed" });
   });
 
+  it("rejects an invalid provider config before writing any bytes", async () => {
+    const test = await fixture();
+    const before = test.bytes();
+    const subject = { kind: "entry", field: "agentInstances", key: "bad" } as const;
+    await expect(
+      test.service.createProfile(
+        {
+          id: "bad",
+          driver: "opencode",
+          displayName: "Bad",
+          config: {
+            connection: "local",
+            endpoint: "http://user:pass@127.0.0.1:11434/v1",
+            model: "m",
+          },
+        },
+        test.expected(subject),
+      ),
+    ).rejects.toThrow(/URL|Too small|invalid/i);
+    expect(test.bytes()).toBe(before);
+    await expect(
+      test.service.createProfile(
+        {
+          id: "bad",
+          driver: "opencode",
+          displayName: "Bad",
+          config: {
+            connection: "local",
+            endpoint: "http://127.0.0.1:11434/v1",
+            model: "   ",
+          },
+        },
+        test.expected(subject),
+      ),
+    ).rejects.toThrow(/URL|Too small|invalid/i);
+    expect(test.bytes()).toBe(before);
+  });
+
   it("seals and clears only the declared global sensitive key", async () => {
     const test = await fixture();
     const agentKind = AGENT_PROFILE_DRIVERS.find(

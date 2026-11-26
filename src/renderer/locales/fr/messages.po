@@ -1069,6 +1069,14 @@ msgstr "Un autre plugin utilise déjà cet identifiant. Il ne sera pas remplacé
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Une source d'arbre de travail figée nécessite un hash de commit complet"
 
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "A generated context model with that name already exists on the selected host with different settings. Choose another context length or remove that model there."
+msgstr "Un modèle de contexte généré portant ce nom existe déjà sur l’hôte sélectionné avec des paramètres différents. Choisissez une autre longueur de contexte ou supprimez ce modèle sur cet hôte."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "A local file on this computer is not readable by a remote server. Copy or import the weights there first, then enter the ID that server exposes. A Hugging Face account is not needed for local files."
+msgstr "Un serveur distant ne peut pas lire un fichier local de cet ordinateur. Copiez ou importez d'abord les poids sur ce serveur, puis saisissez l'ID qu'il expose. Un compte Hugging Face n'est pas nécessaire pour les fichiers locaux."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
 msgstr "Une exécution manquée a été ignorée."
@@ -1084,6 +1092,10 @@ msgstr "Un envoi précédent est enregistré sur cet appareil."
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "Un profil peut contenir au maximum 100 dépôts."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "A profile with this name already exists for this harness."
+msgstr "Un profil portant ce nom existe déjà pour ce harness."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1146,9 +1158,17 @@ msgstr "À propos"
 msgid "About account billing cycles"
 msgstr "À propos des cycles de facturation des comptes"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "About context length"
+msgstr "À propos de la longueur du contexte"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About cost breakdown"
 msgstr "À propos du détail des coûts"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "About model sources"
+msgstr "À propos des sources de modèles"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About recorded token categories"
@@ -1157,6 +1177,14 @@ msgstr "À propos des catégories de jetons enregistrées"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About subscription bill"
 msgstr "À propos de la facture d’abonnement"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "About the served model ID"
+msgstr "À propos de l'ID de modèle servi"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "About the server address"
+msgstr "À propos de l'adresse du serveur"
 
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
@@ -1492,8 +1520,13 @@ msgid "Add MCP server"
 msgstr "Ajouter un serveur MCP"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "Add model"
 msgstr "Ajouter un modèle"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Add model…"
+msgstr "Ajouter un modèle…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Add one manually or import from another agent."
@@ -1507,6 +1540,8 @@ msgstr "Ajouter un mot de passe"
 msgid "Add pattern"
 msgstr "Ajouter un motif"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Add profile"
 msgstr "Ajouter un profil"
@@ -1676,6 +1711,10 @@ msgstr "Agent ({subagent}) : {description}"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Agent chat (ACP / markdown). Command rows use this size minus 1 px; tool and plan lines minus 2 px."
 msgstr "Chat d'agent (ACP / markdown). Les lignes de commande utilisent cette taille moins 1 px ; les lignes d'outil et de plan moins 2 px."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Agent default"
+msgstr "Par défaut de l'agent"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1962,10 +2001,6 @@ msgstr "Autorisez le navigateur à afficher des notifications lorsque l’applic
 msgid "Allow the main agent to interrupt running sub-agents with interrupt_agent."
 msgstr "Autorise l’agent principal à interrompre les sous-agents en cours avec interrupt_agent."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Allowlisted feature-use events (provider, public model family, bucketed counts and durations) under a random installation ID, with IP and location capture disabled."
-#~ msgstr "Événements d’utilisation autorisés (fournisseur, famille de modèles publique, comptes et durées regroupés) sous un identifiant d’installation aléatoire, sans capture d’IP ni de localisation."
-
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "Déjà configuré"
@@ -2147,6 +2182,10 @@ msgstr "Mode d'apparence"
 msgid "Applies to both models"
 msgstr "S’applique aux deux modèles"
 
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Apply"
+msgstr "Appliquer"
+
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 msgid "Apply patch tool"
 msgstr "Outil apply_patch"
@@ -2249,6 +2288,10 @@ msgstr "Êtes-vous sûr de vouloir annuler toutes les modifications non indexée
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Arguments"
 msgstr "Arguments"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Artifact (optional)"
+msgstr "Artefact (facultatif)"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
@@ -2848,6 +2891,14 @@ msgstr "Parcourir l’écosystème"
 msgid "Browse for parent folder"
 msgstr "Rechercher le dossier parent"
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Browse full library"
+msgstr "Parcourir toute la bibliothèque"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+#~ msgid "Browse Ollama library"
+#~ msgstr "Parcourir la bibliothèque Ollama"
+
 #: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 msgid "Browse plugins"
@@ -3109,6 +3160,8 @@ msgstr "Cette sélection de modèle ne peut pas être utilisée dans cette inter
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -3116,6 +3169,7 @@ msgstr "Cette sélection de modèle ne peut pas être utilisée dans cette inter
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -3128,6 +3182,7 @@ msgid "Cancel agent discovery"
 msgstr "Annuler la recherche d’agents"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Cancel download"
 msgstr "Annuler le téléchargement"
 
@@ -3168,6 +3223,10 @@ msgstr "Annuler la connexion vocale"
 msgid "Cancel workflow"
 msgstr "Annuler le workflow"
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Cancellation could not be confirmed; the model download may still be running."
+msgstr "L’annulation n’a pas pu être confirmée ; le téléchargement du modèle peut encore être en cours."
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -3181,6 +3240,10 @@ msgstr "annulé"
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Cancelled"
 msgstr "Annulé"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Cancelling download…"
+msgstr "Annulation du téléchargement…"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Candidate actions"
@@ -3244,10 +3307,6 @@ msgstr "Changer la taille du contexte en {contextLabel} ?"
 #: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "Modifier le home"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Change or turn off either anytime in Settings → Privacy."
-#~ msgstr "Modifiez ou désactivez l’un ou l’autre à tout moment dans Réglages → Confidentialité."
 
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Change order"
@@ -3341,6 +3400,10 @@ msgstr "Modifications demandées"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Changes unavailable"
 msgstr "Modifications indisponibles"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Changing context needs terminal access on the selected host. Server default can still be restored."
+msgstr "Changer le contexte nécessite un accès au terminal sur l’hôte sélectionné. La valeur par défaut du serveur reste restaurable."
 
 #. About page label: release channel (stable/nightly)
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3568,6 +3631,10 @@ msgstr "Choisissez un dossier…"
 msgid "Choose a local base branch for the experiment."
 msgstr "Choisissez une branche de base locale pour l’expérience."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Choose a model file"
+msgstr "Choisir un fichier de modèle"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Choose a parent folder"
 msgstr "Choisissez un dossier parent"
@@ -3587,6 +3654,10 @@ msgstr "Choisir une image d'icône de projet"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a saved credential to sign out."
 msgstr "Choisissez des identifiants enregistrés pour vous déconnecter."
+
+#: src/renderer/views/SettingsOverlay/parts/agentProfileCreate.ts
+msgid "Choose a supported Ollama context length."
+msgstr "Choisissez une longueur de contexte Ollama prise en charge."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
@@ -3616,6 +3687,10 @@ msgstr "Choisissez les données à transférer vers le navigateur intégré."
 msgid "Choose direct HTTP fetching from this machine or DeepSeek Fetch API."
 msgstr "Choisissez la récupération HTTP directe depuis cette machine ou DeepSeek Fetch API."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Choose file…"
+msgstr "Choisir un fichier…"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -3628,6 +3703,14 @@ msgstr "Choisissez comment vous enregistrez et où votre discours est transcrit.
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "Choisir la destination de l’importation"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Choose OpenCode, then the Ollama model for a Crew role."
+msgstr "Choisissez OpenCode, puis le modèle Ollama pour un rôle Crew."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Choose or enter a model ID"
+msgstr "Choisissez ou saisissez un ID de modèle"
 
 #: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
 msgid "Choose project"
@@ -3726,8 +3809,13 @@ msgid "Claude {0} profile saved."
 msgstr "Profil de Claude {0} enregistré."
 
 #: src/renderer/components/providers/claude/manifest.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude Code"
 msgstr "Claude Code"
+
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+msgid "Claude Code sends Anthropic Messages requests to this URL and owns its own config directory. Do not append <0>/v1</0>; Claude adds the request path itself."
+msgstr "Claude Code envoie les requêtes Anthropic Messages à cette URL et possède son propre répertoire de configuration. N'ajoutez pas <0>/v1</0> ; Claude ajoute lui-même le chemin de la requête."
 
 #: src/renderer/components/providers/claude/ChromeSettings.tsx
 msgid "Claude in Chrome"
@@ -4125,6 +4213,10 @@ msgstr "Liste des dépôts cloud"
 msgid "Cloud sessions use their own workspace. Local files and local MCP processes are unavailable."
 msgstr "Les sessions cloud utilisent leur propre espace de travail. Les fichiers locaux et les processus MCP locaux ne sont pas disponibles."
 
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Cloud-only tags are excluded from this list."
+msgstr "Les étiquettes cloud uniquement sont exclues de cette liste."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Cmd+Enter"
 msgstr "Cmd+Enter"
@@ -4142,6 +4234,7 @@ msgid "Code mode, optional Harness tools, web providers, execution limits, and s
 msgstr "Mode code, outils Harness optionnels, fournisseurs web, limites d’exécution et partage du journal de session. S’applique aux fils de discussion nouveaux ou redémarrés."
 
 #: src/renderer/components/providers/codex/manifest.ts
+#: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex"
 msgstr "Codex"
 
@@ -4167,12 +4260,20 @@ msgid "Codex profile home directory"
 msgstr "Répertoire home du profil Codex"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex profile managed home"
+msgstr "Dossier personnel géré du profil Codex"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile name"
 msgstr "Nom du profil Codex"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex exécute ce profil avec CODEX_HOME pointant vers le répertoire ci-dessous. Utilisez Connexion ci-dessus pour connecter ce profil à son propre compte."
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex uses scoped command-line overrides for this route. The user's Codex config files are not changed."
+msgstr "Codex utilise des surcharges de ligne de commande limitées pour cette route. Les fichiers de configuration Codex de l'utilisateur ne sont pas modifiés."
 
 #: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
@@ -4689,6 +4790,10 @@ msgstr "Connexion..."
 msgid "Connecting…"
 msgstr "Connexion…"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Connection"
+msgstr "Connexion"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Connection details"
 msgstr "Détails de la connexion"
@@ -4764,6 +4869,15 @@ msgstr "Contexte compacté à partir de {before} jetons"
 #: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Contexte compacté : {before} → {after} jetons"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Context length"
+msgstr "Longueur du contexte"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Context length updated. It applies to new sessions."
+msgstr "Longueur du contexte mise à jour. Elle s’applique aux nouvelles sessions."
 
 #: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
@@ -5280,6 +5394,7 @@ msgstr "Rapports de plantage"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6204,6 +6319,7 @@ msgid "Detaching leaves the device running."
 msgstr "L’appareil continue de fonctionner après le détachement."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Details"
 msgstr "Détails"
 
@@ -6538,6 +6654,10 @@ msgstr "Découvrir"
 msgid "Discover skills and MCP servers from your marketplace sources."
 msgstr "Découvrez les compétences et serveurs MCP de vos sources de marché."
 
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Discovered routes"
+msgstr "Routes détectées"
+
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Discovering agents…"
 msgstr "Recherche d’agents…"
@@ -6669,6 +6789,7 @@ msgstr "Terminer, archiver, décharger et supprimer capturent encore tout de sui
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Download"
 msgstr "Télécharger"
 
@@ -6680,9 +6801,17 @@ msgstr "Télécharger · {modelSize} Mo"
 msgid "Download a voice model to finish setup."
 msgstr "Téléchargez un modèle vocal pour terminer la configuration."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Download cancelled."
+msgstr "Téléchargement annulé."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "Échec du téléchargement"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Download failed."
+msgstr "Échec du téléchargement."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
@@ -6701,9 +6830,20 @@ msgstr "Progression du téléchargement"
 msgid "Download size unavailable"
 msgstr "taille de téléchargement indisponible"
 
+#. placeholder {0}: run.tag
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Downloaded {0}."
+msgstr "{0} téléchargé."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Downloading"
 msgstr "Téléchargement en cours"
+
+#. placeholder {0}: run.tag
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+#~ msgid "Downloading {0}…"
+#~ msgstr "Téléchargement de {0}…"
 
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -6853,6 +6993,7 @@ msgstr "p. ex. 512k ou 1m"
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "par ex. Codex GPT-5.5 fast pour les recherches rapides, OpenCode GLM pour les refactorisations en masse, Claude Opus pour tout ce qui est subtil."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "par ex. Travail"
@@ -7173,6 +7314,11 @@ msgstr "Saisissez un port compris entre 1 et 65535."
 msgid "Enter a repository URL."
 msgstr "Entrez une URL de dépôt."
 
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/agentProfileCreate.ts
+msgid "Enter a safe installed Ollama model id."
+msgstr "Saisissez un ID de modèle Ollama installé et sûr."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "Saisissez une URL de dépôt sûre utilisant HTTPS, HTTP, SSH, Git, FTP, FTPS ou la syntaxe scp."
@@ -7214,6 +7360,8 @@ msgid "Enter a valid value."
 msgstr "Saisissez une valeur valide."
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 msgid "Enter a whole number from {min} to {max}."
 msgstr "Saisissez un nombre entier entre {min} et {max}."
 
@@ -7225,6 +7373,10 @@ msgstr "Saisissez un nombre entier de 1 à {CODEX_MAX_SUBAGENTS_LIMIT}."
 msgid "Enter one MCP server configuration."
 msgstr "Saisissez une configuration de serveur MCP."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Enter or choose a model ID."
+msgstr "Saisissez ou choisissez un ID de modèle."
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Passer en mode Planification"
@@ -7232,6 +7384,10 @@ msgstr "Passer en mode Planification"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Enter repository names separated by commas, such as acme/website, acme/api."
 msgstr "Saisissez des noms de dépôts séparés par des virgules, par exemple acme/website, acme/api."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Enter the ID the server exposes after the weights are available. Nothing is uploaded or imported here."
+msgstr "Saisissez l'ID exposé par le serveur une fois les poids disponibles. Rien n'est téléversé ni importé ici."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -7242,6 +7398,10 @@ msgstr "Saisissez l'URL d'association affichée sur votre ordinateur."
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Enter the port a dev server on your desktop is listening on."
 msgstr "Saisissez le port sur lequel un serveur de développement de votre bureau est à l'écoute."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Enter the server address."
+msgstr "Saisissez l'adresse du serveur."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter valid JSON."
@@ -7787,10 +7947,6 @@ msgstr "Favori"
 msgid "Favorites"
 msgstr "Favoris"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Feature-use events under a random installation ID. No prompts or code."
-#~ msgstr "Événements d’utilisation sous un identifiant d’installation aléatoire. Aucun prompt ni code."
-
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Retour"
@@ -7816,6 +7972,7 @@ msgid "Fetch"
 msgstr "Récupérer"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "File"
 msgstr "Fichier"
 
@@ -7827,6 +7984,10 @@ msgstr "Les modifications de fichiers apparaîtront ici."
 msgid "File is too large to preview."
 msgstr "Le fichier est trop volumineux pour être prévisualisé."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "File location"
+msgstr "Emplacement du fichier"
+
 #. placeholder {0}: activeProject.name
 #: src/renderer/commands/CommandPalette.tsx
 msgid "File names in {0}"
@@ -7835,6 +7996,14 @@ msgstr "Noms de fichiers dans {0}"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "Le fichier n'existe plus sur le disque."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "File on the server"
+msgstr "Fichier sur le serveur"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "File path on the server"
+msgstr "Chemin du fichier sur le serveur"
 
 #: src/renderer/views/PullRequestsOverlay/changes/FileDiffCard.tsx
 msgid "File renamed without content changes"
@@ -8708,6 +8877,10 @@ msgstr "Identifiant"
 msgid "Hard Reload"
 msgstr "Rechargement forcé"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Harness"
+msgstr "Harness"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
 msgid "Has unsent draft"
 msgstr "Contient un brouillon non envoyé"
@@ -9057,6 +9230,22 @@ msgstr "https://github.com/owner/repo.git"
 msgid "Hue"
 msgstr "Teinte"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face"
+msgstr "Hugging Face"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face artifact"
+msgstr "Artefact Hugging Face"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face repository"
+msgstr "Dépôt Hugging Face"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face revision"
+msgstr "Révision Hugging Face"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "I understand that protected browser data may be skipped."
 msgstr "Je comprends que certaines données protégées du navigateur peuvent être ignorées."
@@ -9068,6 +9257,10 @@ msgstr "Couleur de l'icône"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Icon color: {label}"
 msgstr "Couleur de l'icône : {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "ID the server exposes after loading"
+msgstr "ID exposé par le serveur après chargement"
 
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -9427,10 +9620,6 @@ msgstr "Inspecter"
 msgid "Inspect canonical runtime items"
 msgstr "Inspecter les éléments d'exécution canoniques"
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Inspect the exact sanitized events captured on this device during this session."
-#~ msgstr "Inspectez les événements nettoyés exacts capturés sur cet appareil pendant cette session."
-
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
 msgstr "Inspecter les fils et les panneaux de terminal, et piloter git, les pull requests et les planifications."
@@ -9560,6 +9749,14 @@ msgstr "Installez Meta idb et idb_companion sur cet hôte pour la saisie et l’
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Installez d'abord les fournisseurs natifs ; utilisez ACP pour les agents de protocole supplémentaires."
 
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Install Ollama on this host from <0>ollama.com/download</0>, then keep it running with <1>ollama serve</1>."
+msgstr "Installez Ollama sur cet hôte depuis <0>ollama.com/download</0>, puis maintenez-le en marche avec <1>ollama serve</1>."
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Install OpenCode for this host to detect Ollama models."
+msgstr "Installez OpenCode pour cet hôte afin de détecter les modèles Ollama."
+
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "Install OpenCode to manage its plugins."
 msgstr "Installez OpenCode pour gérer ses plugins."
@@ -9620,10 +9817,6 @@ msgstr "Installez Xcode et un environnement d’exécution du simulateur iOS sur
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
 msgstr "L'installation n'a pas pu être vérifiée et a donc été annulée. Rien n'a été modifié."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Installation ID"
-#~ msgstr "Identifiant d’installation"
 
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -9728,6 +9921,10 @@ msgstr "Unité de l’intervalle"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Configuration invalide — conservée, mais désactivée"
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Invalid OpenCode profile configuration"
+msgstr "Configuration de profil OpenCode non valide"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Invalid visual specification. Showing source only."
@@ -9912,6 +10109,14 @@ msgstr "Laptop L"
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Large"
 msgstr "Grand"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Larger windows reserve more memory. A size that does not fit this machine can fail to load."
+msgstr "Les fenêtres plus grandes réservent plus de mémoire. Une taille qui ne tient pas sur cette machine peut échouer au chargement."
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Larger windows reserve more memory. Changes apply to new sessions; a running session keeps the context it started with."
+msgstr "Les fenêtres plus grandes réservent plus de mémoire. Les modifications s’appliquent aux nouvelles sessions ; une session en cours conserve le contexte avec lequel elle a démarré."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Largest"
@@ -10397,6 +10602,14 @@ msgstr "Les modifications locales doivent être mises de côté (stash) avant de
 msgid "Local chat history was reverted. The provider may still use the removed messages."
 msgstr "L’historique local du chat a été rétabli. Le fournisseur peut toujours utiliser les messages supprimés."
 
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+msgid "Local model profile"
+msgstr "Profil de modèle local"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Local Ollama"
+msgstr "Ollama local"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Local password protection"
 msgstr "Protection locale des mots de passe"
@@ -10629,6 +10842,7 @@ msgid "Managed by {pluginName}"
 msgstr "Géré par {pluginName}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Managed by Poracode"
 msgstr "Géré par Poracode"
 
@@ -10643,6 +10857,10 @@ msgstr "Gérée par le fournisseur"
 #: src/renderer/speech/hexVoice.ts
 msgid "Managed Hex installation is not available on this host."
 msgstr "l'installation gérée de Hex n'est pas disponible sur cet hôte."
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Managed home"
+msgstr "Dossier personnel géré"
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine."
@@ -11257,9 +11475,21 @@ msgstr "Notifications push mobiles"
 msgid "Mode"
 msgstr "Mode"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Model"
+msgstr "Modèle"
+
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
 msgstr "Modèle ajouté aux favoris"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Model file"
+msgstr "Fichier de modèle"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
@@ -11272,6 +11502,11 @@ msgstr "Modèle pour le nouveau rôle"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "ID du modèle"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Model IDs are limited to 200 characters."
+msgstr "Les ID de modèle sont limités à 200 caractères."
 
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Model IDs, separated by commas"
@@ -11288,6 +11523,10 @@ msgstr "Association de modèles"
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Model preparation progress"
 msgstr "progression de la préparation du modèle"
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Model profile"
+msgstr "Profil de modèle"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -11317,6 +11556,10 @@ msgstr "Modèles"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Models available on the connected host for the selected language."
 msgstr "Modèles disponibles sur l’hôte connecté pour la langue sélectionnée."
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Models OpenCode discovered from this host's configured Ollama endpoint."
+msgstr "Modèles qu’OpenCode a détectés depuis le point de terminaison Ollama configuré sur cet hôte."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11760,6 +12003,7 @@ msgstr "nouveau modèle"
 msgid "New phones, tablets, and browsers appear here after pairing."
 msgstr "Les nouveaux téléphones, tablettes et navigateurs apparaîtront ici après l’appairage."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "New profile name"
 msgstr "Nom du nouveau profil"
@@ -11952,10 +12196,6 @@ msgstr "Aucun agent installé."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Aucun commit IA, PR ou résolution de conflit suivi pour l'instant."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "No analytics events have been captured this session."
-#~ msgstr "Aucun événement d’analyse n’a été capturé pendant cette session."
-
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "No API key stored; native authentication may apply."
 msgstr "Aucune clé API enregistrée ; l’authentification native peut s’appliquer."
@@ -12093,6 +12333,10 @@ msgstr "Aucune compétence externe n’a été trouvée dans cette portée."
 msgid "No file checkpoint is stored for this message."
 msgstr "Aucun point de contrôle de fichier n'est stocké pour ce message."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "No file selected"
+msgstr "Aucun fichier sélectionné"
+
 #. placeholder {0}: tree.searchQuery
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
@@ -12109,6 +12353,12 @@ msgstr "Aucun compte GitHub CLI trouvé. Connectez-vous avec <0>gh auth login</0
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "No history yet"
 msgstr "Aucun historique pour l’instant"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "No host location is available for this machine."
+msgstr "Aucun emplacement d’hôte n’est disponible pour cette machine."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "No host-owned environments on this server yet."
@@ -12235,6 +12485,10 @@ msgstr "Aucun modèle n'est disponible pour {agent}. Vérifiez l'agent dans les 
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "Aucun modèle trouvé"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "No Ollama models detected. Pull a model, then Refresh."
+msgstr "Aucun modèle Ollama détecté. Téléchargez un modèle, puis actualisez."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "No online paired hosts to sync with."
@@ -12499,10 +12753,6 @@ msgstr "Aucun"
 msgid "None of these agents can run the AI comparison."
 msgstr "Aucun de ces agents ne peut effectuer la comparaison par IA."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "None yet. One is created only if you turn analytics on."
-#~ msgstr "Aucun pour le moment. Un identifiant n’est créé que si vous activez l’analyse."
-
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Not a git repository"
@@ -12673,6 +12923,59 @@ msgstr "Ancien côté"
 msgid "Oldest first"
 msgstr "Plus anciens d'abord"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Ollama"
+msgstr "Ollama"
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama could not prepare the context model on the selected host."
+msgstr "Ollama n’a pas pu préparer le modèle de contexte sur l’hôte sélectionné."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama did not finish preparing the context model on the selected host. Check Ollama there, then try again."
+msgstr "Ollama n’a pas terminé de préparer le modèle de contexte sur l’hôte sélectionné. Vérifiez Ollama sur cet hôte, puis réessayez."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Ollama downloads run only when you choose Download. The exact pulled tag becomes available after completion."
+msgstr "Les téléchargements Ollama ne démarrent que lorsque vous choisissez Télécharger. L’étiquette exacte téléchargée devient disponible une fois terminé."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama is not reachable on the selected host. Start Ollama there, then try again."
+msgstr "Ollama n’est pas joignable sur l’hôte sélectionné. Démarrez Ollama sur cet hôte, puis réessayez."
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Ollama model download progress"
+msgstr "Progression du téléchargement du modèle Ollama"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+#~ msgid "Ollama model tag"
+#~ msgstr "Étiquette du modèle Ollama"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Ollama models"
+msgstr "Modèles Ollama"
+
+#. placeholder {0}: props.hostLabel
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#~ msgid "Ollama on {0}"
+#~ msgstr "Ollama sur {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Ollama on {machineHostLabel}"
+msgstr "Ollama sur {machineHostLabel}"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Ollama on the selected host"
+msgstr "Ollama sur l'hôte sélectionné"
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama on the selected host does not have that model installed. Pull the model there first."
+msgstr "Ollama sur l’hôte sélectionné n’a pas ce modèle installé. Téléchargez d’abord le modèle sur cet hôte."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Ollama on this host: {ollamaEndpoint}"
+msgstr "Ollama sur cet hôte : {ollamaEndpoint}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "on"
 msgstr "sur"
@@ -12691,6 +12994,10 @@ msgstr "Sur {0}"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On the hour"
 msgstr "À l'heure pile"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "On the server"
+msgstr "Sur le serveur"
 
 #. placeholder {0}: dateTimeFormatter.format(new Date(task.recurrence.runAt))
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -13180,8 +13487,13 @@ msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo)
 msgstr "Ouvrir, inspecter et contrôler les simulateurs iOS (y compris l’iPhone Duo pliable) et les émulateurs Android dans le panneau."
 
 #: src/renderer/components/providers/opencode/manifest.ts
+#: src/renderer/components/providers/opencode/profileSettings.tsx
 msgid "OpenCode"
 msgstr "OpenCode"
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "OpenCode · agent default"
+msgstr "OpenCode · par défaut de l'agent"
 
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "OpenCode plugins"
@@ -13194,6 +13506,10 @@ msgstr "OpenCode recharge automatiquement la configuration surveillée. Rouvrez 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "OpenCode request failed, retrying..."
 msgstr "La requête OpenCode a échoué, nouvelle tentative en cours..."
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "OpenCode treats this URL as an OpenAI-compatible base URL. Include <0>/v1</0> when the server exposes OpenAI routes under that path."
+msgstr "OpenCode traite cette URL comme une URL de base compatible OpenAI. Incluez <0>/v1</0> lorsque le serveur expose des routes OpenAI sous ce chemin."
 
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
@@ -13275,6 +13591,10 @@ msgstr "Autres"
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Other agents"
 msgstr "Autres agents"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Other server"
+msgstr "Autre serveur"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 msgid "Other ways to connect"
@@ -13746,6 +14066,10 @@ msgstr "Le sélecteur n'a renvoyé aucune pièce jointe"
 msgid "Pin {0} to top"
 msgstr "Épingler {0} en haut"
 
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Pin an OpenAI-compatible endpoint and model. Local profiles run an isolated OpenCode server and database; they never inherit the base account's cloud credentials."
+msgstr "Épinglez un endpoint et un modèle compatibles OpenAI. Les profils locaux exécutent un serveur et une base de données OpenCode isolés ; ils n'héritent jamais des identifiants cloud du compte de base."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -13913,10 +14237,6 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode déverrouille brièvement ce Mac pendant un tour d'Utilisation de l'ordinateur actif, recouvre tous les écrans pendant qu'il travaille et le verrouille à nouveau à la fin du tour. Toute frappe au clavier ou tout mouvement du pointeur sur ce Mac le verrouille immédiatement. L'installation nécessite une approbation administrateur unique. Sur un Mac géré par votre organisation, consultez d'abord votre service informatique."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Poracode can send anonymous product analytics and scrubbed crash reports. Both are off until you opt in, and neither includes prompts, code, file names, or terminal output."
-#~ msgstr "Poracode peut envoyer des analyses de produit anonymes et des rapports de plantage nettoyés. Les deux sont désactivés jusqu’à votre accord, et aucun n’inclut de prompts, de code, de noms de fichiers ni de sortie de terminal."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
 msgstr "Poracode peut envoyer des analyses d’utilisation anonymes et des rapports de plantage. Aucun prompt, code, nom de fichier ni sortie de terminal."
 
@@ -13968,6 +14288,10 @@ msgstr "Poracode est connecté à un autre navigateur."
 msgid "Poracode just passed {count} stars on GitHub"
 msgstr "Poracode vient de dépasser {count} étoiles sur GitHub"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Poracode manages this local model route and its Codex home."
+msgstr "Poracode gère cette route de modèle locale et son dossier Codex."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode attend peut-être des données enregistrées ou un service en arrière-plan. Vous pouvez continuer à attendre, redémarrer ou installer une mise à jour disponible."
@@ -13985,10 +14309,6 @@ msgstr "Poracode uniquement"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode retient les préférences et les corrections entre les fournisseurs. La capture démarre à la fin d'un tour. Un passage quotidien les fusionne. Les skills appris d'un travail répété restent des suggestions jusqu'à votre approbation."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Poracode sends no telemetry unless you opt in. Prompts, code, file names, and terminal output are never included. Turning a stream off stops sending immediately and drops anything still queued."
-#~ msgstr "Poracode n’envoie aucune télémétrie sans votre accord. Les prompts, le code, les noms de fichiers et la sortie de terminal ne sont jamais inclus. Désactiver un flux arrête l’envoi immédiatement et abandonne tout ce qui est en file d’attente."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
@@ -14267,6 +14587,7 @@ msgstr "Vérification de v{0}"
 msgid "Productivity"
 msgstr "Productivité"
 
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -14283,10 +14604,22 @@ msgstr "Le profil « {profile} » a besoin du propriétaire de compte « {depend
 msgid "Profile {displayName} added."
 msgstr "Profil {displayName} ajouté."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Profile {trimmedName} added."
+msgstr "Profil {trimmedName} ajouté."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Profile {trimmedName} was created, but its settings could not be saved. Refresh Agents before using it."
+msgstr "Le profil {trimmedName} a été créé, mais ses paramètres n'ont pas pu être enregistrés. Actualisez Agents avant de l'utiliser."
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "Home du profil"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Profile name"
+msgstr "Nom du profil"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
@@ -14567,6 +14900,10 @@ msgstr "Tirer ({behind})"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
 msgid "Pull ↓{behind}"
 msgstr "Tirer ↓{behind}"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Pull a model in a terminal with <0>ollama pull <model></0>, then Refresh."
+msgstr "Téléchargez un modèle dans un terminal avec <0>ollama pull <model></0>, puis actualisez."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull did not complete. Your local changes remain in a Poracode stash."
@@ -14973,6 +15310,7 @@ msgid "Reference"
 msgstr "Référence"
 
 #. Button: re-fetch provider usage now
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
@@ -15376,6 +15714,10 @@ msgstr "Supprimer {profileName} le retire de Poracode. Son répertoire home et l
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
 msgstr "Supprimer {profileName} le retire de Poracode. Son répertoire home et les identifiants Gemini qu'il contient restent sur le disque."
 
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Removing {profileName} drops its Poracode profile settings. Its OpenCode config and database stay on the host."
+msgstr "La suppression de {profileName} efface ses paramètres de profil Poracode. Sa configuration et sa base de données OpenCode restent sur l'hôte."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Supprimer {profileName} abandonne ses réglages Poracode — variables d'environnement, modèles et effort. Son répertoire de configuration et les identifiants Claude qu'il contient restent sur le disque."
@@ -15525,6 +15867,7 @@ msgstr "dépôt"
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "Repository"
 msgstr "Dépôt"
 
@@ -15613,10 +15956,6 @@ msgstr "Réinitialiser la liste"
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "Réinitialiser les fenêtres de contexte"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Reset ID"
-#~ msgstr "Réinitialiser l’ID"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Reset inputs"
@@ -15864,6 +16203,10 @@ msgstr "Réessayer"
 msgid "Retry {serverName}"
 msgstr "Réessayer la vérification de {serverName}"
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Retry cancel"
+msgstr "Réessayer l’annulation"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Retry cancelled"
 msgstr "Nouvelle tentative annulée"
@@ -15883,6 +16226,10 @@ msgstr "Délai avant nouvelle tentative"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry delay in seconds"
 msgstr "Délai avant nouvelle tentative en secondes"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Retry download"
+msgstr "Réessayer le téléchargement"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Retry live"
@@ -16134,6 +16481,10 @@ msgstr "Revues et commentaires"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Revise command"
 msgstr "Réviser la commande"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Revision"
+msgstr "Révision"
 
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "Revision note (optional)"
@@ -16699,14 +17050,6 @@ msgstr "Faire défiler vers le bas"
 msgid "Scroll to prompt: {preview}"
 msgstr "Faire défiler jusqu'à l'invite : {preview}"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Scrubbed crash diagnostics with paths and secrets removed."
-#~ msgstr "Diagnostics de plantage nettoyés, sans chemins ni secrets."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Scrubbed crash diagnostics with paths, secrets, and personal data removed before anything is sent."
-#~ msgstr "Diagnostics de plantage nettoyés : chemins, secrets et données personnelles sont supprimés avant tout envoi."
-
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK installé"
@@ -16793,6 +17136,10 @@ msgstr "Rechercher des modèles..."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Search more providers"
 msgstr "Rechercher d’autres fournisseurs"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Search or enter a model tag"
+msgstr "Rechercher ou saisir une étiquette de modèle"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
@@ -17138,6 +17485,17 @@ msgstr "Sélection envoyée au terminal."
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Séparez les comptes Claude Code par dossier de configuration, ou dirigez un profil vers un fournisseur externe (z.ai, …). Ouvrez un profil pour configurer ses variables d'environnement, ses modèles et son effort."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Served model ID"
+msgstr "ID du modèle servi"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Server"
+msgstr "Serveur"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Server {target} could not be started and was skipped."
 msgstr "Le serveur {target} n'a pas pu démarrer et a été ignoré."
@@ -17154,10 +17512,19 @@ msgstr "Le serveur {target} n'est pas configuré correctement et a été ignoré
 msgid "Server {target} runs on this computer and is unavailable for WSL projects."
 msgstr "Le serveur {target} s'exécute sur cet ordinateur et n'est pas disponible pour les projets WSL."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Server address"
+msgstr "Adresse du serveur"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Server base URL"
 msgstr "URL de base du serveur"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Server default"
+msgstr "Par défaut du serveur"
 
 #: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
@@ -17472,6 +17839,11 @@ msgstr "Voir"
 msgid "Show media"
 msgstr "Afficher les médias"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Show model suggestions"
+msgstr "Afficher les suggestions de modèles"
+
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -17511,10 +17883,6 @@ msgstr "Afficher ou masquer le panneau du terminal"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show preview"
 msgstr "Afficher l'aperçu"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Show recent events"
-#~ msgstr "Afficher les événements récents"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -17976,6 +18344,7 @@ msgstr "Trier les pull requests"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "Source"
 msgstr "Source"
 
@@ -18496,6 +18865,10 @@ msgstr "Commande suggérée — à vérifier avant utilisation"
 msgid "Suggested command inserted into the composer."
 msgstr "Commande suggérée insérée dans le composeur."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Suggested models"
+msgstr "Modèles suggérés"
+
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
@@ -18798,10 +19171,6 @@ msgstr "Détails de la télémétrie"
 msgid "Telemetry doc"
 msgstr "Documentation sur la télémétrie"
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Telemetry is disabled by an environment variable on this machine, so both options below stay off regardless of these switches."
-#~ msgstr "La télémétrie est désactivée par une variable d’environnement sur cette machine ; les deux options ci-dessous restent donc désactivées quels que soient ces interrupteurs."
-
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell {0} what to do next..."
@@ -18970,6 +19339,10 @@ msgstr "Cette étiquette n'existe pas dans ce dépôt. Actualisez la liste des �
 #: src/renderer/actions/threadTransferActions.ts
 msgid "That machine is not available."
 msgstr "Cette machine n’est pas disponible."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "That Ollama model on the selected host is not a local completion model, so it cannot be used here."
+msgstr "Ce modèle Ollama sur l’hôte sélectionné n’est pas un modèle de complétion local ; il ne peut pas être utilisé ici."
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "That project is no longer on {targetLabel}."
@@ -19199,10 +19572,6 @@ msgstr "Le résultat n’est plus disponible."
 msgid "The fork's saved conversation is unavailable."
 msgstr "La conversation enregistrée de la branche n’est pas disponible."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "The full event catalog, data handling, and environment opt-outs."
-#~ msgstr "Le catalogue complet des événements, le traitement des données et les exclusions par l’environnement."
-
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
 msgstr "Le compte GitHub \"{login}\" appartient à {host}, qui ne correspond pas au dépôt distant GitHub de ce projet."
@@ -19335,6 +19704,10 @@ msgstr "La configuration du serveur MCP n’est pas valide ou utilise un nom ré
 msgid "The MCP server is invalid."
 msgstr "Le serveur MCP n’est pas valide."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "The model downloaded, but the host inventory could not be refreshed."
+msgstr "Le modèle a été téléchargé, mais l’inventaire de l’hôte n’a pas pu être actualisé."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."
 msgstr "Le déplacement a expiré. Relancez-le."
@@ -19369,6 +19742,10 @@ msgstr "Le projet a été déplacé ou supprimé avant le lancement du fil. Vér
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The provider is unavailable. Install or update it in provider settings."
 msgstr "Le fournisseur est indisponible. Installez-le ou mettez-le à jour dans ses paramètres."
+
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+msgid "The provider runtime pins this endpoint and model for every session. Manage or remove the profile from the Claude Code page."
+msgstr "L'exécution du fournisseur épingle cet endpoint et ce modèle pour chaque session. Gérez ou supprimez le profil depuis la page Claude Code."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The provider's sign-in data could not be read. Try again or update Poracode."
@@ -19445,6 +19822,16 @@ msgstr "Impossible de confirmer les identifiants enregistrés du serveur distant
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "L’automatisation planifiée a échoué."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "The selected host does not allow terminal access, so its Ollama context model cannot be prepared."
+msgstr "L’hôte sélectionné n’autorise pas l’accès au terminal ; son modèle de contexte Ollama ne peut donc pas être préparé."
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "The selected host is offline."
+msgstr "L’hôte sélectionné est hors ligne."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "The selected machine is unavailable. Reconnect it to manage archived threads."
@@ -19673,6 +20060,10 @@ msgstr "La demande vocale est invalide ou a expiré. Veuillez réessayer."
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "La demande de fusion surveillée a changé. Examinez la surveillance avant de continuer."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "The weights must already be available to the server on this host before this ID can be used. Nothing is uploaded here."
+msgstr "Les poids doivent déjà être disponibles pour le serveur sur cet hôte avant d'utiliser cet ID. Rien n'est téléversé ici."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "l’utilisateur Windows"
@@ -19782,6 +20173,10 @@ msgstr "Cette session Codex est ouverte dans une autre app Codex (Codex Desktop 
 msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "Ce commentaire a changé pendant votre modification. Actualisez avant d’enregistrer."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "This computer"
+msgstr "Cet ordinateur"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Cette connexion peut voir les projets, mais pas les gérer. Associez-la à nouveau pour l’activer."
@@ -19790,6 +20185,11 @@ msgstr "Cette connexion peut voir les projets, mais pas les gérer. Associez-la 
 msgid "This connection can't manage projects."
 msgstr "Cette connexion ne peut pas gérer les projets."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "This connection does not allow terminal access on the selected host."
+msgstr "Cette connexion n’autorise pas l’accès au terminal sur l’hôte sélectionné."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "Cette connexion n’a pas l’autorisation de lire l’utilisation."
@@ -19797,6 +20197,12 @@ msgstr "Cette connexion n’a pas l’autorisation de lire l’utilisation."
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to refresh usage."
 msgstr "Cette connexion n’a pas l’autorisation d’actualiser l’utilisation."
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "This connection is read-only."
+msgstr "Cette connexion est en lecture seule."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
@@ -19821,6 +20227,10 @@ msgstr "L'identité d'hôte de cet environnement a changé. Réappairez-le expli
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Cet épisode a été acquitté ; le contenu manquant n'est pas restauré."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "This field is required."
+msgstr "Ce champ est obligatoire."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
@@ -19957,6 +20367,10 @@ msgstr "Ce profil a déjà des fils de discussion. Leurs sessions restent dans l
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
 msgstr "Ce profil ne peut pas se lancer avec sa connexion et sa configuration actuelles. Vérifiez les paramètres du profil et réessayez."
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "This profile launches its own OpenCode server on the selected host. The model endpoint is not shared with the base OpenCode agent."
+msgstr "Ce profil lance son propre serveur OpenCode sur l'hôte sélectionné. L'endpoint du modèle n'est pas partagé avec l'agent OpenCode de base."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
@@ -21578,6 +21992,10 @@ msgstr "Utilisez + pour effectuer un appairage direct ou vous connecter à une m
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "Utilisez 2 à 6 tentatives et des délais de 1 à 3600 secondes."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Use a lowercase Ollama library tag such as llama3.2:3b. Cloud models are not supported."
+msgstr "Utilisez une étiquette de bibliothèque Ollama en minuscules, comme llama3.2:3b. Les modèles cloud ne sont pas pris en charge."
+
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Use a predefined role"
 msgstr "Utiliser un rôle prédéfini"
@@ -21593,6 +22011,10 @@ msgstr "Utiliser un compte distinct"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "Choisissez une durée limite de 1 à 1440 minutes."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Use a valid HTTP(S) URL."
+msgstr "Utilisez une URL HTTP(S) valide."
 
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Use account"
@@ -21665,6 +22087,10 @@ msgstr "Utilisez des lettres minuscules, des chiffres et des traits d’union."
 msgid "Use memory"
 msgstr "Utiliser la mémoire"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Use model"
+msgstr "Utiliser le modèle"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -21689,6 +22115,10 @@ msgstr "Utiliser des captures"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."
 msgstr "Utiliser la compétence {name}."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Use the address the server expects."
+msgstr "Utilisez l'adresse attendue par le serveur."
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
@@ -21762,6 +22192,10 @@ msgstr "Nom d’utilisateur"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
 msgstr "Utilise la connexion propre de Devin sur cette machine. Connectez-vous ou déconnectez-vous depuis la page de base Devin — elle reste la seule connexion globale."
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Uses this host's normal OpenCode account and default model."
+msgstr "Utilise le compte OpenCode normal et le modèle par défaut de cet hôte."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -22162,10 +22596,6 @@ msgstr "Ce que fait le bouton Créer la PR par défaut : ouvrir une boîte de di
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "Ce que fournit ce serveur"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "What would be sent"
-#~ msgstr "Ce qui serait envoyé"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "What would you like to see?"

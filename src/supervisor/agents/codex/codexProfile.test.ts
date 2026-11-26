@@ -41,13 +41,16 @@ vi.mock("./sessionFiles", async (importOriginal) => {
 import { getCodexPluginPaths } from "./plugin/install";
 import { createCodexAdapter, createCodexProfileAdapter } from "./index";
 import { codexTerminalAuthMethod } from "./detection";
+import { pinCodexLocalThreadConfig } from "@/shared/agents/codex/localProfile";
 import { codexAppServerPoolKey } from "./serverPool";
 import { buildCodexAppServerCommand } from "./argv";
 import { createCodexProfileContext } from "./profileContext";
 import {
   clearExecutablePathCache,
   primeWslLaunchEnvironment,
+  resolveOneShotSelection,
   setWslProcessBridgeClient,
+  UnsupportedOneShotControlError,
 } from "../base";
 import {
   readCodexRolloutsForLocation,
@@ -69,6 +72,18 @@ function workProfile() {
     driver: "codex",
     displayName: "Work",
     config: { homeDir: "~/.codex-work" },
+  });
+}
+
+function localProfile() {
+  return createCodexProfileAdapter({
+    id: "local",
+    driver: "codex",
+    displayName: "Local",
+    config: {
+      homeDir: "~/.poracode/codex-profiles/local",
+      local: { endpoint: "http://127.0.0.1:11434/v1", model: "inkling-2-mini:latest" },
+    },
   });
 }
 
@@ -98,6 +113,247 @@ describe("createCodexProfileAdapter", () => {
       (await adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation))?.env
         ?.CODEX_HOME,
     ).toBe(expectedHome);
+  });
+
+  it("pins a local route with scoped provider args and blanks ambient keys", async () => {
+    const adapter = localProfile();
+    expect(adapter.capabilities.models).toEqual([
+      { id: "inkling-2-mini:latest", label: "inkling-2-mini:latest" },
+    ]);
+    expect(adapter.capabilities.efforts).toEqual([]);
+    expect(adapter.capabilities.defaultEffort).toBeUndefined();
+
+    const launch = await adapter.buildLaunchArgv(
+      projectLocation,
+      { model: "gpt-5.5", effort: "high", fast: true },
+      "hello",
+    );
+    expect(launch.args).toEqual(
+      expect.arrayContaining([
+        'model_provider="poracode_local"',
+        'model_providers.poracode_local.base_url="http://127.0.0.1:11434/v1"',
+        'model_providers.poracode_local.wire_api="responses"',
+        "model_providers.poracode_local.requires_openai_auth=false",
+        "-m",
+        "inkling-2-mini:latest",
+      ]),
+    );
+    expect(launch.args).not.toContain("gpt-5.5");
+    expect(launch.args.join(" ")).not.toContain("model_reasoning_effort");
+    expect(launch.args.join(" ")).not.toContain("service_tier");
+    expect(launch.env).toMatchObject({
+      OPENAI_API_KEY: "",
+      CODEX_API_KEY: "",
+      CODEX_ACCESS_TOKEN: "",
+      CODEX_OAUTH_TOKEN: "",
+    });
+
+    const oneShot = await adapter.buildOneShotCommand?.(
+      "inkling-2-mini:latest",
+      undefined,
+      "Summarize",
+      projectLocation,
+    );
+    expect(oneShot?.args).toEqual(
+      expect.arrayContaining([
+        "exec",
+        'model_provider="poracode_local"',
+        "-m",
+        "inkling-2-mini:latest",
+      ]),
+    );
+    expect(oneShot?.args).not.toContain("gpt-5.5");
+    expect(oneShot?.env?.CODEX_OAUTH_TOKEN).toBe("");
+
+    const selection = resolveOneShotSelection(
+      adapter,
+      { model: "inkling-2-mini:latest", effort: "", fast: false },
+      () => new Error("no model"),
+    );
+    const utility = await adapter.buildOneShotCommand?.(
+      selection.model,
+      selection.effort,
+      "Title",
+      projectLocation,
+      selection.fast,
+      { selection },
+    );
+    expect(utility?.args).toContain("inkling-2-mini:latest");
+    expect(utility?.args.join(" ")).not.toContain("model_reasoning_effort");
+    expect(utility?.args.join(" ")).not.toContain("service_tier");
+    await expect(
+      adapter.buildOneShotCommand?.(selection.model, "high", "Title", projectLocation, false, {
+        selection: { ...selection, effort: "high", fast: false },
+      }),
+    ).rejects.toBeInstanceOf(UnsupportedOneShotControlError);
+    await expect(
+      adapter.buildOneShotCommand?.("gpt-5.5", "", "Title", projectLocation, false, {
+        selection: { model: "gpt-5.5", effort: "", fast: false },
+      }),
+    ).rejects.toThrow(/serves only/);
+
+    const poolKey = await codexAppServerPoolKey(
+      projectLocation,
+      [],
+      undefined,
+      undefined,
+      launch.env,
+      undefined,
+      [],
+      JSON.stringify({ endpoint: "http://127.0.0.1:11434/v1", model: "inkling-2-mini:latest" }),
+    );
+    const otherKey = await codexAppServerPoolKey(
+      projectLocation,
+      [],
+      undefined,
+      undefined,
+      launch.env,
+      undefined,
+      [],
+      JSON.stringify({ endpoint: "http://127.0.0.1:11434/v1", model: "other" }),
+    );
+    expect(poolKey).not.toBe(otherKey);
+  });
+
+  it("keeps the exact context alias on the wire and aligns Codex compaction", async () => {
+    const alias = "poracode-ctx-65536-0123456789ab-0123456789abcdef";
+    const adapter = createCodexProfileAdapter({
+      id: "local",
+      driver: "codex",
+      displayName: "Local",
+      config: {
+        homeDir: "~/.poracode/codex-profiles/local",
+        local: {
+          endpoint: "http://127.0.0.1:11434/v1",
+          model: alias,
+          baseModel: "inkling-2-mini:latest",
+          contextLength: 65536,
+        },
+      },
+    });
+
+    const launch = await adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hello");
+    expect(launch.args).toEqual(
+      expect.arrayContaining([
+        "-m",
+        alias,
+        "-c",
+        "model_context_window=65536",
+        "-c",
+        "model_auto_compact_token_limit=62259",
+      ]),
+    );
+    expect(launch.args).not.toContain("gpt-5.5");
+
+    const oneShot = await adapter.buildOneShotCommand?.(
+      alias,
+      undefined,
+      "Summarize",
+      projectLocation,
+    );
+    expect(oneShot?.args).toEqual(
+      expect.arrayContaining([
+        "-m",
+        alias,
+        "-c",
+        "model_context_window=65536",
+        "-c",
+        "model_auto_compact_token_limit=62259",
+      ]),
+    );
+    expect(oneShot?.args).not.toContain("inkling-2-mini:latest");
+  });
+
+  it("accepts a custom exact context count while an old preset still launches unchanged", async () => {
+    for (const context of [65536, 88000]) {
+      const alias = `poracode-ctx-${context}-0123456789ab-0123456789abcdef`;
+      const adapter = createCodexProfileAdapter({
+        id: `local-${context}`,
+        driver: "codex",
+        displayName: "Local",
+        config: {
+          homeDir: `~/.poracode/codex-profiles/local-${context}`,
+          local: {
+            endpoint: "http://127.0.0.1:11434/v1",
+            model: alias,
+            baseModel: "inkling-2-mini:latest",
+            contextLength: context,
+          },
+        },
+      });
+      const launch = await adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hello");
+      expect(launch.args).toEqual(
+        expect.arrayContaining([
+          "-m",
+          alias,
+          "-c",
+          `model_context_window=${context}`,
+          "-c",
+          `model_auto_compact_token_limit=${Math.floor(context * 0.95)}`,
+        ]),
+      );
+    }
+  });
+
+  it("pins the app-server thread override to the alias's context window", () => {
+    expect(
+      pinCodexLocalThreadConfig(
+        { model: "gpt-5.5", effort: "high", fast: true, contextSize: "400k" },
+        {
+          endpoint: "http://127.0.0.1:11434/v1",
+          model: "poracode-ctx-65536-0123456789ab-0123456789abcdef",
+          baseModel: "inkling-2-mini:latest",
+          contextLength: 65536,
+        },
+      ),
+    ).toEqual({
+      model: "poracode-ctx-65536-0123456789ab-0123456789abcdef",
+      contextSize: "65536",
+    });
+  });
+
+  it("drops an inherited context size when the local route uses the server default", () => {
+    expect(
+      pinCodexLocalThreadConfig(
+        { model: "gpt-5.5", effort: "high", fast: true, contextSize: "400k" },
+        {
+          endpoint: "http://127.0.0.1:11434/v1",
+          model: "inkling-2-mini:latest",
+        },
+      ),
+    ).toEqual({ model: "inkling-2-mini:latest" });
+  });
+
+  it("namespaces the managed local home by the authoritative host data root", async () => {
+    const previous = process.env.PORACODE_DATA_DIR;
+    try {
+      const instance = {
+        id: "local",
+        driver: "codex" as const,
+        displayName: "Local",
+        config: {
+          homeDir: "~/.poracode/codex-profiles/local",
+          local: { endpoint: "http://127.0.0.1:11434/v1", model: "model" },
+        },
+      };
+      process.env.PORACODE_DATA_DIR = "/hosts/desktop/.poracode";
+      const desktop = await createCodexProfileAdapter(instance).buildLaunchArgv(
+        projectLocation,
+        { model: "model" },
+        "hello",
+      );
+      process.env.PORACODE_DATA_DIR = "/hosts/isolated/.poracode";
+      const isolated = await createCodexProfileAdapter(instance).buildLaunchArgv(
+        projectLocation,
+        { model: "model" },
+        "hello",
+      );
+      expect(desktop.env?.CODEX_HOME).not.toBe(isolated.env?.CODEX_HOME);
+      expect(desktop.env?.CODEX_HOME).toContain(".poracode/codex-profiles/");
+    } finally {
+      if (previous === undefined) delete process.env.PORACODE_DATA_DIR;
+      else process.env.PORACODE_DATA_DIR = previous;
+    }
   });
 
   it("logs out of the profile's CODEX_HOME, not the global one", async () => {

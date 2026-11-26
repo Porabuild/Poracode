@@ -60,15 +60,20 @@ export function openCodeConnectedProviders(
 /**
  * Auth state counts env-backed providers too: OpenCode works without a stored
  * credential when a provider key comes from the environment, so reporting
- * "login required" there would be wrong.
+ * "login required" there would be wrong. A catalog model under the built-in
+ * loopback Ollama provider is likewise eligible without an account; this says
+ * nothing about endpoint health or whether the model will load.
  */
 export function buildOpenCodeStatusFromIntegrations(
   integrations: readonly OpenCodeInventoryIntegration[],
   legacyProviders: readonly AgentConnectedProvider[] = [],
+  hasCredentialFreeLocalModels = false,
 ): StatusProbeResult {
   const nativeProviders = openCodeConnectedProviders(integrations);
   const signedIn =
-    nativeProviders.length > 0 || integrations.some((integration) => integration.envBacked);
+    nativeProviders.length > 0 ||
+    integrations.some((integration) => integration.envBacked) ||
+    hasCredentialFreeLocalModels;
   const connectedProviders = [
     ...nativeProviders,
     ...legacyProviders.filter(

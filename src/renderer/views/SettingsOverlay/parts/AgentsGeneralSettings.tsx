@@ -15,6 +15,7 @@ import {
 } from "@/renderer/actions/agentDiscoveryActions";
 import { ModelOrderSection } from "./ModelOrderSection";
 import { ModelVisibilitySection } from "./ModelVisibilitySection";
+import { AgentProfileAddButton } from "./AgentProfileAddButton";
 import { SettingsPage } from "./SettingsForm";
 
 export function AgentsGeneralSettings(props: { onOpenAgentSettings: (kind: string) => void }) {
@@ -42,17 +43,23 @@ export function AgentsGeneralSettings(props: { onOpenAgentSettings: (kind: strin
     <SettingsPage
       title={t`Agents · General`}
       actions={
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label={t`Refresh detected agents`}
-          isPending={isRefreshing}
-          isDisabled={isRefreshing || machine.status !== "online"}
-          onPress={() => void refreshAgents()}
-        >
-          {isRefreshing ? <PixelLoader size="xs" /> : <RefreshCw className="size-4" />}
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <AgentProfileAddButton
+            machine={machine}
+            onOpenAgentSettings={props.onOpenAgentSettings}
+          />
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={t`Refresh detected agents`}
+            isPending={isRefreshing}
+            isDisabled={isRefreshing || machine.status !== "online"}
+            onPress={() => void refreshAgents()}
+          >
+            {isRefreshing ? <PixelLoader size="xs" /> : <RefreshCw className="size-4" />}
+          </Button>
+        </div>
       }
     >
       <ModelVisibilitySection />

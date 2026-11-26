@@ -9,30 +9,39 @@ const toastMock = vi.hoisted(() => ({
   success: vi.fn<(message: string) => void>(),
 }));
 
-vi.mock("@heroui/react", () => ({
-  Button: (props: {
-    children?: ReactNode;
-    "aria-label"?: string;
-    isDisabled?: boolean;
-    onPress?: () => void;
-  }) => (
-    <button
-      type="button"
-      aria-label={props["aria-label"]}
-      disabled={props.isDisabled}
-      onClick={props.onPress}
-    >
-      {props.children}
-    </button>
-  ),
-  toast: toastMock,
-}));
+vi.mock("@heroui/react", async (importOriginal) => {
+  const { Modal, ComboBox, ListBox, Tabs } = await importOriginal<typeof import("@heroui/react")>();
+  return {
+    Button: (props: {
+      children?: ReactNode;
+      "aria-label"?: string;
+      isDisabled?: boolean;
+      onPress?: () => void;
+    }) => (
+      <button
+        type="button"
+        aria-label={props["aria-label"]}
+        disabled={props.isDisabled}
+        onClick={props.onPress}
+      >
+        {props.children}
+      </button>
+    ),
+    ComboBox,
+    ListBox,
+    Modal,
+    Tabs,
+    toast: toastMock,
+  };
+});
 
 vi.mock("@/renderer/components/common", () => ({
   Input: (props: {
     "aria-label"?: string;
     placeholder?: string;
     value?: string;
+    disabled?: boolean;
+    readOnly?: boolean;
     onChange?: (event: { target: { value: string } }) => void;
     onKeyDown?: (event: { key: string; preventDefault: () => void }) => void;
   }) => (
@@ -40,9 +49,31 @@ vi.mock("@/renderer/components/common", () => ({
       aria-label={props["aria-label"]}
       placeholder={props.placeholder}
       value={props.value}
+      disabled={props.disabled}
+      readOnly={props.readOnly}
       onChange={props.onChange}
       onKeyDown={props.onKeyDown}
     />
+  ),
+  Select: (props: {
+    "aria-label"?: string;
+    value?: string;
+    isDisabled?: boolean;
+    options: ReadonlyArray<{ id: string; label: string; isDisabled?: boolean }>;
+    onChange: (value: string) => void;
+  }) => (
+    <select
+      aria-label={props["aria-label"]}
+      value={props.value ?? ""}
+      disabled={props.isDisabled}
+      onChange={(event) => props.onChange(event.target.value)}
+    >
+      {props.options.map((option) => (
+        <option key={option.id} value={option.id} disabled={option.isDisabled}>
+          {option.label}
+        </option>
+      ))}
+    </select>
   ),
   PixelLoader: () => <span data-testid="pixel-loader" />,
   ConfirmDialog: (props: {
@@ -138,6 +169,15 @@ function codexProfile(overrides: Partial<AgentInstanceConfig> = {}): AgentInstan
   };
 }
 
+function localCodexProfile(): AgentInstanceConfig {
+  return codexProfile({
+    config: {
+      homeDir: "~/.poracode/codex-profiles/work",
+      local: { endpoint: "http://127.0.0.1:11434/v1", model: "inkling-2-mini:latest" },
+    },
+  });
+}
+
 beforeEach(() => {
   appState.threads = [];
   settingsState.agentInstances = {};
@@ -155,6 +195,11 @@ beforeEach(() => {
   toastMock.danger.mockReset();
 });
 
+function openAgentDefaultProfile() {
+  fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+  fireEvent.click(screen.getByRole("tab", { name: "Agent default" }));
+}
+
 describe("defaultCodexHomeDir", () => {
   it("derives a tilde-relative home from the allocated profile id", () => {
     expect(defaultCodexHomeDir("work-account-2")).toBe("~/.poracode/codex-profiles/work-account-2");
@@ -164,7 +209,7 @@ describe("defaultCodexHomeDir", () => {
 describe("CodexProfileSettings", () => {
   it("adds a profile with the derived home dir when the field is left empty", async () => {
     render(<CodexProfileSettings />);
-    fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+    openAgentDefaultProfile();
     expect(screen.getByLabelText("New Codex profile home directory")).toHaveAttribute(
       "placeholder",
       "~/.poracode/codex-profiles/profile",
@@ -172,7 +217,7 @@ describe("CodexProfileSettings", () => {
     fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await vi.waitFor(() =>
       expect(createProfileMock).toHaveBeenCalledWith({
@@ -199,7 +244,7 @@ describe("CodexProfileSettings", () => {
         }),
       };
       render(<CodexProfileSettings />);
-      fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+      openAgentDefaultProfile();
       fireEvent.change(screen.getByLabelText("New profile name"), {
         target: { value: secondName },
       });
@@ -208,7 +253,7 @@ describe("CodexProfileSettings", () => {
         "placeholder",
         `~/.poracode/codex-profiles/${secondId}`,
       );
-      fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+      fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
       await vi.waitFor(() =>
         expect(createProfileMock).toHaveBeenCalledWith({
@@ -230,6 +275,14 @@ describe("CodexProfileSettings", () => {
     expect(screen.getByText("~/.poracode/codex-profiles/work")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open Work" }));
     expect(onOpenProfile).toHaveBeenCalledWith("codex:work");
+  });
+
+  it("lists a local profile with its pinned model instead of the managed home", () => {
+    settingsState.agentInstances = { work: localCodexProfile() };
+    render(<CodexProfileSettings />);
+
+    expect(screen.getByText("inkling-2-mini:latest")).toBeInTheDocument();
+    expect(screen.queryByText("~/.poracode/codex-profiles/work")).not.toBeInTheDocument();
   });
 
   it("removes a profile only after confirmation", async () => {
@@ -274,6 +327,35 @@ describe("CodexProfileProviderSettings", () => {
       expect(toastMock.success).toHaveBeenCalledWith("Codex Work profile saved.");
       expect(refreshAgentStatusesMock).toHaveBeenCalledWith([], { agentKinds: ["codex:work"] });
     });
+  });
+
+  it("renames a local profile without dropping opaque config or rewriting its route", async () => {
+    const local = localCodexProfile();
+    local.config = {
+      ...(local.config as Record<string, unknown>),
+      opaqueRouteMetadata: { keep: true },
+    };
+    settingsState.agentInstances = { work: local };
+    render(<CodexProfileProviderSettings instanceId="work" />);
+
+    expect(screen.queryByLabelText("Codex profile home directory")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Managed by Poracode")).toBeDisabled();
+    expect(screen.getByText("http://127.0.0.1:11434/v1")).toBeInTheDocument();
+    expect(screen.getByText("inkling-2-mini:latest")).toBeInTheDocument();
+    expect(screen.getByText("Context length")).toBeInTheDocument();
+    expect(screen.getByLabelText("Context length")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Codex profile name"), {
+      target: { value: "Local renamed" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Codex profile" }));
+
+    expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
+      ...local,
+      displayName: "Local renamed",
+      config: local.config,
+    });
+    expect(settingsState.setAgentInstance.mock.calls[0]?.[0].config).toBe(local.config);
   });
 });
 

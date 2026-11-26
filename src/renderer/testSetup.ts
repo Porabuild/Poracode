@@ -58,6 +58,16 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   };
 }
 
+// HeroUI Tabs' shared-element indicator reads the Web Animations API, which
+// jsdom does not implement.
+if (typeof Element !== "undefined" && typeof Element.prototype.getAnimations !== "function") {
+  Object.defineProperty(Element.prototype, "getAnimations", {
+    configurable: true,
+    writable: true,
+    value: () => [],
+  });
+}
+
 if (typeof window !== "undefined" && !window.matchMedia) {
   Object.defineProperty(window, "matchMedia", {
     writable: true,

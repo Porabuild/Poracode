@@ -66,6 +66,16 @@ describe("buildCodexThreadOverrides", () => {
     });
   });
 
+  it("leaves the server's default window alone for a local route without an explicit size", () => {
+    const overrides = buildCodexThreadOverrides(
+      { model: "inkling-2-mini:latest", contextSize: "400k" },
+      { useServerDefaultContext: true },
+    );
+
+    expect(overrides.config).not.toHaveProperty("model_context_window");
+    expect(overrides.config).not.toHaveProperty("model_auto_compact_token_limit");
+  });
+
   it("disables a colliding native server for starts, resumes and forks", () => {
     const overrides = buildCodexThreadOverrides(
       { model: "gpt-6.1-terra", effort: "max" },

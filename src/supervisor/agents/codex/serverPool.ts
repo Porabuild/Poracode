@@ -8,6 +8,7 @@ import type { CreateStructuredSessionInput } from "../base";
 import { buildCodexMcp } from "./mcpConfig";
 import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
 import { buildCodexAppServerCommand } from "./argv";
+import type { CodexLocalProfileRoute } from "@/shared/agents/codex/localProfile";
 import { CodexAppServerConnection } from "./appServerRpc";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
 import { CodexStdioTransport } from "./stdioTransport";
@@ -107,6 +108,7 @@ export async function codexAppServerPoolKey(
   env?: Record<string, string>,
   agentSettings?: Record<string, boolean | string>,
   nativeMcpNames: readonly string[] = [],
+  localKey?: string,
 ): Promise<string> {
   // A profile's `CODEX_HOME` selects the account the app-server runs as, so
   // profiles must never share a pooled server with each other or the base.
@@ -123,6 +125,7 @@ export async function codexAppServerPoolKey(
     envFingerprint,
     // Sub-agent defaults are fixed at spawn, so a changed setting needs a fresh server.
     codexAgentSettingOverrideArgs(agentSettings, isCodexAgentsConfigSupported(location)).join(" "),
+    localKey ?? "",
   ].join("|");
 }
 
@@ -148,6 +151,7 @@ async function spawnAndWire(
   wslNodePath: string | undefined,
   onExit: (appServer: ChildProcess, connection: CodexAppServerConnection) => void,
   nativeMcpNames: readonly string[],
+  local?: CodexLocalProfileRoute,
 ): Promise<ServerSnapshot> {
   const appServer = spawnAppServer(
     await buildCodexAppServerCommand(input.projectLocation, {
@@ -156,6 +160,7 @@ async function spawnAndWire(
       ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
       ...(input.env ? { env: input.env } : {}),
       ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
+      ...(local ? { local } : {}),
       includeMcpConfig: false,
       nativeMcpNames,
     }),
@@ -211,6 +216,7 @@ export async function acquireCodexAppServer(
   input: CreateStructuredSessionInput,
   wslExecPath?: string,
   nativeMcpNames: readonly string[] = [],
+  local?: CodexLocalProfileRoute,
 ): Promise<AcquiredCodexAppServer> {
   pendingAcquisitions += 1;
   try {
@@ -227,6 +233,7 @@ export async function acquireCodexAppServer(
       input.env,
       input.agentSettings,
       nativeMcpNames,
+      local ? JSON.stringify(local) : undefined,
     );
     let entry = pool.get(key);
     if (!entry) {
@@ -240,6 +247,7 @@ export async function acquireCodexAppServer(
           if (pool.get(key) === entry) pool.delete(key);
         },
         nativeMcpNames,
+        local,
       );
       entry = { ready, leases: 0 };
       pool.set(key, entry);

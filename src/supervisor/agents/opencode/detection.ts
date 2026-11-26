@@ -18,6 +18,7 @@ import {
   readOpenCodeLegacyProviders,
   type OpenCodeInventoryIntegration,
 } from "./credentials";
+import { hasCredentialFreeOllamaModel } from "./localModels";
 import { awaitOpenCodeActivation } from "./readiness";
 
 // Provider default for the default model's effort ladder. OpenCode Go's
@@ -110,6 +111,8 @@ export interface OpenCodeInventory {
   agents: OpenCodeInventoryAgent[];
   /** Server-configured default model, when the catalog reports one. */
   defaultModel?: { providerID: string; id: string } | undefined;
+  /** At least one available model needs no upstream account under loopback Ollama. */
+  credentialFreeOllama: boolean;
 }
 
 function defaultEffortFor(ordered: readonly string[]): { defaultEffort?: string } {
@@ -252,6 +255,10 @@ export async function probeOpenCodeInventory(
         );
 
       const available = availableOpenCodeCatalog(models.data, providers.data, integrations.data);
+      const credentialFreeOllama = hasCredentialFreeOllamaModel(
+        available.models,
+        available.providers,
+      );
 
       return {
         commands: [
@@ -289,6 +296,7 @@ export async function probeOpenCodeInventory(
           )
             ? { providerID: defaultModel.data.providerID, id: defaultModel.data.id }
             : undefined,
+        credentialFreeOllama,
       } satisfies OpenCodeInventory;
     })();
 
@@ -330,7 +338,11 @@ async function runOpenCodeDetectionProbe(
     const legacyProviders = await readOpenCodeLegacyProviders(ctx.location, inventory.integrations);
     return {
       capabilities: buildOpenCodeCapabilityPartialFromInventory(inventory),
-      status: buildOpenCodeStatusFromIntegrations(inventory.integrations, legacyProviders),
+      status: buildOpenCodeStatusFromIntegrations(
+        inventory.integrations,
+        legacyProviders,
+        inventory.credentialFreeOllama,
+      ),
     };
   } catch (cause) {
     // No CLI fallback exists — keep the default capability set so the

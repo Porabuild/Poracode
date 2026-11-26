@@ -1069,6 +1069,14 @@ msgstr "Một plugin khác đã sử dụng mã định danh này. Plugin đó s
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Nguồn cây làm việc đã đóng băng yêu cầu hàm băm đầy đủ của commit"
 
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "A generated context model with that name already exists on the selected host with different settings. Choose another context length or remove that model there."
+msgstr "Đã có một mô hình ngữ cảnh được tạo với tên này trên máy chủ đã chọn nhưng có cài đặt khác. Hãy chọn độ dài ngữ cảnh khác hoặc xóa mô hình đó trên máy chủ."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "A local file on this computer is not readable by a remote server. Copy or import the weights there first, then enter the ID that server exposes. A Hugging Face account is not needed for local files."
+msgstr "Máy chủ từ xa không thể đọc tệp cục bộ trên máy tính này. Trước tiên hãy sao chép hoặc nhập trọng số lên máy chủ, sau đó nhập ID mà máy chủ cung cấp. Tệp cục bộ không cần tài khoản Hugging Face."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
 msgstr "Đã bỏ qua lượt chạy bị lỡ."
@@ -1084,6 +1092,10 @@ msgstr "Một lần gửi trước đã được lưu trên thiết bị này."
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "Một hồ sơ có thể chứa tối đa 100 kho lưu trữ."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "A profile with this name already exists for this harness."
+msgstr "Đã có hồ sơ trùng tên cho harness này."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1146,9 +1158,17 @@ msgstr "Giới thiệu"
 msgid "About account billing cycles"
 msgstr "Về chu kỳ thanh toán tài khoản"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "About context length"
+msgstr "Giới thiệu về độ dài ngữ cảnh"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About cost breakdown"
 msgstr "Về phân tích chi phí"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "About model sources"
+msgstr "Giới thiệu về nguồn mô hình"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About recorded token categories"
@@ -1157,6 +1177,14 @@ msgstr "Về các danh mục token đã ghi"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "About subscription bill"
 msgstr "Về hóa đơn thuê bao"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "About the served model ID"
+msgstr "Giới thiệu về ID mô hình được cung cấp"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "About the server address"
+msgstr "Giới thiệu về địa chỉ máy chủ"
 
 #: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "About usage"
@@ -1492,8 +1520,13 @@ msgid "Add MCP server"
 msgstr "Thêm máy chủ MCP"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "Add model"
 msgstr "Thêm mô hình"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Add model…"
+msgstr "Thêm mô hình…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Add one manually or import from another agent."
@@ -1507,6 +1540,8 @@ msgstr "Thêm mật khẩu"
 msgid "Add pattern"
 msgstr "Thêm mẫu"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Add profile"
 msgstr "Thêm hồ sơ"
@@ -1676,6 +1711,10 @@ msgstr "Tác nhân ({subagent}): {description}"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Agent chat (ACP / markdown). Command rows use this size minus 1 px; tool and plan lines minus 2 px."
 msgstr "Trò chuyện tác nhân (ACP / markdown). Các hàng lệnh dùng kích thước này trừ 1 px; dòng công cụ và dòng kế hoạch trừ 2 px."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Agent default"
+msgstr "Mặc định của tác nhân"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1962,10 +2001,6 @@ msgstr "Cho phép trình duyệt hiển thị thông báo khi ứng dụng ở n
 msgid "Allow the main agent to interrupt running sub-agents with interrupt_agent."
 msgstr "Cho phép tác nhân chính ngắt các tác nhân con đang chạy bằng interrupt_agent."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Allowlisted feature-use events (provider, public model family, bucketed counts and durations) under a random installation ID, with IP and location capture disabled."
-#~ msgstr "Các sự kiện sử dụng tính năng được phép (nhà cung cấp, họ mô hình công khai, số lượng và thời lượng đã nhóm) dưới ID cài đặt ngẫu nhiên, với việc thu thập IP và vị trí đã tắt."
-
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "Đã cấu hình"
@@ -2147,6 +2182,10 @@ msgstr "Chế độ giao diện"
 msgid "Applies to both models"
 msgstr "Áp dụng cho cả hai mô hình"
 
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Apply"
+msgstr "Áp dụng"
+
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 msgid "Apply patch tool"
 msgstr "Công cụ apply_patch"
@@ -2249,6 +2288,10 @@ msgstr "Bạn có chắc chắn muốn hoàn nguyên tất cả các thay đổi
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Arguments"
 msgstr "Đối số"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Artifact (optional)"
+msgstr "Tệp tạo tác (tùy chọn)"
 
 #: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadArtifactsDock.tsx
@@ -2848,6 +2891,14 @@ msgstr "Khám phá hệ sinh thái"
 msgid "Browse for parent folder"
 msgstr "Duyệt tìm thư mục mẹ"
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Browse full library"
+msgstr "Duyệt toàn bộ thư viện"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+#~ msgid "Browse Ollama library"
+#~ msgstr "Duyệt thư viện Ollama"
+
 #: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 msgid "Browse plugins"
@@ -3109,6 +3160,8 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -3116,6 +3169,7 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemoryEditorDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -3128,6 +3182,7 @@ msgid "Cancel agent discovery"
 msgstr "Hủy tìm tác nhân"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Cancel download"
 msgstr "Hủy tải xuống"
 
@@ -3168,6 +3223,10 @@ msgstr "Hủy kết nối thoại"
 msgid "Cancel workflow"
 msgstr "Hủy quy trình làm việc"
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Cancellation could not be confirmed; the model download may still be running."
+msgstr "Không thể xác nhận hủy; quá trình tải mô hình xuống có thể vẫn đang chạy."
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -3181,6 +3240,10 @@ msgstr "đã hủy"
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Cancelled"
 msgstr "Đã hủy"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Cancelling download…"
+msgstr "Đang hủy tải xuống…"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Candidate actions"
@@ -3244,10 +3307,6 @@ msgstr "Đổi kích thước ngữ cảnh thành {contextLabel}?"
 #: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "Thay đổi thư mục"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Change or turn off either anytime in Settings → Privacy."
-#~ msgstr "Thay đổi hoặc tắt bất cứ lúc nào trong Cài đặt → Riêng tư."
 
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Change order"
@@ -3341,6 +3400,10 @@ msgstr "Đã yêu cầu thay đổi"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Changes unavailable"
 msgstr "Không thể xem các thay đổi"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Changing context needs terminal access on the selected host. Server default can still be restored."
+msgstr "Thay đổi ngữ cảnh cần quyền truy cập terminal trên máy chủ đã chọn. Vẫn có thể khôi phục mặc định của máy chủ."
 
 #. About page label: release channel (stable/nightly)
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3568,6 +3631,10 @@ msgstr "Chọn một thư mục…"
 msgid "Choose a local base branch for the experiment."
 msgstr "Chọn một nhánh cơ sở cục bộ cho thử nghiệm."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Choose a model file"
+msgstr "Chọn tệp mô hình"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Choose a parent folder"
 msgstr "Chọn một thư mục cha"
@@ -3587,6 +3654,10 @@ msgstr "Chọn ảnh biểu tượng dự án"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a saved credential to sign out."
 msgstr "Chọn thông tin xác thực đã lưu để đăng xuất."
+
+#: src/renderer/views/SettingsOverlay/parts/agentProfileCreate.ts
+msgid "Choose a supported Ollama context length."
+msgstr "Chọn độ dài ngữ cảnh Ollama được hỗ trợ."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
@@ -3616,6 +3687,10 @@ msgstr "Chọn dữ liệu cần chuyển sang trình duyệt tích hợp."
 msgid "Choose direct HTTP fetching from this machine or DeepSeek Fetch API."
 msgstr "Chọn tải HTTP trực tiếp từ máy này hoặc dùng DeepSeek Fetch API."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Choose file…"
+msgstr "Chọn tệp…"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -3628,6 +3703,14 @@ msgstr "Chọn cách bạn ghi âm và nơi chép lời nói của bạn."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "Chọn đích nhập"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Choose OpenCode, then the Ollama model for a Crew role."
+msgstr "Chọn OpenCode, sau đó chọn mô hình Ollama cho vai trò Crew."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Choose or enter a model ID"
+msgstr "Chọn hoặc nhập ID mô hình"
 
 #: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
 msgid "Choose project"
@@ -3726,8 +3809,13 @@ msgid "Claude {0} profile saved."
 msgstr "Đã lưu hồ sơ Claude {0}."
 
 #: src/renderer/components/providers/claude/manifest.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude Code"
 msgstr "Claude Code"
+
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+msgid "Claude Code sends Anthropic Messages requests to this URL and owns its own config directory. Do not append <0>/v1</0>; Claude adds the request path itself."
+msgstr "Claude Code gửi yêu cầu Anthropic Messages đến URL này và có thư mục cấu hình riêng. Không thêm <0>/v1</0>; Claude tự thêm đường dẫn yêu cầu."
 
 #: src/renderer/components/providers/claude/ChromeSettings.tsx
 msgid "Claude in Chrome"
@@ -4125,6 +4213,10 @@ msgstr "Danh sách kho lưu trữ đám mây"
 msgid "Cloud sessions use their own workspace. Local files and local MCP processes are unavailable."
 msgstr "Các phiên đám mây dùng workspace riêng của chúng. Tệp cục bộ và tiến trình MCP cục bộ không khả dụng."
 
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Cloud-only tags are excluded from this list."
+msgstr "Thẻ chỉ trên đám mây bị loại khỏi danh sách này."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Cmd+Enter"
 msgstr "Cmd+Enter"
@@ -4142,6 +4234,7 @@ msgid "Code mode, optional Harness tools, web providers, execution limits, and s
 msgstr "Chế độ mã, công cụ Harness tùy chọn, nhà cung cấp web, giới hạn thực thi và chia sẻ nhật ký phiên. Áp dụng cho các luồng mới hoặc khởi động lại."
 
 #: src/renderer/components/providers/codex/manifest.ts
+#: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex"
 msgstr "Codex"
 
@@ -4167,12 +4260,20 @@ msgid "Codex profile home directory"
 msgstr "Thư mục home của hồ sơ Codex"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex profile managed home"
+msgstr "Thư mục chính được quản lý của hồ sơ Codex"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile name"
 msgstr "Tên hồ sơ Codex"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex chạy hồ sơ này với CODEX_HOME trỏ tới thư mục bên dưới. Dùng Đăng nhập ở trên để đăng nhập hồ sơ này vào tài khoản riêng của nó."
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex uses scoped command-line overrides for this route. The user's Codex config files are not changed."
+msgstr "Codex dùng các ghi đè dòng lệnh có phạm vi cho tuyến này. Các tệp cấu hình Codex của người dùng không bị thay đổi."
 
 #: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
@@ -4689,6 +4790,10 @@ msgstr "Đang kết nối..."
 msgid "Connecting…"
 msgstr "Đang kết nối…"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Connection"
+msgstr "Kết nối"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Connection details"
 msgstr "Chi tiết kết nối"
@@ -4764,6 +4869,15 @@ msgstr "Ngữ cảnh được nén từ {before} token"
 #: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Ngữ cảnh được nén: {before} → {after} token"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Context length"
+msgstr "Độ dài ngữ cảnh"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Context length updated. It applies to new sessions."
+msgstr "Đã cập nhật độ dài ngữ cảnh. Áp dụng cho các phiên mới."
 
 #: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
@@ -5280,6 +5394,7 @@ msgstr "Báo cáo sự cố"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6204,6 +6319,7 @@ msgid "Detaching leaves the device running."
 msgstr "Thiết bị vẫn chạy sau khi ngắt kết nối."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Details"
 msgstr "Chi tiết"
 
@@ -6538,6 +6654,10 @@ msgstr "Khám phá"
 msgid "Discover skills and MCP servers from your marketplace sources."
 msgstr "Khám phá kỹ năng và máy chủ MCP từ các nguồn chợ plugin của bạn."
 
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Discovered routes"
+msgstr "Các tuyến đã phát hiện"
+
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Discovering agents…"
 msgstr "Đang tìm tác nhân…"
@@ -6669,6 +6789,7 @@ msgstr "Xong, lưu trữ, dỡ và xóa vẫn ghi ngay khi được phép."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Download"
 msgstr "Tải xuống"
 
@@ -6680,9 +6801,17 @@ msgstr "Tải xuống · {modelSize} MB"
 msgid "Download a voice model to finish setup."
 msgstr "Tải xuống mô hình giọng nói để hoàn tất thiết lập."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Download cancelled."
+msgstr "Đã hủy tải xuống."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "Tải xuống không thành công"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Download failed."
+msgstr "Tải xuống thất bại."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
@@ -6701,9 +6830,20 @@ msgstr "Tiến trình tải xuống"
 msgid "Download size unavailable"
 msgstr "Không có kích thước tải xuống"
 
+#. placeholder {0}: run.tag
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Downloaded {0}."
+msgstr "Đã tải xuống {0}."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Downloading"
 msgstr "Đang tải xuống"
+
+#. placeholder {0}: run.tag
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+#~ msgid "Downloading {0}…"
+#~ msgstr "Đang tải xuống {0}…"
 
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -6853,6 +6993,7 @@ msgstr "vd. 512k hoặc 1m"
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "ví dụ: Codex GPT-5.5 fast cho các tra cứu nhanh, OpenCode GLM cho tái cấu trúc hàng loạt, Claude Opus cho những việc tinh tế."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "ví dụ: Work"
@@ -7173,6 +7314,11 @@ msgstr "Nhập cổng từ 1 đến 65535."
 msgid "Enter a repository URL."
 msgstr "Nhập URL kho lưu trữ."
 
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/agentProfileCreate.ts
+msgid "Enter a safe installed Ollama model id."
+msgstr "Nhập ID mô hình Ollama đã cài đặt và an toàn."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "Nhập URL kho lưu trữ an toàn sử dụng HTTPS, HTTP, SSH, Git, FTP, FTPS hoặc cú pháp scp."
@@ -7214,6 +7360,8 @@ msgid "Enter a valid value."
 msgstr "Nhập giá trị hợp lệ."
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 msgid "Enter a whole number from {min} to {max}."
 msgstr "Nhập một số nguyên từ {min} đến {max}."
 
@@ -7225,6 +7373,10 @@ msgstr "Nhập một số nguyên từ 1 đến {CODEX_MAX_SUBAGENTS_LIMIT}."
 msgid "Enter one MCP server configuration."
 msgstr "Nhập một cấu hình máy chủ MCP."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Enter or choose a model ID."
+msgstr "Nhập hoặc chọn ID mô hình."
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Vào chế độ kế hoạch"
@@ -7232,6 +7384,10 @@ msgstr "Vào chế độ kế hoạch"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Enter repository names separated by commas, such as acme/website, acme/api."
 msgstr "Nhập các tên kho lưu trữ phân tách bằng dấu phẩy, ví dụ acme/website, acme/api."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Enter the ID the server exposes after the weights are available. Nothing is uploaded or imported here."
+msgstr "Nhập ID máy chủ cung cấp sau khi trọng số sẵn có. Không có gì được tải lên hoặc nhập ở đây."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -7242,6 +7398,10 @@ msgstr "Nhập URL ghép nối hiển thị trên máy tính của bạn."
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Enter the port a dev server on your desktop is listening on."
 msgstr "Nhập cổng mà một máy chủ phát triển trên máy tính của bạn đang lắng nghe."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Enter the server address."
+msgstr "Nhập địa chỉ máy chủ."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter valid JSON."
@@ -7787,10 +7947,6 @@ msgstr "Yêu thích"
 msgid "Favorites"
 msgstr "Yêu thích"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Feature-use events under a random installation ID. No prompts or code."
-#~ msgstr "Sự kiện sử dụng tính năng dưới ID cài đặt ngẫu nhiên. Không có prompt hay mã."
-
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Phản hồi"
@@ -7816,6 +7972,7 @@ msgid "Fetch"
 msgstr "Tìm nạp"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "File"
 msgstr "tập tin"
 
@@ -7827,6 +7984,10 @@ msgstr "Các thay đổi về tập tin sẽ xuất hiện ở đây."
 msgid "File is too large to preview."
 msgstr "Tệp quá lớn để xem trước."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "File location"
+msgstr "Vị trí tệp"
+
 #. placeholder {0}: activeProject.name
 #: src/renderer/commands/CommandPalette.tsx
 msgid "File names in {0}"
@@ -7835,6 +7996,14 @@ msgstr "Tên tệp trong {0}"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "Tệp không còn tồn tại trên đĩa."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "File on the server"
+msgstr "Tệp trên máy chủ"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "File path on the server"
+msgstr "Đường dẫn tệp trên máy chủ"
 
 #: src/renderer/views/PullRequestsOverlay/changes/FileDiffCard.tsx
 msgid "File renamed without content changes"
@@ -8708,6 +8877,10 @@ msgstr "Handle"
 msgid "Hard Reload"
 msgstr "Tải lại cứng"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Harness"
+msgstr "Harness"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
 msgid "Has unsent draft"
 msgstr "Có bản nháp chưa gửi"
@@ -9057,6 +9230,22 @@ msgstr "https://github.com/owner/repo.git"
 msgid "Hue"
 msgstr "Sắc màu"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face"
+msgstr "Hugging Face"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face artifact"
+msgstr "Tệp tạo tác Hugging Face"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face repository"
+msgstr "Kho Hugging Face"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Hugging Face revision"
+msgstr "Bản sửa đổi Hugging Face"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "I understand that protected browser data may be skipped."
 msgstr "Tôi hiểu rằng dữ liệu trình duyệt được bảo vệ có thể bị bỏ qua."
@@ -9068,6 +9257,10 @@ msgstr "Màu biểu tượng"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Icon color: {label}"
 msgstr "Màu biểu tượng: {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "ID the server exposes after loading"
+msgstr "ID máy chủ cung cấp sau khi tải"
 
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -9427,10 +9620,6 @@ msgstr "Kiểm tra"
 msgid "Inspect canonical runtime items"
 msgstr "Kiểm tra các mục thời gian chạy chuẩn"
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Inspect the exact sanitized events captured on this device during this session."
-#~ msgstr "Kiểm tra các sự kiện đã làm sạch chính xác được ghi lại trên thiết bị này trong phiên này."
-
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Inspect threads and terminal panes, and drive git, pull requests, and schedules."
 msgstr "Kiểm tra luồng và bảng terminal, điều khiển git, pull request và lịch chạy."
@@ -9560,6 +9749,14 @@ msgstr "Cài Meta idb và idb_companion trên máy chủ này để nhập liệ
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Cài đặt nhà cung cấp gốc trước; sử dụng ACP cho các tác nhân giao thức bổ sung."
 
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Install Ollama on this host from <0>ollama.com/download</0>, then keep it running with <1>ollama serve</1>."
+msgstr "Cài đặt Ollama trên máy chủ này từ <0>ollama.com/download</0>, sau đó giữ nó chạy bằng <1>ollama serve</1>."
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Install OpenCode for this host to detect Ollama models."
+msgstr "Cài đặt OpenCode cho máy chủ này để phát hiện mô hình Ollama."
+
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "Install OpenCode to manage its plugins."
 msgstr "Cài OpenCode để quản lý các plugin của nó."
@@ -9620,10 +9817,6 @@ msgstr "Cài Xcode và môi trường chạy iOS Simulator trên máy chủ này
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
 msgstr "Không thể xác minh bản cài đặt nên đã hoàn tác. Không có gì thay đổi."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Installation ID"
-#~ msgstr "ID cài đặt"
 
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -9728,6 +9921,10 @@ msgstr "Đơn vị khoảng thời gian"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Cấu hình không hợp lệ — đã giữ lại nhưng bị tắt"
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Invalid OpenCode profile configuration"
+msgstr "Cấu hình hồ sơ OpenCode không hợp lệ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Invalid visual specification. Showing source only."
@@ -9912,6 +10109,14 @@ msgstr "Laptop L"
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Large"
 msgstr "Lớn"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Larger windows reserve more memory. A size that does not fit this machine can fail to load."
+msgstr "Cửa sổ lớn hơn sẽ dự trữ nhiều bộ nhớ hơn. Kích thước không vừa với máy này có thể tải không thành công."
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+msgid "Larger windows reserve more memory. Changes apply to new sessions; a running session keeps the context it started with."
+msgstr "Cửa sổ lớn hơn sẽ dự trữ nhiều bộ nhớ hơn. Thay đổi áp dụng cho các phiên mới; phiên đang chạy giữ nguyên ngữ cảnh khi bắt đầu."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Largest"
@@ -10397,6 +10602,14 @@ msgstr "Các thay đổi cục bộ cần được lưu tạm trước khi kéo 
 msgid "Local chat history was reverted. The provider may still use the removed messages."
 msgstr "Lịch sử trò chuyện cục bộ đã được hoàn nguyên. Nhà cung cấp vẫn có thể sử dụng các tin nhắn đã xóa."
 
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+msgid "Local model profile"
+msgstr "Hồ sơ mô hình cục bộ"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Local Ollama"
+msgstr "Ollama cục bộ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Local password protection"
 msgstr "Bảo vệ mật khẩu cục bộ"
@@ -10629,6 +10842,7 @@ msgid "Managed by {pluginName}"
 msgstr "Quản lý bởi {pluginName}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Managed by Poracode"
 msgstr "Do Poracode quản lý"
 
@@ -10643,6 +10857,10 @@ msgstr "Do nhà cung cấp quản lý"
 #: src/renderer/speech/hexVoice.ts
 msgid "Managed Hex installation is not available on this host."
 msgstr "Cài đặt Hex được quản lý không khả dụng trên máy chủ này."
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Managed home"
+msgstr "Thư mục chính được quản lý"
 
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine."
@@ -11258,9 +11476,21 @@ msgstr "Thông báo đẩy trên di động"
 msgid "Mode"
 msgstr "Chế độ"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Model"
+msgstr "Mô hình"
+
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
 msgstr "Đã thêm mô hình vào mục yêu thích"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Model file"
+msgstr "Tệp mô hình"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Model for {memberLabel}"
@@ -11273,6 +11503,11 @@ msgstr "Mô hình cho vai trò mới"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "ID mô hình"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Model IDs are limited to 200 characters."
+msgstr "ID mô hình giới hạn 200 ký tự."
 
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Model IDs, separated by commas"
@@ -11289,6 +11524,10 @@ msgstr "Cặp mô hình"
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Model preparation progress"
 msgstr "Tiến độ chuẩn bị mô hình"
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Model profile"
+msgstr "Hồ sơ mô hình"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -11318,6 +11557,10 @@ msgstr "Mô hình"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Models available on the connected host for the selected language."
 msgstr "Các mô hình khả dụng trên máy chủ được kết nối cho ngôn ngữ đã chọn."
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Models OpenCode discovered from this host's configured Ollama endpoint."
+msgstr "Các mô hình OpenCode phát hiện từ điểm cuối Ollama đã cấu hình trên máy chủ này."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11761,6 +12004,7 @@ msgstr "mô hình mới"
 msgid "New phones, tablets, and browsers appear here after pairing."
 msgstr "Điện thoại, máy tính bảng và trình duyệt mới sẽ xuất hiện ở đây sau khi ghép đôi."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "New profile name"
 msgstr "Tên hồ sơ mới"
@@ -11953,10 +12197,6 @@ msgstr "Không có tác nhân nào được cài đặt."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Chưa ghi nhận commit, PR hay giải quyết xung đột nào bằng AI."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "No analytics events have been captured this session."
-#~ msgstr "Chưa có sự kiện phân tích nào được ghi lại trong phiên này."
-
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "No API key stored; native authentication may apply."
 msgstr "Chưa lưu khóa API; có thể sử dụng xác thực gốc."
@@ -12094,6 +12334,10 @@ msgstr "Không tìm thấy skill bên ngoài trong phạm vi này."
 msgid "No file checkpoint is stored for this message."
 msgstr "Không có điểm kiểm tra tập tin nào được lưu trữ cho tin nhắn này."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "No file selected"
+msgstr "Chưa chọn tệp"
+
 #. placeholder {0}: tree.searchQuery
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
@@ -12110,6 +12354,12 @@ msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "No history yet"
 msgstr "Chưa có lịch sử"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "No host location is available for this machine."
+msgstr "Không có vị trí máy chủ nào khả dụng cho máy này."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "No host-owned environments on this server yet."
@@ -12236,6 +12486,10 @@ msgstr "Không có mô hình nào khả dụng cho {agent}. Hãy kiểm tra tác
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "Không tìm thấy mô hình nào"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "No Ollama models detected. Pull a model, then Refresh."
+msgstr "Không phát hiện mô hình Ollama nào. Tải một mô hình rồi làm mới."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "No online paired hosts to sync with."
@@ -12500,10 +12754,6 @@ msgstr "Không có"
 msgid "None of these agents can run the AI comparison."
 msgstr "Không tác nhân nào trong số này có thể thực hiện phép so sánh bằng AI."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "None yet. One is created only if you turn analytics on."
-#~ msgstr "Chưa có. ID chỉ được tạo nếu bạn bật phân tích."
-
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Not a git repository"
@@ -12674,6 +12924,59 @@ msgstr "Bên cũ"
 msgid "Oldest first"
 msgstr "Cũ nhất trước"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Ollama"
+msgstr "Ollama"
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama could not prepare the context model on the selected host."
+msgstr "Ollama không thể chuẩn bị mô hình ngữ cảnh trên máy chủ đã chọn."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama did not finish preparing the context model on the selected host. Check Ollama there, then try again."
+msgstr "Ollama chưa hoàn tất việc chuẩn bị mô hình ngữ cảnh trên máy chủ đã chọn. Hãy kiểm tra Ollama ở đó rồi thử lại."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Ollama downloads run only when you choose Download. The exact pulled tag becomes available after completion."
+msgstr "Ollama chỉ tải xuống khi bạn chọn Tải xuống. Thẻ chính xác đã kéo sẽ khả dụng sau khi hoàn tất."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama is not reachable on the selected host. Start Ollama there, then try again."
+msgstr "Không thể kết nối tới Ollama trên máy chủ đã chọn. Hãy khởi động Ollama ở đó rồi thử lại."
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Ollama model download progress"
+msgstr "Tiến trình tải mô hình Ollama xuống"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+#~ msgid "Ollama model tag"
+#~ msgstr "Thẻ mô hình Ollama"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Ollama models"
+msgstr "Mô hình Ollama"
+
+#. placeholder {0}: props.hostLabel
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#~ msgid "Ollama on {0}"
+#~ msgstr "Ollama trên {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Ollama on {machineHostLabel}"
+msgstr "Ollama trên {machineHostLabel}"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Ollama on the selected host"
+msgstr "Ollama trên máy chủ đã chọn"
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "Ollama on the selected host does not have that model installed. Pull the model there first."
+msgstr "Ollama trên máy chủ đã chọn chưa cài đặt mô hình đó. Hãy tải mô hình về đó trước."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Ollama on this host: {ollamaEndpoint}"
+msgstr "Ollama trên máy chủ này: {ollamaEndpoint}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "on"
 msgstr "trên"
@@ -12692,6 +12995,10 @@ msgstr "Trên {0}"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On the hour"
 msgstr "Đúng đầu giờ"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "On the server"
+msgstr "Trên máy chủ"
 
 #. placeholder {0}: dateTimeFormatter.format(new Date(task.recurrence.runAt))
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -13181,8 +13488,13 @@ msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo)
 msgstr "Mở, kiểm tra và điều khiển Trình mô phỏng iOS (bao gồm iPhone Duo có thể gập) và Trình giả lập Android trong bảng điều khiển."
 
 #: src/renderer/components/providers/opencode/manifest.ts
+#: src/renderer/components/providers/opencode/profileSettings.tsx
 msgid "OpenCode"
 msgstr "OpenCode"
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "OpenCode · agent default"
+msgstr "OpenCode · mặc định của tác nhân"
 
 #: src/renderer/components/providers/opencode/OpenCodePluginsSettings.tsx
 msgid "OpenCode plugins"
@@ -13195,6 +13507,10 @@ msgstr "OpenCode tự động tải lại cấu hình đang theo dõi. Mở lạ
 #: src/renderer/i18n/sharedMessages.ts
 msgid "OpenCode request failed, retrying..."
 msgstr "Yêu cầu OpenCode thất bại, đang thử lại..."
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "OpenCode treats this URL as an OpenAI-compatible base URL. Include <0>/v1</0> when the server exposes OpenAI routes under that path."
+msgstr "OpenCode coi URL này là URL cơ sở tương thích OpenAI. Thêm <0>/v1</0> khi máy chủ cung cấp tuyến OpenAI dưới đường dẫn đó."
 
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
@@ -13276,6 +13592,10 @@ msgstr "Khác"
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Other agents"
 msgstr "Tác nhân khác"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Other server"
+msgstr "Máy chủ khác"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 msgid "Other ways to connect"
@@ -13747,6 +14067,10 @@ msgstr "Bộ chọn không trả về tệp đính kèm nào"
 msgid "Pin {0} to top"
 msgstr "Ghim {0} lên đầu"
 
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Pin an OpenAI-compatible endpoint and model. Local profiles run an isolated OpenCode server and database; they never inherit the base account's cloud credentials."
+msgstr "Ghim endpoint và mô hình tương thích OpenAI. Hồ sơ cục bộ chạy máy chủ và cơ sở dữ liệu OpenCode riêng biệt; chúng không bao giờ kế thừa thông tin đăng nhập đám mây của tài khoản cơ sở."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
@@ -13914,10 +14238,6 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode mở khóa máy Mac này trong chốc lát cho một lượt Sử dụng máy tính đang chạy, che mọi màn hình trong lúc làm việc và khóa lại khi lượt kết thúc. Bất kỳ lần nhấn phím hay di chuyển con trỏ nào trên máy Mac này sẽ khóa máy ngay lập tức. Việc cài đặt cần quản trị viên phê duyệt một lần. Trên máy Mac do tổ chức của bạn quản lý, hãy hỏi bộ phận IT trước."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Poracode can send anonymous product analytics and scrubbed crash reports. Both are off until you opt in, and neither includes prompts, code, file names, or terminal output."
-#~ msgstr "Poracode có thể gửi phân tích sản phẩm ẩn danh và báo cáo sự cố đã làm sạch. Cả hai đều tắt cho đến khi bạn đồng ý, và không bao gồm prompt, mã, tên tệp hay đầu ra terminal."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
 msgstr "Poracode có thể gửi phân tích sử dụng ẩn danh và báo cáo sự cố. Không có prompt, mã, tên tệp hay đầu ra terminal."
 
@@ -13969,6 +14289,10 @@ msgstr "Poracode đang kết nối với một trình duyệt khác."
 msgid "Poracode just passed {count} stars on GitHub"
 msgstr "Poracode vừa vượt mốc {count} sao trên GitHub"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Poracode manages this local model route and its Codex home."
+msgstr "Poracode quản lý tuyến mô hình cục bộ này và thư mục chính Codex của nó."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode có thể đang chờ dữ liệu đã lưu hoặc một dịch vụ nền. Bạn có thể tiếp tục chờ, khởi động lại hoặc cài đặt bản cập nhật hiện có."
@@ -13986,10 +14310,6 @@ msgstr "Chỉ Poracode"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode nhớ sở thích và chỉnh sửa giữa các nhà cung cấp. Việc ghi bắt đầu khi lượt kết thúc. Một lượt mỗi ngày sẽ gộp chúng. Kỹ năng học từ công việc lặp lại vẫn là gợi ý cho đến khi bạn duyệt."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Poracode sends no telemetry unless you opt in. Prompts, code, file names, and terminal output are never included. Turning a stream off stops sending immediately and drops anything still queued."
-#~ msgstr "Poracode không gửi dữ liệu đo từ xa trừ khi bạn đồng ý. Prompt, mã, tên tệp và đầu ra terminal không bao giờ được bao gồm. Tắt một luồng sẽ dừng gửi ngay lập tức và hủy mọi thứ còn trong hàng đợi."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
@@ -14268,6 +14588,7 @@ msgstr "Đang kiểm tra v{0}"
 msgid "Productivity"
 msgstr "Năng suất"
 
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -14284,10 +14605,22 @@ msgstr "Hồ sơ \"{profile}\" cần chủ sở hữu tài khoản \"{dependency
 msgid "Profile {displayName} added."
 msgstr "Đã thêm hồ sơ {displayName}."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Profile {trimmedName} added."
+msgstr "Đã thêm hồ sơ {trimmedName}."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Profile {trimmedName} was created, but its settings could not be saved. Refresh Agents before using it."
+msgstr "Hồ sơ {trimmedName} đã được tạo nhưng không thể lưu cài đặt. Làm mới Agents trước khi sử dụng."
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "Thư mục hồ sơ"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Profile name"
+msgstr "Tên hồ sơ"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
@@ -14568,6 +14901,10 @@ msgstr "Kéo ({behind})"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
 msgid "Pull ↓{behind}"
 msgstr "Kéo ↓{behind}"
+
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
+msgid "Pull a model in a terminal with <0>ollama pull <model></0>, then Refresh."
+msgstr "Tải mô hình trong terminal bằng <0>ollama pull <model></0>, sau đó làm mới."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull did not complete. Your local changes remain in a Poracode stash."
@@ -14974,6 +15311,7 @@ msgid "Reference"
 msgstr "Tham chiếu"
 
 #. Button: re-fetch provider usage now
+#: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
@@ -15377,6 +15715,10 @@ msgstr "Xóa {profileName} sẽ gỡ nó khỏi Poracode. Thư mục home và th
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
 msgstr "Xóa {profileName} sẽ gỡ nó khỏi Poracode. Thư mục home và thông tin đăng nhập Gemini bên trong vẫn còn trên đĩa."
 
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Removing {profileName} drops its Poracode profile settings. Its OpenCode config and database stay on the host."
+msgstr "Xóa {profileName} sẽ xóa cài đặt hồ sơ Poracode. Cấu hình và cơ sở dữ liệu OpenCode vẫn ở trên máy chủ."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Xóa {profileName} sẽ bỏ các thiết lập Poracode của nó — biến môi trường, mô hình và effort. Thư mục cấu hình và thông tin đăng nhập Claude bên trong vẫn còn trên đĩa."
@@ -15526,6 +15868,7 @@ msgstr "kho lưu trữ"
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "Repository"
 msgstr "Kho lưu trữ"
 
@@ -15614,10 +15957,6 @@ msgstr "Đặt lại danh sách kiểm tra"
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "Đặt lại cửa sổ ngữ cảnh"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Reset ID"
-#~ msgstr "Đặt lại ID"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Reset inputs"
@@ -15865,6 +16204,10 @@ msgstr "Thử lại"
 msgid "Retry {serverName}"
 msgstr "Thử lại {serverName}"
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Retry cancel"
+msgstr "Thử hủy lại"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Retry cancelled"
 msgstr "Đã hủy lần thử lại"
@@ -15884,6 +16227,10 @@ msgstr "Độ trễ thử lại"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry delay in seconds"
 msgstr "Độ trễ thử lại tính bằng giây"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Retry download"
+msgstr "Thử tải xuống lại"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Retry live"
@@ -16135,6 +16482,10 @@ msgstr "Đánh giá và bình luận"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Revise command"
 msgstr "Sửa lệnh"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Revision"
+msgstr "Bản sửa đổi"
 
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "Revision note (optional)"
@@ -16700,14 +17051,6 @@ msgstr "Cuộn xuống dưới cùng"
 msgid "Scroll to prompt: {preview}"
 msgstr "Cuộn đến lời nhắc: {preview}"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Scrubbed crash diagnostics with paths and secrets removed."
-#~ msgstr "Chẩn đoán sự cố đã làm sạch, không có đường dẫn và bí mật."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Scrubbed crash diagnostics with paths, secrets, and personal data removed before anything is sent."
-#~ msgstr "Chẩn đoán sự cố đã làm sạch: đường dẫn, bí mật và dữ liệu cá nhân được loại bỏ trước khi gửi bất cứ thứ gì."
-
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "Đã cài SDK"
@@ -16794,6 +17137,10 @@ msgstr "Tìm kiếm mô hình..."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Search more providers"
 msgstr "Tìm kiếm nhà cung cấp khác"
+
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Search or enter a model tag"
+msgstr "Tìm hoặc nhập thẻ mô hình"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
@@ -17139,6 +17486,17 @@ msgstr "Đã gửi lựa chọn đến thiết bị đầu cuối."
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Tách các tài khoản Claude Code theo thư mục cấu hình, hoặc trỏ một hồ sơ tới nhà cung cấp bên ngoài (z.ai, …). Mở một hồ sơ để cấu hình biến môi trường, mô hình và mức nỗ lực của nó."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Served model ID"
+msgstr "ID mô hình được cung cấp"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Server"
+msgstr "Máy chủ"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Server {target} could not be started and was skipped."
 msgstr "Không thể khởi động máy chủ {target} nên đã bỏ qua."
@@ -17155,10 +17513,19 @@ msgstr "Máy chủ {target} chưa được cấu hình đúng nên đã bỏ qua
 msgid "Server {target} runs on this computer and is unavailable for WSL projects."
 msgstr "Máy chủ {target} chạy trên máy này và không khả dụng cho dự án WSL."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Server address"
+msgstr "Địa chỉ máy chủ"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Server base URL"
 msgstr "URL cơ sở của máy chủ"
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Server default"
+msgstr "Mặc định của máy chủ"
 
 #: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
@@ -17473,6 +17840,11 @@ msgstr "Xem"
 msgid "Show media"
 msgstr "Hiển thị đa phương tiện"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Show model suggestions"
+msgstr "Hiện gợi ý mô hình"
+
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -17512,10 +17884,6 @@ msgstr "Hiện hoặc ẩn bảng terminal"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show preview"
 msgstr "Hiển thị bản xem trước"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Show recent events"
-#~ msgstr "Hiển thị sự kiện gần đây"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -17977,6 +18345,7 @@ msgstr "Sắp xếp pull request"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
 msgid "Source"
 msgstr "Mã nguồn"
 
@@ -18497,6 +18866,10 @@ msgstr "Lệnh được đề xuất — xem xét trước khi dùng"
 msgid "Suggested command inserted into the composer."
 msgstr "Đã chèn lệnh đề xuất vào bộ soạn."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Suggested models"
+msgstr "Mô hình gợi ý"
+
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
@@ -18799,10 +19172,6 @@ msgstr "Chi tiết đo từ xa"
 msgid "Telemetry doc"
 msgstr "Tài liệu đo từ xa"
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Telemetry is disabled by an environment variable on this machine, so both options below stay off regardless of these switches."
-#~ msgstr "Đo từ xa đã bị tắt bởi biến môi trường trên máy này, vì vậy cả hai tùy chọn bên dưới vẫn tắt bất kể các công tắc này."
-
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell {0} what to do next..."
@@ -18971,6 +19340,10 @@ msgstr "Nhãn đó không tồn tại trong kho lưu trữ này. Hãy làm mới
 #: src/renderer/actions/threadTransferActions.ts
 msgid "That machine is not available."
 msgstr "Máy đó không khả dụng."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "That Ollama model on the selected host is not a local completion model, so it cannot be used here."
+msgstr "Mô hình Ollama đó trên máy chủ đã chọn không phải là mô hình hoàn thành cục bộ nên không thể dùng ở đây."
 
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "That project is no longer on {targetLabel}."
@@ -19200,10 +19573,6 @@ msgstr "Kết quả không còn khả dụng."
 msgid "The fork's saved conversation is unavailable."
 msgstr "Không có cuộc trò chuyện đã lưu của nhánh."
 
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "The full event catalog, data handling, and environment opt-outs."
-#~ msgstr "Danh mục sự kiện đầy đủ, cách xử lý dữ liệu và cách từ chối qua môi trường."
-
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
 msgstr "Tài khoản GitHub \"{login}\" thuộc về {host}, không khớp với kho lưu trữ GitHub từ xa của dự án này."
@@ -19336,6 +19705,10 @@ msgstr "Cấu hình máy chủ MCP không hợp lệ hoặc sử dụng tên dà
 msgid "The MCP server is invalid."
 msgstr "Máy chủ MCP không hợp lệ."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "The model downloaded, but the host inventory could not be refreshed."
+msgstr "Mô hình đã tải xuống nhưng không thể làm mới kho máy chủ."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."
 msgstr "Phiên chuyển đã hết hạn. Hãy bắt đầu lại."
@@ -19370,6 +19743,10 @@ msgstr "Dự án đã bị di chuyển hoặc xóa trước khi luồng có th�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The provider is unavailable. Install or update it in provider settings."
 msgstr "Nhà cung cấp không khả dụng. Cài đặt hoặc cập nhật trong cài đặt nhà cung cấp."
+
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+msgid "The provider runtime pins this endpoint and model for every session. Manage or remove the profile from the Claude Code page."
+msgstr "Môi trường nhà cung cấp ghim endpoint và mô hình này cho mọi phiên. Quản lý hoặc xóa hồ sơ từ trang Claude Code."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The provider's sign-in data could not be read. Try again or update Poracode."
@@ -19446,6 +19823,16 @@ msgstr "Không thể xác nhận thông tin xác thực từ xa đã lưu."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "Tự động hóa theo lịch đã thất bại."
+
+#: src/renderer/views/SettingsOverlay/parts/ollamaModelContext.ts
+msgid "The selected host does not allow terminal access, so its Ollama context model cannot be prepared."
+msgstr "Máy chủ đã chọn không cho phép truy cập terminal nên không thể chuẩn bị mô hình ngữ cảnh Ollama của máy chủ đó."
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "The selected host is offline."
+msgstr "Máy chủ đã chọn đang ngoại tuyến."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "The selected machine is unavailable. Reconnect it to manage archived threads."
@@ -19674,6 +20061,10 @@ msgstr "Yêu cầu giọng nói không hợp lệ hoặc đã hết hạn. Vui l
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "Yêu cầu hợp nhất đang theo dõi đã thay đổi. Kiểm tra cấu hình theo dõi trước khi tiếp tục."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "The weights must already be available to the server on this host before this ID can be used. Nothing is uploaded here."
+msgstr "Trọng số phải sẵn có cho máy chủ trên máy chủ này trước khi dùng ID này. Không có gì được tải lên ở đây."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "người dùng Windows"
@@ -19783,6 +20174,10 @@ msgstr "Phiên Codex này đang mở trong một ứng dụng Codex khác (Codex
 msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "Bình luận này đã thay đổi trong lúc bạn chỉnh sửa. Hãy làm mới trước khi lưu."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "This computer"
+msgstr "Máy tính này"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại để bật."
@@ -19791,6 +20186,11 @@ msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. 
 msgid "This connection can't manage projects."
 msgstr "Kết nối này không thể quản lý dự án."
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "This connection does not allow terminal access on the selected host."
+msgstr "Kết nối này không cho phép truy cập terminal trên máy chủ đã chọn."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "Kết nối này không có quyền đọc mức sử dụng."
@@ -19798,6 +20198,12 @@ msgstr "Kết nối này không có quyền đọc mức sử dụng."
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to refresh usage."
 msgstr "Kết nối này không có quyền làm mới mức sử dụng."
+
+#: src/renderer/components/providers/settings/OllamaContextSetting.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "This connection is read-only."
+msgstr "Kết nối này ở chế độ chỉ đọc."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
@@ -19822,6 +20228,10 @@ msgstr "Danh tính máy chủ của môi trường này đã thay đổi. Ghép 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Tập này đã được xác nhận; nội dung bị thiếu không được khôi phục."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "This field is required."
+msgstr "Trường này là bắt buộc."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
@@ -19958,6 +20368,10 @@ msgstr "Hồ sơ này đã có luồng. Các phiên của chúng vẫn nằm tro
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
 msgstr "Hồ sơ này không thể khởi chạy với đăng nhập và cấu hình hiện tại. Hãy xem lại cài đặt hồ sơ và thử lại."
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "This profile launches its own OpenCode server on the selected host. The model endpoint is not shared with the base OpenCode agent."
+msgstr "Hồ sơ này khởi chạy máy chủ OpenCode riêng trên máy chủ đã chọn. Endpoint mô hình không được chia sẻ với tác nhân OpenCode cơ sở."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
@@ -21579,6 +21993,10 @@ msgstr "Dùng + để ghép nối trực tiếp hoặc kết nối với máy t�
 msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
 msgstr "Dùng từ 2 đến 6 lần thử và thời gian chờ từ 1 đến 3600 giây."
 
+#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
+msgid "Use a lowercase Ollama library tag such as llama3.2:3b. Cloud models are not supported."
+msgstr "Dùng thẻ thư viện Ollama viết thường như llama3.2:3b. Mô hình đám mây không được hỗ trợ."
+
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Use a predefined role"
 msgstr "Dùng vai trò có sẵn"
@@ -21594,6 +22012,10 @@ msgstr "Dùng tài khoản riêng"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "Đặt giới hạn thời gian từ 1 đến 1440 phút."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Use a valid HTTP(S) URL."
+msgstr "Dùng URL HTTP(S) hợp lệ."
 
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Use account"
@@ -21666,6 +22088,10 @@ msgstr "Dùng chữ thường, chữ số và dấu gạch nối."
 msgid "Use memory"
 msgstr "Dùng bộ nhớ"
 
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileAddModelDialog.tsx
+msgid "Use model"
+msgstr "Dùng mô hình"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -21690,6 +22116,10 @@ msgstr "Dùng ảnh chụp"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."
 msgstr "Sử dụng skill {name}."
+
+#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
+msgid "Use the address the server expects."
+msgstr "Dùng địa chỉ mà máy chủ mong đợi."
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
@@ -21763,6 +22193,10 @@ msgstr "Tên người dùng"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
 msgstr "Dùng đăng nhập riêng của Devin trên máy này. Hãy đăng nhập/đăng xuất từ trang gốc Devin — nó vẫn là đăng nhập toàn cục duy nhất."
+
+#: src/renderer/components/providers/opencode/profileSettings.tsx
+msgid "Uses this host's normal OpenCode account and default model."
+msgstr "Dùng tài khoản OpenCode thông thường và mô hình mặc định của máy chủ này."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -22163,10 +22597,6 @@ msgstr "Chức năng của nút Tạo PR theo mặc định: mở hộp thoại 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "Nội dung mà máy chủ này cung cấp"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "What would be sent"
-#~ msgstr "Những gì sẽ được gửi"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "What would you like to see?"

@@ -1,5 +1,5 @@
-const MIN_CONTEXT_WINDOW_TOKENS = 1_000;
-const MAX_CONTEXT_WINDOW_TOKENS = 10_000_000;
+export const MIN_CONTEXT_WINDOW_TOKENS = 1_000;
+export const MAX_CONTEXT_WINDOW_TOKENS = 10_000_000;
 
 const CONTEXT_WINDOW_INPUT = /^(\d+(?:\.\d+)?)\s*([kKmM])?$/;
 

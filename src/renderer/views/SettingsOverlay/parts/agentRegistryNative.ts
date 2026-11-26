@@ -34,7 +34,10 @@ import {
 import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "../../../components/providers/settings/CursorProviderSettings";
 import { OPENCODE_INSTALL_COMMANDS } from "@/renderer/components/providers/opencode/installCommands";
-import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
+import {
+  OpenCodeAgentSettingsPanel,
+  opencodeProfileSupport,
+} from "@/renderer/components/providers/opencode/profileSettings";
 import { DeepSeekProviderSettings } from "@/renderer/components/providers/deepseek/DeepSeekProviderSettings";
 import { FxProviderSettings } from "@/renderer/components/providers/fx/FxProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
@@ -48,6 +51,18 @@ import { antigravityCliInstallCommand, antigravityRuntimeSlots } from "./antigra
 export interface NativeAgentSettingsPanelProps {
   agentKind: string;
   statuses: readonly AgentStatus[];
+  /**
+   * All installed statuses for the selected host/environment, across provider
+   * kinds. Profile dialogs use this shared inventory for local model
+   * suggestions instead of requiring a provider to fetch its own.
+   */
+  hostStatuses?: readonly AgentStatus[] | undefined;
+  /**
+   * True only when the client itself is the selected native host (actual
+   * desktop, not a browser/PWA attached to a host). Local file pickers may use
+   * the same-machine fast path only in this case.
+   */
+  workspaceIsClientDevice?: boolean | undefined;
   wslDistros: string[];
   onOpenProfile?: ((profileKind: string) => void) | undefined;
   /**
@@ -62,6 +77,55 @@ export interface NativeAgentAcpRegistryAlias {
   id: string;
   /** The app can run this registry agent through its built-in native adapter. */
   nativeSupport?: boolean;
+}
+
+/**
+ * How a provider's profiles connect to a model server on the profile's host.
+ * Present only for providers that can launch a profile against one endpoint
+ * and model, so a harness without a route factory hides the connection and
+ * model-server controls instead of offering a choice that cannot be saved.
+ */
+export interface NativeAgentProfileLocalSupport {
+  /**
+   * The loopback endpoint offered for "Ollama on this host". This is the
+   * provider's own base-URL shape (some providers need `/v1`, others append
+   * their own request path).
+   */
+  ollamaEndpoint: string;
+  /** Turns the shared local-model draft into a sealed create payload. */
+  createPayload(input: {
+    id: string;
+    displayName: string;
+    endpoint: string;
+    /** Exact route sent on the wire; may be a context-derived Ollama alias. */
+    model: string;
+    /** Original installed model behind a context-derived alias. */
+    baseModel?: string;
+    /** Ollama context window baked into that alias. */
+    contextLength?: number;
+  }): CreateProfilePayload;
+  /** Provider-owned qualification of the endpoint/model contract. */
+  modelHint?: ReactNode;
+  /**
+   * Exact model ids discovered on the selected host for this endpoint shape.
+   * Providers own the route prefix and filter (e.g. one provider's discovered
+   * Ollama routes), so the shared dialog only renders what it is given.
+   */
+  modelSuggestions?(statuses: readonly AgentStatus[]): readonly string[];
+}
+
+/**
+ * Declares that a provider's profiles can be created from the shared Add
+ * profile dialog. Providers without it keep the legacy inline form, including
+ * account/credential fields that have no local-model equivalent.
+ */
+export interface NativeAgentProfileAddSupport {
+  /** Harness name in the Add profile dialog's picker. */
+  label: MessageDescriptor;
+  /** Lower sorts first in the harness picker. */
+  order?: number;
+  /** Local model-server support; absent when the provider has no route factory yet. */
+  local?: NativeAgentProfileLocalSupport;
 }
 
 /** The one add-form field a provider needs beside the profile name. */
@@ -93,6 +157,8 @@ export interface NativeAgentProfileSupport {
   driver: string;
   /** Copy under the shared "Profiles" heading. */
   description: ReactNode;
+  /** Present when the shared Add profile dialog can create this provider's profiles. */
+  addProfile?: NativeAgentProfileAddSupport;
   field?: NativeAgentProfileField;
   /**
    * Secondary line under a profile's name in the list. A component, not a
@@ -294,8 +360,9 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         posix: OPENCODE_INSTALL_COMMANDS.posix,
         windows: OPENCODE_INSTALL_COMMANDS.windows,
       }),
-    settingsPanel: OpenCodeProviderSettings,
+    settingsPanel: OpenCodeAgentSettingsPanel,
     ownsAuthUi: true,
+    profiles: opencodeProfileSupport,
   },
   {
     id: "pi",

@@ -13,7 +13,8 @@ const toastMock = vi.hoisted(() => ({
   success: vi.fn<(message: string) => void>(),
 }));
 
-vi.mock("@heroui/react", () => {
+vi.mock("@heroui/react", async (importOriginal) => {
+  const { Modal, ComboBox, ListBox, Tabs } = await importOriginal<typeof import("@heroui/react")>();
   const Wrapper = (props: { children?: ReactNode }) => <div>{props.children}</div>;
   // Always render the popover content so its options are testable.
   const Popover = Object.assign(Wrapper, {
@@ -40,6 +41,10 @@ vi.mock("@heroui/react", () => {
       </button>
     ),
     Popover,
+    ComboBox,
+    ListBox,
+    Modal,
+    Tabs,
     toast: toastMock,
   };
 });
@@ -65,6 +70,26 @@ vi.mock("@/renderer/components/common", () => ({
       onBlur={props.onBlur}
       onKeyDown={props.onKeyDown}
     />
+  ),
+  Select: (props: {
+    "aria-label"?: string;
+    value?: string;
+    isDisabled?: boolean;
+    options: ReadonlyArray<{ id: string; label: string; isDisabled?: boolean }>;
+    onChange: (value: string) => void;
+  }) => (
+    <select
+      aria-label={props["aria-label"]}
+      value={props.value ?? ""}
+      disabled={props.isDisabled}
+      onChange={(event) => props.onChange(event.target.value)}
+    >
+      {props.options.map((option) => (
+        <option key={option.id} value={option.id} disabled={option.isDisabled}>
+          {option.label}
+        </option>
+      ))}
+    </select>
   ),
   PixelLoader: () => <span data-testid="pixel-loader" />,
   // The shared profile list confirms removals before touching settings.
@@ -184,6 +209,11 @@ function agentStatus(overrides: Partial<AgentStatus> = {}): AgentStatus {
   };
 }
 
+function openAgentDefaultProfile() {
+  fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+  fireEvent.click(screen.getByRole("tab", { name: "Agent default" }));
+}
+
 describe("ClaudeProfileSettings", () => {
   beforeEach(() => {
     settingsState.agentInstances = {};
@@ -207,7 +237,7 @@ describe("ClaudeProfileSettings", () => {
     render(<ClaudeProfileSettings />);
     expect(screen.queryByLabelText("New profile name")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+    openAgentDefaultProfile();
 
     expect(screen.getByLabelText("New profile name")).toHaveValue("");
     expect(screen.getByLabelText("New profile name")).toHaveAttribute("placeholder", "e.g. Work");
@@ -219,9 +249,9 @@ describe("ClaudeProfileSettings", () => {
 
   it("disables Add until a name is typed and derives the dir placeholder from it", () => {
     render(<ClaudeProfileSettings />);
-    fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+    openAgentDefaultProfile();
 
-    const addButton = screen.getByRole("button", { name: "Create profile" });
+    const addButton = screen.getByRole("button", { name: "Create" });
     expect(addButton).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("New profile name"), {
@@ -237,11 +267,11 @@ describe("ClaudeProfileSettings", () => {
 
   it("adds a profile with the derived config dir when the dir is left empty", async () => {
     render(<ClaudeProfileSettings />);
-    fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+    openAgentDefaultProfile();
     fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     // Every provider's profile is created through the one sealing main-local
     // write, so a credential-carrying provider needs no separate path.
@@ -262,16 +292,16 @@ describe("ClaudeProfileSettings", () => {
 
   it("discards the draft on cancel", () => {
     render(<ClaudeProfileSettings />);
-    fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+    openAgentDefaultProfile();
     fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Cancel new profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByLabelText("New profile name")).not.toBeInTheDocument();
     expect(settingsState.setAgentInstance).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+    openAgentDefaultProfile();
     expect(screen.getByLabelText("New profile name")).toHaveValue("");
   });
 
@@ -286,14 +316,36 @@ describe("ClaudeProfileSettings", () => {
     expect(onOpenProfile).toHaveBeenCalledWith("claude:glm");
   });
 
+  it("lists a local profile with its pinned model instead of its managed config dir", () => {
+    settingsState.agentInstances = {
+      local: {
+        id: "local",
+        driver: "claude",
+        displayName: "Local",
+        config: {
+          configDir: "~/.poracode/claude-profiles/local",
+          models: [{ id: "inkling-2-mini:latest" }],
+          local: {
+            endpoint: "http://127.0.0.1:11434",
+            model: "inkling-2-mini:latest",
+          },
+        },
+      },
+    };
+    render(<ClaudeProfileSettings />);
+
+    expect(screen.getByText("inkling-2-mini:latest")).toBeInTheDocument();
+    expect(screen.queryByText("~/.poracode/claude-profiles/local")).not.toBeInTheDocument();
+  });
+
   it("opens the new profile's page after adding", async () => {
     const onOpenProfile = vi.fn<(kind: string) => void>();
     render(<ClaudeProfileSettings onOpenProfile={onOpenProfile} />);
-    fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+    openAgentDefaultProfile();
     fireEvent.change(screen.getByLabelText("New profile name"), {
       target: { value: "Work" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await vi.waitFor(() => expect(onOpenProfile).toHaveBeenCalledWith("claude:work"));
   });
@@ -324,6 +376,31 @@ describe("ClaudeProfileProviderSettings", () => {
     setProfileEnvironmentMock.mockReset().mockImplementation(async () => claudeProfile());
     toastMock.success.mockReset();
     toastMock.danger.mockReset();
+  });
+
+  it("renders a local route as pinned details without the external editor", () => {
+    settingsState.agentInstances = {
+      local: {
+        id: "local",
+        driver: "claude",
+        displayName: "Local",
+        config: {
+          configDir: "~/.poracode/claude-profiles/local",
+          models: [{ id: "inkling-2-mini:latest" }],
+          local: {
+            endpoint: "http://127.0.0.1:11434",
+            model: "inkling-2-mini:latest",
+          },
+        },
+      },
+    };
+    render(<ClaudeProfileProviderSettings instanceId="local" />);
+    expect(screen.getByText("http://127.0.0.1:11434")).toBeInTheDocument();
+    expect(screen.getByText("inkling-2-mini:latest")).toBeInTheDocument();
+    expect(screen.getByText("Context length")).toBeInTheDocument();
+    expect(screen.getByLabelText("Context length")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Environment variable name")).not.toBeInTheDocument();
+    expect(screen.queryByText("Effort levels")).not.toBeInTheDocument();
   });
 
   it("renders nothing for an unknown instance id", () => {

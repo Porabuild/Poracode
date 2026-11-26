@@ -24,7 +24,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
-import { isWindows } from "@/renderer/bridge";
+import { isRemoteSession, isWindows } from "@/renderer/bridge";
 import { usePairedHostProfiles } from "@/renderer/state/pairedHostProfiles";
 import { usePairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -54,6 +54,7 @@ import {
   AgentSettingsHostProvider,
   createAgentSettingsHost,
   useRemoteHostCanWrite,
+  useRemoteHostTerminalAccess,
 } from "@/renderer/components/providers/settings/AgentSettingsHostContext";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
@@ -185,6 +186,14 @@ export function SingleAgentSettings(props: {
   // Everything actionable on this page — env rows, auth, versions, provider
   // panel — is scoped to the selected machine.
   const installedStatuses = machineStatuses.filter((a) => a.installed);
+  const workspaceIsClientDevice = selectedMachine.kind === "local" && !isRemoteSession();
+  const selectedEnv = selectedMachine.ref.env;
+  const hostEnvStatuses =
+    selectedEnv.kind === "wsl"
+      ? hostPools.wsl.filter(
+          (status) => status.envDistro === undefined || status.envDistro === selectedEnv.distro,
+        )
+      : hostPools.windows;
   const combinedRuntimeUpdates = useCombinedProviderRuntimeUpdates(
     installedStatuses,
     {},
@@ -248,24 +257,48 @@ export function SingleAgentSettings(props: {
           : localIsWindows
             ? "win32"
             : "posix";
+  // Login and install actions keep the original project target: a synthetic
+  // home-only project would change their arguments on machines without one.
   const machineProject = findProjectForMachine(
     selectedMachine,
     projects,
     localIsWindows,
     machineStatuses,
   );
+  // The model profile editor additionally needs a host location to prepare an
+  // Ollama context alias, so give its settings host the home-only fallback.
+  const modelSettingsProject =
+    machineProject ??
+    findProjectForMachine(selectedMachine, projects, localIsWindows, machineStatuses, {
+      allowHomeWithoutProject: true,
+    });
   const distrosForMachineKey = distrosForMachine.join("\0");
   const canWrite = useRemoteHostCanWrite(agentHost.connectionKey);
+  const { canOperateTerminal, canReadTerminal } = useRemoteHostTerminalAccess(
+    agentHost.connectionKey,
+  );
   const settingsHost = useMemo(
     () =>
       createAgentSettingsHost({
         host: agentHost,
         isOnline: isMachineOnline,
         canWrite,
-        ...(machineProject ? { machineProject } : {}),
+        canOperateTerminal,
+        canReadTerminal,
+        ...(modelSettingsProject ? { machineProject: modelSettingsProject } : {}),
+        machineLabel: selectedMachine.label,
         wslDistros: distrosForMachineKey ? distrosForMachineKey.split("\0") : [],
       }),
-    [agentHost, canWrite, isMachineOnline, machineProject, distrosForMachineKey],
+    [
+      agentHost,
+      canWrite,
+      canOperateTerminal,
+      canReadTerminal,
+      isMachineOnline,
+      modelSettingsProject,
+      selectedMachine.label,
+      distrosForMachineKey,
+    ],
   );
   const handleSetAgentDisabled = (agentKind: string, disabled: boolean) => {
     void (async () => {
@@ -1145,6 +1178,8 @@ export function SingleAgentSettings(props: {
               key={settingsHost.key}
               agentKind={props.agentKind}
               statuses={installedStatuses}
+              hostStatuses={hostEnvStatuses}
+              workspaceIsClientDevice={workspaceIsClientDevice}
               wslDistros={distrosForMachine}
               onOpenProfile={props.onOpenProfile}
               {...(panelOwnsInstallRows ? { installRows: environmentRows } : {})}

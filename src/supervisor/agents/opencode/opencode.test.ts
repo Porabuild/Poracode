@@ -174,6 +174,7 @@ describe("buildOpenCodeCapabilityPartialFromInventory", () => {
       { id: "opencode", name: "OpenCode Zen" },
     ],
     integrations: [],
+    credentialFreeOllama: false,
     agents: [
       { id: "build", mode: "primary", hidden: false },
       { id: "general", mode: "subagent", hidden: false },

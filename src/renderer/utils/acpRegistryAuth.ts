@@ -164,8 +164,9 @@ export function findProjectForMachine(
   machineStatuses: readonly AgentStatus[] = [],
   options: { allowHomeWithoutProject?: boolean } = {},
 ): Project | undefined {
-  if (machine.ref.host === "remote") {
-    const desktopId = machine.ref.desktopId;
+  const remoteDesktopId = machine.ref.host === "remote" ? machine.ref.desktopId : machine.desktopId;
+  if (remoteDesktopId !== undefined) {
+    const desktopId = remoteDesktopId;
     const remoteProjects = projects.filter(
       (project) => projectRemoteOwnerId(project) === desktopId,
     );

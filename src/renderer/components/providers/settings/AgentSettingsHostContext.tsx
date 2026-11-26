@@ -66,8 +66,14 @@ export interface AgentSettingsHost {
   readonly isOnline: boolean;
   /** True when this connection may mutate the host (paired viewers cannot). */
   readonly canWrite: boolean;
+  /** True when the selected connection may start/close terminals on the host. */
+  readonly canOperateTerminal?: boolean | undefined;
+  /** True when the selected connection may watch terminal output on the host. */
+  readonly canReadTerminal?: boolean | undefined;
   /** Representative project on the selected machine for terminal login/install overlays. */
   readonly machineProject: Project | undefined;
+  /** Human label for the selected machine/environment when the host view supplies one. */
+  readonly machineLabel?: string | undefined;
   /** True when the active host supports creating, editing, and removing agent profiles. */
   readonly canManageProfiles: boolean;
   /** Keychain-backed secret settings (`setAgentSecretSetting`) are local host only. */
@@ -195,10 +201,13 @@ export function createAgentSettingsHost(params: {
   host: AgentManagementHost;
   isOnline: boolean;
   canWrite?: boolean;
+  canOperateTerminal?: boolean;
+  canReadTerminal?: boolean;
   machineProject?: Project;
+  machineLabel?: string;
   wslDistros: readonly string[];
 }): AgentSettingsHost {
-  const { host, isOnline, machineProject, wslDistros } = params;
+  const { host, isOnline, machineProject, machineLabel, wslDistros } = params;
   const connectionKey = host.connectionKey;
   const isRemote = host.isRemote && connectionKey !== undefined;
   const canWrite = params.canWrite ?? true;
@@ -208,7 +217,12 @@ export function createAgentSettingsHost(params: {
     isRemote,
     isOnline,
     canWrite,
+    ...(params.canOperateTerminal !== undefined
+      ? { canOperateTerminal: params.canOperateTerminal }
+      : {}),
+    ...(params.canReadTerminal !== undefined ? { canReadTerminal: params.canReadTerminal } : {}),
     machineProject,
+    machineLabel,
     canManageProfiles: !isRemote || canWrite,
     canEditSecrets: !isRemote,
     callProcedure: <Name extends AgentHostProcedureName>(
@@ -393,6 +407,27 @@ export function useRemoteHostCanWrite(connectionKey: string | undefined): boolea
     );
     return server?.scopes.includes("session:operate") ?? false;
   });
+}
+
+export function useRemoteHostTerminalAccess(connectionKey: string | undefined): {
+  canOperateTerminal: boolean;
+  canReadTerminal: boolean;
+} {
+  const canOperateTerminal = useRemoteServersStore((state) => {
+    if (!connectionKey) return true;
+    const server = state.servers.find(
+      (candidate) => remoteConnectionKey(candidate) === connectionKey,
+    );
+    return server?.scopes.includes("terminal:operate") ?? false;
+  });
+  const canReadTerminal = useRemoteServersStore((state) => {
+    if (!connectionKey) return true;
+    const server = state.servers.find(
+      (candidate) => remoteConnectionKey(candidate) === connectionKey,
+    );
+    return server?.scopes.includes("terminal:read") ?? false;
+  });
+  return { canOperateTerminal, canReadTerminal };
 }
 
 /**
