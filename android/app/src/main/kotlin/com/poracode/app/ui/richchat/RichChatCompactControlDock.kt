@@ -159,6 +159,7 @@ internal fun RichChatCompactControlDock(
                     canOperate = canOperate,
                     busy = busy,
                     onOpenAgentSettings = onOpenAgentSettings,
+                    onDelegatedWatchStarted = { showDetails = false },
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
             }

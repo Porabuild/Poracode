@@ -38,6 +38,16 @@ extension RichChatRemoteAPI {
   ) async throws -> RichChatFileDownload {
     throw RichChatTransportFailure.rawTransportUnavailable
   }
+  func richSubagentSubscribe(
+    threadID _: String, parentItemID _: String, viewerID _: String
+  ) async throws -> RichChatDelegatedWatchResult {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
+  func richSubagentUnsubscribe(
+    threadID _: String, parentItemID _: String, viewerID _: String
+  ) async throws {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
 }
 
 protocol RichChatRemoteAPI: Sendable {
@@ -141,6 +151,16 @@ protocol RichChatRemoteAPI: Sendable {
   func richInvokeSessionAction(
     threadID: String, actionID: String, payload: [String: RichJSON]
   ) async throws -> [String: RichJSON]
+
+  /// Scoped viewer lease for an active delegated agent row. Current hosts
+  /// return empty history and stream child events on the normal live channel;
+  /// legacy hosts may return the drained buffer and omit `leaseMs`.
+  func richSubagentSubscribe(
+    threadID: String, parentItemID: String, viewerID: String
+  ) async throws -> RichChatDelegatedWatchResult
+  func richSubagentUnsubscribe(
+    threadID: String, parentItemID: String, viewerID: String
+  ) async throws
 
   func richStartTerminal(_ input: RichChatTerminalStartInput) async throws
   func richWriteTerminal(threadID: String, data: String) async throws
@@ -718,6 +738,62 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
       throw failure
     } catch is CancellationError {
       throw CancellationError()
+    } catch {
+      throw RichChatTransportFailure.invalidResponse
+    }
+  }
+
+  func richSubagentSubscribe(
+    threadID: String,
+    parentItemID: String,
+    viewerID: String
+  ) async throws -> RichChatDelegatedWatchResult {
+    let request = AdvancedOperationRequest.subagentSubscribe(
+      AdvancedSubagentSubscriptionRequest(
+        threadId: threadID, parentItemId: parentItemID, viewerId: viewerID)
+    )
+    let body = try prepare { try AdvancedOperationsRemoteV3Contract.requestEnvelope(request) }
+    let data = try await json.requestData(
+      path: AdvancedOperationsRemoteV3Contract.procedurePath, method: "POST", jsonBody: body)
+    do {
+      guard
+        case .subagentSubscribe(let result) = try AdvancedOperationsRemoteV3Contract.result(
+          for: .subagentSubscribe, envelope: data)
+      else { throw RichChatTransportFailure.invalidResponse }
+      let history = try result.history.map {
+        try RichRuntimeEventDecoder.decode(GeneratedRemoteV3Contract.richJSON($0))
+      }
+      return RichChatDelegatedWatchResult(history: history, leaseMs: result.leaseMs)
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch let failure as RichChatTransportFailure {
+      throw failure
+    } catch {
+      throw RichChatTransportFailure.invalidResponse
+    }
+  }
+
+  func richSubagentUnsubscribe(
+    threadID: String,
+    parentItemID: String,
+    viewerID: String
+  ) async throws {
+    let request = AdvancedOperationRequest.subagentUnsubscribe(
+      AdvancedSubagentSubscriptionRequest(
+        threadId: threadID, parentItemId: parentItemID, viewerId: viewerID)
+    )
+    let body = try prepare { try AdvancedOperationsRemoteV3Contract.requestEnvelope(request) }
+    let data = try await mutationRequest(
+      path: AdvancedOperationsRemoteV3Contract.procedurePath, body: body)
+    do {
+      guard
+        case .omitted = try AdvancedOperationsRemoteV3Contract.result(
+          for: .subagentUnsubscribe, envelope: data)
+      else { throw RichChatTransportFailure.invalidResponse }
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch let failure as RichChatTransportFailure {
+      throw failure
     } catch {
       throw RichChatTransportFailure.invalidResponse
     }

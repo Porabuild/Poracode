@@ -1257,6 +1257,358 @@ final class RichChatTranscriptControllerTests: XCTestCase {
     XCTAssertNil(decodedAbsent.backgroundTasks)
   }
 
+  func testDelegatedWatchStartsBothKindsAndStopsOnParentCompletion() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureDelegatedSubscribe(
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: 90_000))
+    )
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-sub", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil),
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-cross", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil),
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-sub")
+    XCTAssertTrue(suite.delegatedWatch.isWatching("parent-sub"))
+    let firstStarted = await waitUntil { await gateway.delegatedSubscriptions.count == 1 }
+    XCTAssertTrue(firstStarted)
+    let viewerID = await gateway.delegatedSubscriptions.first?.viewerID
+
+    suite.delegatedWatch.start(parentItemID: "parent-cross")
+    XCTAssertTrue(suite.delegatedWatch.isWatching("parent-cross"))
+    let secondStarted = await waitUntil { await gateway.delegatedSubscriptions.count == 2 }
+    XCTAssertTrue(secondStarted)
+    let firstViewerAfterSwitch = await gateway.delegatedSubscriptions.first?.viewerID
+    XCTAssertEqual(firstViewerAfterSwitch, viewerID)
+    let releasedFirst = await waitUntil {
+      await gateway.delegatedUnsubscriptions.contains { $0.parentItemID == "parent-sub" }
+    }
+    XCTAssertTrue(releasedFirst)
+
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemCompleted(
+          threadID: target.threadID, itemID: "parent-cross", payload: .omitted)
+      ],
+      sequence: 1,
+      target: target
+    )
+    suite.delegatedWatch.syncParentState()
+    XCTAssertFalse(suite.delegatedWatch.isWatching("parent-cross"))
+    let releasedCross = await waitUntil {
+      await gateway.delegatedUnsubscriptions.contains { $0.parentItemID == "parent-cross" }
+    }
+    XCTAssertTrue(releasedCross)
+  }
+
+  func testDelegatedWatchStopReleasesTheSameViewerAfterALateReply() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    let barrier = RichChatControllerTestBarrier()
+    await gateway.configureDelegatedSubscribe(
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: 90_000)),
+      barrier: barrier
+    )
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-late", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-late")
+    await barrier.waitUntilReached()
+    let viewerID = await gateway.delegatedSubscriptions.first?.viewerID
+    suite.delegatedWatch.stop()
+    await barrier.release()
+    let released = await waitUntil {
+      await gateway.delegatedUnsubscriptions.contains { $0.parentItemID == "parent-late" }
+    }
+    XCTAssertTrue(released)
+    let releasedViewer = await gateway.delegatedUnsubscriptions.first?.viewerID
+    XCTAssertEqual(releasedViewer, viewerID)
+    XCTAssertFalse(suite.delegatedWatch.isWatching("parent-late"))
+  }
+
+  func testDelegatedWatchRetriesTransientFailureAndRenewsWithTheSameViewer() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureDelegatedSubscribe([
+      .failure(.transport),
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: 60)),
+    ])
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-retry", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-retry")
+    let retried = await waitUntil { await gateway.delegatedSubscriptions.count == 2 }
+    XCTAssertTrue(retried)
+    let viewerID = await gateway.delegatedSubscriptions.first?.viewerID
+    let retriedViewer = await gateway.delegatedSubscriptions.last?.viewerID
+    XCTAssertEqual(retriedViewer, viewerID)
+    let renewed = await waitUntil { await gateway.delegatedSubscriptions.count >= 3 }
+    XCTAssertTrue(renewed)
+    let allSameViewer = await gateway.delegatedSubscriptions.allSatisfy { $0.viewerID == viewerID }
+    XCTAssertTrue(allSameViewer)
+    suite.delegatedWatch.stop()
+  }
+
+  func testDelegatedWatchStopWorksWhileRetrying() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureDelegatedSubscribe(.failure(.transport))
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-retrying", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-retrying")
+    let retrying = await waitUntil { suite.delegatedWatch.state.phase == .retrying }
+    XCTAssertTrue(retrying)
+    let viewerID = await gateway.delegatedSubscriptions.first?.viewerID
+    suite.delegatedWatch.stop()
+    let released = await waitUntil { await gateway.delegatedUnsubscriptions.count == 1 }
+    XCTAssertTrue(released)
+    XCTAssertFalse(suite.delegatedWatch.isWatching("parent-retrying"))
+    let releasedViewer = await gateway.delegatedUnsubscriptions.first?.viewerID
+    XCTAssertEqual(releasedViewer, viewerID)
+  }
+
+  func testDelegatedWatchLegacyNoLeaseStaysWatchingUntilStopped() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureDelegatedSubscribe(
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: nil))
+    )
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-legacy", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-legacy")
+    let subscribed = await waitUntil { await gateway.delegatedSubscriptions.count == 1 }
+    XCTAssertTrue(subscribed)
+    XCTAssertTrue(suite.delegatedWatch.isWatching("parent-legacy"))
+    let unsubscribedEarly = await gateway.delegatedUnsubscriptions.isEmpty
+    XCTAssertTrue(unsubscribedEarly)
+    suite.delegatedWatch.stop()
+    let released = await waitUntil { await gateway.delegatedUnsubscriptions.count == 1 }
+    XCTAssertTrue(released)
+    XCTAssertFalse(suite.delegatedWatch.isWatching("parent-legacy"))
+  }
+
+  func testDelegatedWatchSkipsLateLegacyReleaseForRemountedTarget() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    let barrier = RichChatControllerTestBarrier()
+    await gateway.configureDelegatedSubscribe(
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: nil)),
+      barrier: barrier
+    )
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-remount", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-remount")
+    await barrier.waitUntilReached()
+    let firstViewerID = await gateway.delegatedSubscriptions.first?.viewerID
+    await gateway.clearDelegatedSubscribeBarrier()
+    suite.delegatedWatch.stop()
+    suite.delegatedWatch.start(parentItemID: "parent-remount")
+    let remounted = await waitUntil {
+      await gateway.delegatedSubscriptions.count >= 2
+        && suite.delegatedWatch.isWatching("parent-remount")
+    }
+    XCTAssertTrue(remounted)
+    await barrier.release()
+
+    try? await Task.sleep(for: .milliseconds(50))
+    let releasedOld = await gateway.delegatedUnsubscriptions.contains {
+      $0.viewerID == firstViewerID
+    }
+    XCTAssertFalse(releasedOld)
+    XCTAssertTrue(suite.delegatedWatch.isWatching("parent-remount"))
+
+    let secondViewerID = await gateway.delegatedSubscriptions.last?.viewerID
+    suite.delegatedWatch.stop()
+    let releasedNew = await waitUntil {
+      await gateway.delegatedUnsubscriptions.contains { $0.viewerID == secondViewerID }
+    }
+    XCTAssertTrue(releasedNew)
+  }
+
+  func testDelegatedWatchLateScopedLeaseStillReleasesAfterRemount() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    let barrier = RichChatControllerTestBarrier()
+    await gateway.configureDelegatedSubscribe(
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: 90_000)),
+      barrier: barrier
+    )
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-scoped-remount", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-scoped-remount")
+    await barrier.waitUntilReached()
+    let firstViewerID = await gateway.delegatedSubscriptions.first?.viewerID
+    await gateway.clearDelegatedSubscribeBarrier()
+    suite.delegatedWatch.stop()
+    suite.delegatedWatch.start(parentItemID: "parent-scoped-remount")
+    let remounted = await waitUntil {
+      await gateway.delegatedSubscriptions.count >= 2
+        && suite.delegatedWatch.isWatching("parent-scoped-remount")
+    }
+    XCTAssertTrue(remounted)
+    await barrier.release()
+
+    let releasedOld = await waitUntil {
+      await gateway.delegatedUnsubscriptions.contains { $0.viewerID == firstViewerID }
+    }
+    XCTAssertTrue(releasedOld)
+    XCTAssertTrue(suite.delegatedWatch.isWatching("parent-scoped-remount"))
+    suite.delegatedWatch.stop()
+  }
+
+  func testDelegatedWatchLateLegacyReplyOnLastCloseReleases() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    let barrier = RichChatControllerTestBarrier()
+    await gateway.configureDelegatedSubscribe(
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: nil)),
+      barrier: barrier
+    )
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-last", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-last")
+    await barrier.waitUntilReached()
+    let viewerID = await gateway.delegatedSubscriptions.first?.viewerID
+    suite.delegatedWatch.stop()
+    await barrier.release()
+    let released = await waitUntil {
+      await gateway.delegatedUnsubscriptions.contains { $0.viewerID == viewerID }
+    }
+    XCTAssertTrue(released)
+    XCTAssertFalse(suite.delegatedWatch.isWatching("parent-last"))
+  }
+
+  func testDelegatedWatchStopsWhenTheSelectedLeaseChanges() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    let barrier = RichChatControllerTestBarrier()
+    await gateway.configureDelegatedSubscribe(
+      .value(RichChatDelegatedWatchResult(history: [], leaseMs: 90_000)),
+      barrier: barrier
+    )
+    let suite = RichChatControllerSuite(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    suite.select(access: access, threadID: target.threadID)
+    suite.transcript.receiveLiveEvents(
+      [
+        .itemStarted(
+          threadID: target.threadID, itemID: "parent-host", itemType: "tool_call",
+          payload: .omitted, parentItemID: nil)
+      ],
+      sequence: 0,
+      target: target
+    )
+
+    suite.delegatedWatch.start(parentItemID: "parent-host")
+    await barrier.waitUntilReached()
+    let viewerID = await gateway.delegatedSubscriptions.first?.viewerID
+    suite.updateAccess(RichChatControllerTestValues.access(host: RichChatControllerTestValues.hostB))
+    await barrier.release()
+    let released = await waitUntil {
+      await gateway.delegatedUnsubscriptions.contains { $0.parentItemID == "parent-host" }
+    }
+    XCTAssertTrue(released)
+    let releasedViewer = await gateway.delegatedUnsubscriptions.first?.viewerID
+    XCTAssertEqual(releasedViewer, viewerID)
+    XCTAssertFalse(suite.delegatedWatch.isWatching("parent-host"))
+  }
+
+  private func waitUntil(
+    _ condition: @escaping @MainActor () async -> Bool
+  ) async -> Bool {
+    for _ in 0..<200 {
+      if await condition() { return true }
+      try? await Task.sleep(for: .milliseconds(10))
+    }
+    return false
+  }
+
   private static func backgroundTask(_ id: String) -> RemoteBackgroundTaskIdentity {
     RemoteBackgroundTaskIdentity(
       taskId: id,

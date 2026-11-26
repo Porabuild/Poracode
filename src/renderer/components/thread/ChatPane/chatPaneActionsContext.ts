@@ -36,6 +36,12 @@ export type ChatPaneActions = {
   /** Owning filesystem for inline media, including Home without project actions. */
   mediaLocation?: ProjectLocation | undefined;
   /**
+   * Image-only filesystem root for relative Markdown rewrites. Delegated panes
+   * use this instead of `mediaLocation` so file chips, downloads, video and HTML
+   * previews stay disabled. Main chat keeps its original mediaLocation.
+   */
+  markdownImageRoot?: string | undefined;
+  /**
    * Top-level entry names for the chat's project, used to validate path-like
    * tokens before chipping them. Empty until the project tree responds.
    * Omitted for remote chats where the desktop client has no local tree cache.

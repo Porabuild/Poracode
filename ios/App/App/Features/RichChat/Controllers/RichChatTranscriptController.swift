@@ -390,6 +390,40 @@ final class RichChatTranscriptController {
     }
   }
 
+  /// Legacy hosts may return delegated child history in the subscribe reply.
+  /// Merge it through the same scoped reducer only before any live batch for
+  /// the selected thread and only when none of its items are already known;
+  /// otherwise the caller performs one authoritative refresh instead of
+  /// duplicating deltas.
+  @discardableResult
+  func applyLegacyDelegatedHistory(
+    _ events: [RichRuntimeEvent],
+    target: RichChatThreadTarget
+  ) -> Bool {
+    guard !isBackgrounded, target == state.target, state.liveSequence < 0,
+      !events.isEmpty, var transcript = state.transcript
+    else { return false }
+    let itemIDs = events.compactMap(Self.itemID)
+    guard itemIDs.allSatisfy({ transcript.itemsByID[$0] == nil }) else { return false }
+    for event in events where event.threadID == target.threadID {
+      transcript.apply(event)
+    }
+    state.transcript = transcript
+    return true
+  }
+
+  private static func itemID(_ event: RichRuntimeEvent) -> String? {
+    switch event {
+    case .itemStarted(_, let itemID, _, _, _), .itemUpdated(_, let itemID, _),
+      .itemCompleted(_, let itemID, _), .contentDelta(_, let itemID, _, _, _),
+      .runtimeTruncated(_, let itemID, _):
+      itemID
+    case .turnStarted, .turnCompleted, .requestOpened, .requestResolved, .contextUpdated,
+      .backgroundTasksChanged, .sessionExited, .usageSpent, .warning:
+      nil
+    }
+  }
+
   func receiveLiveEvents(
     _ events: [RichRuntimeEvent],
     sequence: Int,

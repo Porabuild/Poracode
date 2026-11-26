@@ -182,7 +182,7 @@ data class RichTerminalWatchRequest(
     }
 }
 
-interface RichChatSessionGateway {
+interface RichChatSessionGateway : RichChatDelegatedWatchGateway {
     suspend fun controlMcpApp(lease: RichChatHostLease, threadId: String, payload: JsonObject): JsonObject {
         throw com.poracode.app.transport.richchat.RichChatTransportUnavailableException()
     }

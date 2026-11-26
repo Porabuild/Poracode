@@ -14,7 +14,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -22,16 +24,22 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.model.AgentStatusEntry
+import com.poracode.app.session.richchat.RichChatDelegatedWatchController
 import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun RichDelegatedAgentsCard(
     agents: List<RichDelegatedAgentPresentation>,
+    watchController: RichChatDelegatedWatchController,
+    canStartWatch: Boolean,
+    onWatchStarted: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (agents.isEmpty()) return
+    val watchState by watchController.state.collectAsStateWithLifecycle()
     Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             agents.forEach { agent ->
@@ -53,6 +61,27 @@ internal fun RichDelegatedAgentsCard(
                                 stringResource(R.string.rich_chat_activity_count, agent.activityCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (agent.kind != RichDelegatedAgentKind.Workflow) {
+                        val watching = watchState.parentItemId == agent.id && watchState.watching
+                        val busy = watchState.parentItemId == agent.id &&
+                            (watchState.phase == RichChatDelegatedWatchController.Phase.Starting ||
+                                watchState.phase == RichChatDelegatedWatchController.Phase.Retrying)
+                        TextButton(
+                            onClick = {
+                                watchController.toggle(agent.id)
+                                if (!watching) onWatchStarted()
+                            },
+                            // Stop stays available while a subscribe/renew is pending.
+                            enabled = watching || (!busy && canStartWatch),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (watching) R.string.rich_chat_stop_watching
+                                    else R.string.rich_chat_watch_live,
+                                ),
                             )
                         }
                     }

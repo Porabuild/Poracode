@@ -41521,6 +41521,11 @@
           "threadId": {
             "minLength": 1,
             "type": "string"
+          },
+          "viewerId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
           }
         },
         "required": [
@@ -42280,6 +42285,11 @@
                 ]
               },
               "type": "array"
+            },
+            "leaseMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
             }
           },
           "required": [
@@ -42304,6 +42314,11 @@
           },
           "threadId": {
             "minLength": 1,
+            "type": "string"
+          },
+          "viewerId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           }
         },
@@ -95861,7 +95876,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:6a584faee494e702ea62f017efa2a2f792da2bfa95721d6627da87aabb14ecee",
+  "sourceHash": "sha256:3d0881a2b8371ca5dc1aad74f90689d81e37c04c0dd163aacd3811855a8998af",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

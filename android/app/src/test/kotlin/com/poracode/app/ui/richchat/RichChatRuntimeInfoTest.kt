@@ -4,6 +4,10 @@ import com.poracode.app.chat.RichItemState
 import com.poracode.app.chat.RichItemTypes
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.AgentStatusEntry
+import com.poracode.app.model.ClientConnectionId
+import com.poracode.app.session.richchat.RichChatHostLease
+import com.poracode.app.session.richchat.RichChatThreadLease
+import com.poracode.app.session.richchat.delegatedWatchCanStart
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -15,6 +19,24 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RichChatRuntimeInfoTest {
+    @Test
+    fun delegatedWatchCanStartTracksForegroundHostReadinessAndScope() {
+        val lease = RichChatHostLease(
+            connectionId = ClientConnectionId("30000000-0000-4000-8000-000000000003"),
+            generation = 1L,
+            scopes = setOf("session:read"),
+            online = true,
+            ready = true,
+        )
+        val selected = RichChatThreadLease(lease, "thread-a", 1L)
+        assertTrue(delegatedWatchCanStart(true, selected, lease))
+        assertFalse(delegatedWatchCanStart(false, selected, lease))
+        assertFalse(delegatedWatchCanStart(true, selected.copy(host = lease.copy(generation = 2L)), lease))
+        assertFalse(delegatedWatchCanStart(true, selected, lease.copy(online = false)))
+        assertFalse(delegatedWatchCanStart(true, selected, lease.copy(ready = false)))
+        assertFalse(delegatedWatchCanStart(true, selected, lease.copy(scopes = emptySet())))
+    }
+
     @Test
     fun planUsesLatestIncompleteStructuredStepsAndHidesCompletedPlan() {
         val plan = planItem(

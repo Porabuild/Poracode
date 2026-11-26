@@ -13,7 +13,11 @@ import { useAppStore } from "@/renderer/state/appStore";
 import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import { remoteImageRef } from "@/shared/remote";
 import { MessageList } from "./MessageList";
-import { clearTimelineMeasurementCache } from "./timelineMeasurementCache";
+import {
+  clearTimelineMeasurementCache,
+  getTimelineMeasurementSignature,
+  readTimelineMeasurements,
+} from "./timelineMeasurementCache";
 
 type MockLegendProps = {
   data: readonly ChatTimelineEntry[];
@@ -1057,6 +1061,46 @@ describe("MessageList", () => {
     second.rerender(<MessageList threadId="thread-1" entries={makeEntries(["assistant-1"])} />);
 
     expect(setItemSizeMock).toHaveBeenCalledWith("assistant-1", { height: 184, width: 500 });
+  });
+
+  it("does not let a delegated list replace the main thread snapshot", () => {
+    useAppStore.getState().createThread({
+      threadId: "thread-1",
+      projectId: "project",
+      agentKind: "test-agent",
+      config: { model: "auto" },
+      prompt: "Measurement owner",
+      focus: false,
+      suppressHostCreateIntent: true,
+    });
+    seedCompletedItem("thread-1", "assistant-1", "assistant_message");
+    legendSizes.set("assistant-1", 184);
+    const main = render(<MessageList threadId="thread-1" entries={makeEntries(["assistant-1"])} />);
+    const scroller = main.container.querySelector("[data-poracode-chat-scroller]");
+    if (!(scroller instanceof HTMLDivElement)) throw new Error("missing chat scroller");
+    const signature = getTimelineMeasurementSignature(scroller);
+    if (!signature) throw new Error("missing measurement signature");
+    main.unmount();
+    expect(readTimelineMeasurements("thread-1", signature)).toEqual([
+      { key: "assistant-1", index: 0, size: 184 },
+    ]);
+    legendSizes.clear();
+    setItemSizeMock.mockClear();
+
+    const delegated = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["assistant-1"])}
+        measureInlineImageRows
+      />,
+    );
+    expect(setItemSizeMock).not.toHaveBeenCalled();
+    legendSizes.set("assistant-1", 71);
+    delegated.unmount();
+
+    expect(readTimelineMeasurements("thread-1", signature)).toEqual([
+      { key: "assistant-1", index: 0, size: 184 },
+    ]);
   });
 
   it("does not restore expansion-dependent row measurements", () => {

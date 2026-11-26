@@ -110,6 +110,10 @@ struct RichChatDelegatedAgentsView: View {
   let agents: [RichDelegatedAgentPresentation]
   var embedded = false
   var defersWorkflowPresentation = false
+  var watchController: RichChatDelegatedWatchController? = nil
+  /// Compact rosters are sheets: starting a watch dismisses it so the chat is
+  /// immediately visible. The expanded inspector stays open.
+  var dismissOnWatch = false
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.workflowViewerContext) private var workflowContext
   @Environment(\.workflowViewerPresentation) private var workflowPresenter
@@ -156,8 +160,31 @@ struct RichChatDelegatedAgentsView: View {
             }
           }
           Spacer(minLength: 4)
+          if agent.kind != .workflow, let watchController {
+            watchButton(agent, controller: watchController)
+          }
           ProgressView().controlSize(.small)
         }
+  }
+
+  private func watchButton(
+    _ agent: RichDelegatedAgentPresentation,
+    controller: RichChatDelegatedWatchController
+  ) -> some View {
+    let watching = controller.isWatching(agent.id)
+    return Button {
+      controller.toggle(parentItemID: agent.id)
+      if !watching, dismissOnWatch { dismiss() }
+    } label: {
+      Text(watching ? RichChatStrings.stopWatching : RichChatStrings.watchLive)
+        .poracodeChatText(.metadata, weight: .semibold)
+    }
+    .poracodeSurfaceButtonStyle()
+    .controlSize(.small)
+    // Stop stays available while a subscribe/renew is pending or retrying.
+    .disabled(!watching && (controller.isBusy(agent.id) || !controller.canStart))
+    .accessibilityLabel(watching ? RichChatStrings.stopWatching : RichChatStrings.watchLive)
+    .accessibilityIdentifier("native-e2e.delegated-watch.\(agent.id)")
   }
 
   private func icon(_ kind: RichDelegatedAgentKind) -> String {

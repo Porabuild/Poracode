@@ -85,6 +85,7 @@ export type MobileUtilityPage =
   | "pullRequests"
   | "schedules"
   | "githubActions"
+  | "subagent"
   | "projectSettings"
   | "settings";
 
@@ -822,6 +823,9 @@ export const usePanelStore = create<PanelState>()((set, get) => ({
       ...(state.mobileUtilityPage !== null ? { mobileUtilityPage: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" && state.projectSettingsId !== null
         ? { projectSettingsId: null, projectSettingsSection: null }
+        : {}),
+      ...(state.mobileUtilityPage === "subagent"
+        ? { subAgentPanelContext: null, subAgentPanelOpen: false }
         : {}),
     })),
   closeAllPanels: () => {

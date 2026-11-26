@@ -121,6 +121,8 @@ interface MessageListProps {
   checkpointGuard?: CheckpointGuard;
   checkpointActions?: CheckpointRevertActions | undefined;
   projectLocation?: ProjectLocation | undefined;
+  /** Measure inline images when the pane's content is narrower than its scroller. */
+  measureInlineImageRows?: boolean;
   /**
    * If set, the inline "Worked for X" indicator anchored to this item id is
    * suppressed because the parent tail loader is already showing it (matches
@@ -191,6 +193,7 @@ export function MessageList({
   checkpointGuard,
   checkpointActions,
   projectLocation,
+  measureInlineImageRows = false,
   suppressInlineTurnAnchorId = null,
   registerScrollToIndex,
 }: MessageListProps) {
@@ -304,6 +307,9 @@ export function MessageList({
     entriesRef,
     listRef,
     scrollElementRef,
+    // Delegated transcripts reuse the parent thread id; their measurements must
+    // never restore or replace the main list's snapshot.
+    enabled: !measureInlineImageRows,
   });
 
   const setListRef = useCallback(
@@ -557,14 +563,16 @@ export function MessageList({
         estimatedItemSize={DEFAULT_ROW_ESTIMATE_PX}
         extraData={`${lastLiveIndex}:${isTurnActive}:${markTailAsLive}:${suppressInlineTurnAnchorId ?? ""}:${canRevertCheckpoints}`}
         getFixedItemSize={(entry, index) =>
-          getFixedTimelineEntrySize(
-            entry,
-            threadId,
-            () => scrollElementRef.current?.clientWidth,
-            parentActions?.remoteImageReadiness !== undefined,
-            index === lastLiveIndex && isTurnActive,
-            suppressInlineTurnAnchorId,
-          )
+          measureInlineImageRows
+            ? undefined
+            : getFixedTimelineEntrySize(
+                entry,
+                threadId,
+                () => scrollElementRef.current?.clientWidth,
+                parentActions?.remoteImageReadiness !== undefined,
+                index === lastLiveIndex && isTurnActive,
+                suppressInlineTurnAnchorId,
+              )
         }
         getItemType={(entry, index) =>
           getTimelineEntryType(
@@ -1024,10 +1032,8 @@ function estimateSingleInlineImageRowHeight(
   );
   if (!dimensions) return undefined;
   // ImageView keeps an unresolved host-held reference as a reserved card only
-  // under remote image readiness. Without it (the right-panel subagent
-  // transcript mounts outside ChatPane's actions) the row can fall back to the
-  // one-line tool row, so a fixed card height would leave a blank slot. Let
-  // LegendList measure those rows instead.
+  // when the pane has remote image readiness. Without readiness, the row can
+  // fall back to the one-line tool row. Let LegendList measure it in that case.
   if (source.remoteRef && !reservesPendingRemoteImages) return undefined;
   // Ordinary message/tool rows need no geometry read at all.
   const listWidth = readListWidth();

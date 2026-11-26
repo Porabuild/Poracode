@@ -27,12 +27,15 @@ export function useTimelineMeasurements({
   entriesRef,
   listRef,
   scrollElementRef,
+  enabled = true,
 }: {
   threadId: string;
   hasItems: boolean;
   entriesRef: RefObject<readonly ChatTimelineEntry[]>;
   listRef: RefObject<LegendListRef | null>;
   scrollElementRef: RefObject<HTMLDivElement | null>;
+  /** Main transcript only: delegated lists share the parent thread id. */
+  enabled?: boolean;
 }) {
   const layoutRef = useRef<{
     threadId: string;
@@ -42,6 +45,7 @@ export function useTimelineMeasurements({
   }>({ threadId, signature: null, restored: false, invalidated: false });
   const fontSize = useSharedSettings((state) => state.guiChatFontSize);
   useLayoutEffect(() => {
+    if (!enabled) return;
     if (layoutRef.current.threadId !== threadId) {
       layoutRef.current = { threadId, signature: null, restored: false, invalidated: false };
     }
@@ -89,12 +93,15 @@ export function useTimelineMeasurements({
     // The font setting changes computed CSS geometry without changing viewport
     // width, so it must restart the layout check even though it is read via CSS.
     // oxlint-disable-next-line react/exhaustive-effect-dependencies
-  }, [threadId, hasItems, fontSize, entriesRef, listRef, scrollElementRef]);
+  }, [enabled, threadId, hasItems, fontSize, entriesRef, listRef, scrollElementRef]);
 
   // This is the existing imperative ref's callback escape, moved with its
   // cache lifecycle. It remains stable across transcript/font updates.
   return useCallback(
     (instance: LegendListRef, scrollElement: HTMLDivElement) => {
+      // A delegated list shares its parent thread id but must never restore or
+      // replace the main transcript's measurements.
+      if (!enabled) return;
       const state = useAppStore.getState();
       // Project/catalog retirement can leave runtime items resident until their
       // own eviction. A later pane detach must not re-admit a missing owner.
@@ -139,7 +146,7 @@ export function useTimelineMeasurements({
       }
       writeTimelineMeasurements(threadId, signature, measurements);
     },
-    [threadId, entriesRef],
+    [enabled, threadId, entriesRef],
   );
 }
 

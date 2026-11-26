@@ -6,6 +6,13 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
 import { PanelContentDeferredContext } from "@/renderer/components/layout/panelMotion";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+import { remoteImageRef } from "@/shared/remote";
+import type { SubAgentSubscribePayload, SubAgentSubscribeResult } from "@/shared/ipc";
+import { toLocalFileUrl } from "@/shared/promptContent";
+import { MCP_APP_HOST_META_KEY } from "@/shared/contracts/mcpApps";
+import { MCP_APP_MIME_TYPE } from "@/shared/mcpAppResources";
 import type { ChatTimelineEntry } from "../../chatPaneSelectors";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { SubAgentContent, SubAgentHeaderText, SubAgentOpenController } from "./SubAgentOverlay";
@@ -14,11 +21,13 @@ import { byTextContent } from "@/renderer/testUtils/text";
 
 const mockBridge = {
   subagentSubscribe:
-    vi.fn<(payload: { threadId: string; parentItemId: string }) => Promise<{ history: [] }>>(),
-  subagentUnsubscribe:
-    vi.fn<(payload: { threadId: string; parentItemId: string }) => Promise<void>>(),
+    vi.fn<(payload: SubAgentSubscribePayload) => Promise<SubAgentSubscribeResult>>(),
+  subagentUnsubscribe: vi.fn<(payload: SubAgentSubscribePayload) => Promise<void>>(),
 };
 const mockScrollToEnd = vi.hoisted(() => vi.fn<() => Promise<void>>());
+const mockMcpAppCard = vi.hoisted(() => vi.fn<() => null>(() => null));
+
+vi.mock("./McpAppCard", () => ({ McpAppCard: mockMcpAppCard }));
 
 type MockLegendProps = {
   data: readonly ChatTimelineEntry[];
@@ -145,6 +154,7 @@ describe("SubAgentContent", () => {
   });
 
   beforeEach(() => {
+    mockMcpAppCard.mockClear();
     mockBridge.subagentSubscribe.mockReset().mockResolvedValue({ history: [] });
     mockBridge.subagentUnsubscribe.mockReset().mockResolvedValue(undefined);
     mockScrollToEnd.mockReset().mockResolvedValue(undefined);
@@ -153,6 +163,7 @@ describe("SubAgentContent", () => {
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
       runtimeStructuralVersionByThread: {},
+      runtimeHydrationStatus: {},
       openSubAgentByThread: {},
     });
   });
@@ -314,6 +325,12 @@ describe("SubAgentContent", () => {
       );
     },
   );
+
+  it("keeps a localized default header until the parent arrives", () => {
+    render(<SubAgentHeaderText threadId="missing-thread" parentItemId="missing-parent" />);
+
+    expect(screen.getByText("Subagent")).toBeInTheDocument();
+  });
 
   it("can omit its internal header when the routed shell owns the title", async () => {
     const threadId = "thread-1";
@@ -672,6 +689,257 @@ describe("SubAgentContent", () => {
     expect(within(dialog).queryByText("internal plan")).not.toBeInTheDocument();
   });
 
+  it.each(["Subagent", "Crossagent"])("loads host-held images in the %s panel", async (panel) => {
+    const isCrossagent = panel === "Crossagent";
+    const threadId = "image-thread";
+    const remoteServerId = "image-host";
+    const parent = makeSubAgentItem("image-parent");
+    const itemId = "image-view";
+    const ref = { threadId, itemId, path: ["images", 0], mime: "image/png", bytes: 80_000 };
+    const child = makeChildItem(itemId, parent.id, isCrossagent ? "mcp_tool_call" : "tool_call", {
+      name: "View",
+      kind: "read",
+      status: "success",
+      result: "880x700",
+      images: [remoteImageRef(ref)],
+    });
+    const uri = "ui://fixture/panel";
+    const app = makeChildItem("mcp-app", parent.id, "mcp_tool_call", {
+      name: "show_panel",
+      status: "success",
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: { uri, mimeType: MCP_APP_MIME_TYPE, text: "<p>Panel</p>" },
+          },
+        ],
+        _meta: {
+          [MCP_APP_HOST_META_KEY]: {
+            version: 1,
+            sessionId: "fd558ade-3aa4-4a2f-a333-b74531737b21",
+            toolName: "show_panel",
+            resourceUri: uri,
+          },
+        },
+      },
+    });
+    const listeners = new Set<() => void>();
+    let src = "";
+    const requestRef = vi.fn<RemoteImageReadiness["requestRef"]>();
+    const readiness: RemoteImageReadiness = {
+      resolveRef: () => src,
+      subscribeRef: (_ref, listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      requestRef,
+      resolvePath: () => "",
+      subscribePath: () => () => undefined,
+      requestPath: () => undefined,
+    };
+    const { servers, imageReadinessFor } = useRemoteServersStore.getState();
+    const { threads } = useAppStore.getState();
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: remoteServerId,
+          label: "Image Host",
+          endpoint: "http://images.test/",
+          accessToken: "test",
+          scopes: [],
+        },
+      ],
+      imageReadinessFor: (key) => (key === remoteServerId ? readiness : undefined),
+    });
+    useAppStore.setState({
+      threads: [...threads, { id: threadId, remoteServerId } as Thread],
+      runtimeItemIdsByThread: { [threadId]: [parent.id, child.id, app.id] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          [parent.id]: {
+            ...parent,
+            payload: { ...(parent.payload as ToolCallPayload), isCrossagent },
+          },
+          [child.id]: child,
+          [app.id]: app,
+        },
+      },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    const view = render(
+      <AppProvider>
+        <SubAgentContent threadId={threadId} parentItemId={parent.id} />
+      </AppProvider>,
+    );
+    try {
+      await waitFor(() => expect(requestRef.mock.calls[0]?.[0]).toEqual(ref));
+      const card = view.container.querySelector("[data-poracode-image-card]");
+      expect(card).toBeInTheDocument();
+      expect(card?.querySelector("img")).toBeNull();
+      act(() => {
+        src = "blob:child-image";
+        for (const listener of listeners) listener();
+      });
+      expect(card?.querySelector("img")).toHaveAttribute("src", src);
+      expect(view.container.querySelector("[data-poracode-inline-visual]")).toBeInTheDocument();
+      expect(mockMcpAppCard).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      useAppStore.setState({ threads });
+      useRemoteServersStore.setState({ servers, imageReadinessFor });
+    }
+  });
+
+  it("loads child relative and canonical Markdown images through the owning host", async () => {
+    await DeferredItemMarkdownInner.preload();
+    const threadId = "markdown-thread";
+    const remoteServerId = "markdown-host";
+    const parent = makeSubAgentItem("markdown-parent");
+    const relative = makeChildItem("markdown-relative", parent.id, "assistant_message", undefined, {
+      assistant_text: "![Child relative](images/child.png)",
+    });
+    const canonical = makeChildItem(
+      "markdown-canonical",
+      parent.id,
+      "assistant_message",
+      undefined,
+      {
+        assistant_text: `![Child canonical](<${toLocalFileUrl("C:\\repo\\images\\canonical.png")}>)`,
+      },
+    );
+    const resolvePath = vi.fn<RemoteImageReadiness["resolvePath"]>(() => "blob:child-markdown");
+    const readiness: RemoteImageReadiness = {
+      resolveRef: () => "",
+      subscribeRef: () => () => undefined,
+      requestRef: () => undefined,
+      resolvePath,
+      subscribePath: () => () => undefined,
+      requestPath: () => undefined,
+    };
+    const { servers, imageReadinessFor } = useRemoteServersStore.getState();
+    const { threads, projects } = useAppStore.getState();
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: remoteServerId,
+          label: "Markdown Host",
+          endpoint: "http://markdown.test/",
+          accessToken: "test",
+          scopes: [],
+        },
+      ],
+      imageReadinessFor: (key) => (key === remoteServerId ? readiness : undefined),
+    });
+    useAppStore.setState({
+      threads: [
+        ...threads,
+        {
+          id: threadId,
+          projectId: "markdown-project",
+          remoteServerId,
+          title: "Markdown child",
+          agentKind: "acp-generic",
+          config: { model: "fixture" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          archived: false,
+          done: false,
+          starred: false,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        } as Thread,
+      ],
+      projects: [
+        ...projects,
+        {
+          id: "markdown-project",
+          name: "Markdown project",
+          location: { kind: "windows", path: "C:\\repo" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      runtimeItemIdsByThread: { [threadId]: [parent.id, relative.id, canonical.id] },
+      runtimeItemsByIdByThread: {
+        [threadId]: { [parent.id]: parent, [relative.id]: relative, [canonical.id]: canonical },
+      },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    const view = render(
+      <AppProvider>
+        <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />
+      </AppProvider>,
+    );
+    try {
+      await waitFor(() => {
+        expect(resolvePath.mock.calls.some(([path]) => path === "C:/repo/images/child.png")).toBe(
+          true,
+        );
+        expect(
+          resolvePath.mock.calls.some(([path]) => path === "C:/repo/images/canonical.png"),
+        ).toBe(true);
+        expect(view.container.querySelectorAll("[data-poracode-image-card]")).toHaveLength(2);
+      });
+      expect(
+        view.container.querySelector("button[aria-label='Open image preview'] img"),
+      ).toHaveAttribute("src", "blob:child-markdown");
+    } finally {
+      view.unmount();
+      useAppStore.setState({ threads, projects });
+      useRemoteServersStore.setState({ servers, imageReadinessFor });
+    }
+  });
+
+  it("waits for parent history before declaring a subagent target missing", async () => {
+    const threadId = "loading-thread";
+    const { threads } = useAppStore.getState();
+    useAppStore.setState({
+      threads: [
+        ...threads,
+        {
+          id: threadId,
+          projectId: "loading-project",
+          title: "Loading child",
+          agentKind: "acp-generic",
+          config: { model: "fixture" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          archived: false,
+          done: false,
+          starred: false,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        } as Thread,
+      ],
+      runtimeHydrationStatus: { [threadId]: "pending" },
+    });
+    const view = render(
+      <AppProvider>
+        <SubAgentContent threadId={threadId} parentItemId="missing-parent" hideHeader />
+      </AppProvider>,
+    );
+    try {
+      expect(await screen.findByRole("status")).toBeInTheDocument();
+      expect(screen.queryByText("Subagent not found.")).not.toBeInTheDocument();
+
+      act(() => {
+        useAppStore.setState({
+          runtimeHydrationStatus: {},
+          runtimeItemIdsByThread: { [threadId]: [] },
+          runtimeItemsByIdByThread: { [threadId]: {} },
+        });
+      });
+      expect(await screen.findByText("Subagent not found.")).toBeInTheDocument();
+    } finally {
+      view.unmount();
+      useAppStore.setState({ threads });
+    }
+  });
+
   it("defers the first child timeline render until idle", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");
@@ -748,10 +1016,12 @@ describe("SubAgentContent", () => {
       const firstView = render(content);
       expect(await screen.findByText("Cached response")).toBeInTheDocument();
       firstView.unmount();
-      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith({
-        threadId,
-        parentItemId: parentItem.id,
-      });
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          threadId,
+          parentItemId: parentItem.id,
+        }),
+      );
 
       const history = Promise.withResolvers<{ history: [] }>();
       mockBridge.subagentSubscribe.mockReturnValue(history.promise);
@@ -1244,11 +1514,11 @@ describe("SubAgentContent", () => {
   it("still applies legacy-host subscribe history after the overlay unmounts", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");
-    let resolveSubscribe: ((value: { history: unknown[] }) => void) | undefined;
+    let resolveSubscribe: ((value: SubAgentSubscribeResult) => void) | undefined;
     mockBridge.subagentSubscribe.mockReset().mockImplementation(
       () =>
-        new Promise((resolve) => {
-          resolveSubscribe = resolve as (value: { history: unknown[] }) => void;
+        new Promise<SubAgentSubscribeResult>((resolve) => {
+          resolveSubscribe = resolve;
         }),
     );
 
@@ -1290,6 +1560,296 @@ describe("SubAgentContent", () => {
       expect(child?.streams.assistant_text).toBe("preserved after unmount");
       expect(child?.parentItemId).toBe(parentItem.id);
     });
+  });
+
+  it("skips a late legacy release when a newer watcher owns the same target", async () => {
+    const threadId = "legacy-remount";
+    const parent = makeSubAgentItem("parent-1");
+    let resolveFirst: ((value: SubAgentSubscribeResult) => void) | undefined;
+    let subscribeCount = 0;
+    mockBridge.subagentSubscribe.mockReset().mockImplementation(() => {
+      subscribeCount += 1;
+      if (subscribeCount === 1) {
+        return new Promise<SubAgentSubscribeResult>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return Promise.resolve({ history: [] });
+    });
+    mockBridge.subagentUnsubscribe.mockReset().mockResolvedValue(undefined);
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parent.id]: parent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    const first = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    await waitFor(() => expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1));
+    const firstViewer = mockBridge.subagentSubscribe.mock.calls[0]![0].viewerId;
+    first.unmount();
+
+    const second = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    await waitFor(() => expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(2));
+    const secondViewer = mockBridge.subagentSubscribe.mock.calls[1]![0].viewerId;
+    expect(secondViewer).not.toBe(firstViewer);
+
+    resolveFirst?.({ history: [] });
+    await act(async () => Promise.resolve());
+    expect(mockBridge.subagentUnsubscribe).not.toHaveBeenCalled();
+
+    second.unmount();
+    await waitFor(() =>
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ viewerId: secondViewer, threadId, parentItemId: parent.id }),
+      ),
+    );
+    expect(mockBridge.subagentUnsubscribe).not.toHaveBeenCalledWith(
+      expect.objectContaining({ viewerId: firstViewer }),
+    );
+  });
+
+  it("releases a late scoped lease after the same target remounts", async () => {
+    const threadId = "scoped-remount";
+    const parent = makeSubAgentItem("parent-1");
+    let resolveFirst: ((value: SubAgentSubscribeResult) => void) | undefined;
+    let subscribeCount = 0;
+    mockBridge.subagentSubscribe.mockReset().mockImplementation(() => {
+      subscribeCount += 1;
+      if (subscribeCount === 1) {
+        return new Promise<SubAgentSubscribeResult>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return Promise.resolve({ history: [], leaseMs: 90_000 });
+    });
+    mockBridge.subagentUnsubscribe.mockReset().mockResolvedValue(undefined);
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parent.id]: parent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    const first = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    await waitFor(() => expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1));
+    const firstViewer = mockBridge.subagentSubscribe.mock.calls[0]![0].viewerId;
+    first.unmount();
+
+    const second = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    await waitFor(() => expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(2));
+
+    resolveFirst?.({ history: [], leaseMs: 90_000 });
+    await waitFor(() =>
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ viewerId: firstViewer, threadId, parentItemId: parent.id }),
+      ),
+    );
+    expect(second).toBeDefined();
+    second.unmount();
+  });
+
+  it("releases the last legacy viewer on close", async () => {
+    const threadId = "legacy-last-close";
+    const parent = makeSubAgentItem("parent-1");
+    let resolveSubscribe: ((value: SubAgentSubscribeResult) => void) | undefined;
+    mockBridge.subagentSubscribe.mockReset().mockImplementation(
+      () =>
+        new Promise<SubAgentSubscribeResult>((resolve) => {
+          resolveSubscribe = resolve;
+        }),
+    );
+    mockBridge.subagentUnsubscribe.mockReset().mockResolvedValue(undefined);
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parent.id]: parent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    const view = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    await waitFor(() => expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1));
+    const viewerId = mockBridge.subagentSubscribe.mock.calls[0]![0].viewerId;
+    view.unmount();
+    resolveSubscribe?.({ history: [] });
+    await waitFor(() =>
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ viewerId, threadId, parentItemId: parent.id }),
+      ),
+    );
+  });
+
+  it("grants a viewer lease only for active parents and releases completed ones", async () => {
+    vi.useFakeTimers();
+    const threadId = "completed-lease";
+    const runningParent = makeSubAgentItem("parent-1");
+    const completedParent: RuntimeChatItem = {
+      ...runningParent,
+      state: "completed",
+      payload: { ...(runningParent.payload as ToolCallPayload), status: "success" },
+    };
+    mockBridge.subagentSubscribe.mockReset().mockResolvedValue({
+      history: [],
+      leaseMs: 90_000,
+    });
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [completedParent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [completedParent.id]: completedParent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    const view = render(
+      <SubAgentContent threadId={threadId} parentItemId={completedParent.id} hideHeader />,
+    );
+    try {
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1);
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        vi.advanceTimersByTime(180_000);
+      });
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("renews the same viewer while active and stops on parent completion", async () => {
+    vi.useFakeTimers();
+    const threadId = "active-lease";
+    const parent = makeSubAgentItem("parent-1");
+    mockBridge.subagentSubscribe.mockReset().mockResolvedValue({
+      history: [],
+      leaseMs: 90_000,
+    });
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parent.id]: parent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    const view = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    try {
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1);
+      const viewerId = mockBridge.subagentSubscribe.mock.calls[0]![0].viewerId;
+      expect(viewerId).toEqual(expect.any(String));
+
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+      });
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(2);
+      expect(mockBridge.subagentSubscribe.mock.calls[1]![0].viewerId).toBe(viewerId);
+
+      const completedParent: RuntimeChatItem = {
+        ...parent,
+        state: "completed",
+        payload: { ...(parent.payload as ToolCallPayload), status: "success" },
+      };
+      act(() => {
+        useAppStore.setState({
+          runtimeItemsByIdByThread: {
+            [threadId]: { [completedParent.id]: completedParent },
+          },
+        });
+      });
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ viewerId, threadId, parentItemId: parent.id }),
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(180_000);
+      });
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(2);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries a rejected initial subscribe with the same viewer before renewing", async () => {
+    vi.useFakeTimers();
+    const threadId = "retry-lease";
+    const parent = makeSubAgentItem("parent-1");
+    mockBridge.subagentSubscribe
+      .mockReset()
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValue({ history: [], leaseMs: 90_000 });
+    mockBridge.subagentUnsubscribe.mockReset().mockResolvedValue(undefined);
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parent.id]: parent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    const view = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    try {
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1);
+      const viewerId = mockBridge.subagentSubscribe.mock.calls[0]![0].viewerId;
+      expect(viewerId).toEqual(expect.any(String));
+      expect(mockBridge.subagentUnsubscribe).not.toHaveBeenCalled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(999);
+      });
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+      });
+      await act(async () => Promise.resolve());
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(2);
+      expect(mockBridge.subagentSubscribe.mock.calls[1]![0].viewerId).toBe(viewerId);
+      expect(mockBridge.subagentUnsubscribe).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("releases a granted viewer when the panel closes before subscribe resolves", async () => {
+    const threadId = "close-before-subscribe";
+    const parent = makeSubAgentItem("parent-1");
+    let resolveSubscribe: ((value: SubAgentSubscribeResult) => void) | undefined;
+    mockBridge.subagentSubscribe.mockReset().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSubscribe = resolve;
+        }),
+    );
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parent.id]: parent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    const view = render(
+      <SubAgentContent threadId={threadId} parentItemId={parent.id} hideHeader />,
+    );
+    await waitFor(() => expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1));
+    const viewerId = mockBridge.subagentSubscribe.mock.calls[0]![0].viewerId;
+    view.unmount();
+    resolveSubscribe?.({ history: [], leaseMs: 90_000 });
+    await waitFor(() =>
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ viewerId, threadId, parentItemId: parent.id }),
+      ),
+    );
+    expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1);
   });
 });
 

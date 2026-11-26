@@ -41,6 +41,8 @@ final class RichChatControllerSuite {
   let notice: RichChatNoticeController
   /// Neutral live session actions (inventory + single-attempt invokes).
   let sessionActions: RichChatSessionActionsController
+  /// One selected-roster delegated watch, shared by compact and expanded surfaces.
+  let delegatedWatch: RichChatDelegatedWatchController
   let runtimeLaunch = CrewRuntimeLaunchState()
 
   init(
@@ -55,11 +57,12 @@ final class RichChatControllerSuite {
     )
     notice = noticeController
     runtimeItemHeadings = RichRuntimeItemHeadingController(gateway: gateway)
-    transcript = RichChatTranscriptController(
+    let transcriptController = RichChatTranscriptController(
       gateway: gateway,
       refreshRequester: refreshRequester,
       noticeProjection: noticeController
     )
+    transcript = transcriptController
     conversation = RichChatConversationController(
       gateway: gateway,
       refreshRequester: refreshRequester,
@@ -85,6 +88,12 @@ final class RichChatControllerSuite {
       refreshRequester: refreshRequester
     )
     sessionActions = RichChatSessionActionsController(gateway: gateway)
+    delegatedWatch = RichChatDelegatedWatchController(
+      gateway: gateway,
+      transcript: transcriptController,
+      watchIDGenerator: watchIDGenerator,
+      refreshRequester: refreshRequester
+    )
   }
 
   func select(access: RichChatSessionAccess, threadID: String) {
@@ -108,6 +117,7 @@ final class RichChatControllerSuite {
     media.activate(access: access, threadID: threadID)
     terminal.activate(access: access, threadID: threadID)
     sessionActions.activate(access: access, threadID: threadID)
+    delegatedWatch.activate(access: access, threadID: threadID)
   }
 
   func updateAccess(_ access: RichChatSessionAccess) {
@@ -126,6 +136,7 @@ final class RichChatControllerSuite {
     media.updateAccess(access)
     terminal.updateAccess(access)
     sessionActions.updateAccess(access)
+    delegatedWatch.updateAccess(access)
   }
 
   func deselect() {
@@ -140,6 +151,7 @@ final class RichChatControllerSuite {
     media.deactivate()
     terminal.deactivate()
     sessionActions.deactivate()
+    delegatedWatch.deactivate()
   }
 
   func enterBackground() {
@@ -155,6 +167,7 @@ final class RichChatControllerSuite {
     media.enterBackground()
     terminal.enterBackground()
     sessionActions.enterBackground()
+    delegatedWatch.enterBackground()
   }
 
   /// Foregrounding only re-enables work. It intentionally does not replay a cancelled request;
@@ -175,6 +188,7 @@ final class RichChatControllerSuite {
     media.leaveBackground(access: access)
     terminal.leaveBackground(access: access)
     sessionActions.leaveBackground(access: access)
+    delegatedWatch.leaveBackground(access: access)
   }
 
   func receiveRuntimePayloads(
@@ -190,6 +204,7 @@ final class RichChatControllerSuite {
       receivedAtMilliseconds: receivedAtMilliseconds,
       target: target
     )
+    delegatedWatch.syncParentState()
   }
 
   func receivePendingSteerPayload(
@@ -236,5 +251,6 @@ final class RichChatControllerSuite {
     case .idle, .loading, .failed:
       break
     }
+    delegatedWatch.syncParentState()
   }
 }

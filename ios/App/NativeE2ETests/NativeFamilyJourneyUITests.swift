@@ -4310,6 +4310,60 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertEqual(sends, 0)
   }
 
+  func testDelegatedWatchShowsChildImagesBeforeParentsComplete() async throws {
+    try XCTSkipUnless(peerMode == .mock, "This journey uses controlled WireLab delegated output.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    applyFixtureAppearance()
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/checkpoints/delegated-watch-ready", method: "POST")
+    try await pairAndOpenFixtureThread(expectedResponse: "Delegated watch ready.")
+
+    func watch(_ kind: String, parentID: String) throws {
+      let control = app.buttons["native-e2e.info-control.delegated-agents:\(kind)"].firstMatch
+      XCTAssertTrue(control.waitForExistence(timeout: 12), "The \(kind) roster control must be present")
+      control.tap()
+      let watch = app.buttons["native-e2e.delegated-watch.\(parentID)"].firstMatch
+      XCTAssertTrue(watch.waitForExistence(timeout: 10), "The \(kind) roster row must offer Watch live")
+      XCTAssertEqual(watch.label, "Watch live")
+      watch.tap()
+    }
+
+    func seeImage(childID: String) throws {
+      let child = app.buttons["native-e2e.tool-details.\(childID)"].firstMatch
+      XCTAssertTrue(child.waitForExistence(timeout: 20), "The subscribed child PNG row must arrive")
+      child.tap()
+      let image = app.buttons["native-e2e.tool-image.\(childID)"].firstMatch
+      XCTAssertTrue(image.waitForExistence(timeout: 20), "The child PNG must decode before the parent completes")
+      image.tap()
+      XCTAssertTrue(app.navigationBars["Image Preview"].firstMatch.waitForExistence(timeout: 10))
+      app.buttons["Close Image Preview"].firstMatch.tap()
+    }
+
+    func stopWatching(_ kind: String, parentID: String) throws {
+      XCTAssertTrue(app.buttons["native-e2e.tool-details.\(parentID)"].exists, "The parent must remain active")
+      let control = app.buttons["native-e2e.info-control.delegated-agents:\(kind)"].firstMatch
+      XCTAssertTrue(control.waitForExistence(timeout: 12))
+      control.tap()
+      let stop = app.buttons["native-e2e.delegated-watch.\(parentID)"].firstMatch
+      XCTAssertTrue(stop.waitForExistence(timeout: 10), "Stop watching must remain reachable")
+      XCTAssertEqual(stop.label, "Stop watching")
+      stop.tap()
+      let done = app.buttons["Done"].firstMatch
+      if done.waitForExistence(timeout: 3) { done.tap() }
+    }
+
+    XCTAssertFalse(app.buttons["native-e2e.tool-details.fixture-subagent-live-image"].exists)
+    XCTAssertFalse(app.buttons["native-e2e.tool-details.fixture-crossagent-live-image"].exists)
+    try watch("subagent", parentID: "fixture-subagent-live")
+    try seeImage(childID: "fixture-subagent-live-image")
+    try stopWatching("subagent", parentID: "fixture-subagent-live")
+
+    try watch("crossagent", parentID: "fixture-crossagent-live")
+    try seeImage(childID: "fixture-crossagent-live-image")
+    try stopWatching("crossagent", parentID: "fixture-crossagent-live")
+    utilityProof("delegated-watch-child-images")
+  }
+
   func testTranscriptImagePreviewAndShareSurviveDisplayChanges() async throws {
     try XCTSkipUnless(peerMode == .mock, "This journey opens a synthetic transcript image.")
     XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait

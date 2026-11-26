@@ -93,6 +93,7 @@ export const CHECKPOINT_FIXTURE_IDS = [
   "thread-history-changes-ready",
   "transcript-wide-table-ready",
   "transcript-image-ready",
+  "delegated-watch-ready",
   "transcript-image-gallery-ready",
   "tool-presentation-live",
   "tool-activity-start",

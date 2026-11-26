@@ -6,15 +6,20 @@ import {
   agentPanelMetaTextClass,
 } from "@/renderer/components/layout/AgentPanelTitleRow";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
+import { resolveProjectLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useProject, useThread } from "@/renderer/state/useThread";
 import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { useThreadTranscriptImageActions } from "../../useThreadTranscriptImageActions";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { guiChatFontCssVars } from "../../chatFontVars";
+import { ChatPaneActionsContext } from "../../chatPaneActionsContext";
 import { getChildTimelineEntriesStoreSelector } from "../../chatPaneSelectors";
 import type { TurnTiming } from "../../ChatTurnElapsed";
 import { buildSubAgentProgressParts, splitAgentTitleMeta } from "./subAgentProgressMeta";
@@ -71,6 +76,47 @@ interface SubAgentContentProps {
   initialScrollRevealDelayMs?: number;
 }
 
+/** Reuse the transcript's running-state semantics for lease renewal. */
+function isSubAgentParentActive(
+  item: RuntimeChatItem | undefined,
+  payload: ToolCallPayload | undefined,
+): boolean {
+  return item !== undefined && (item.state !== "completed" || payload?.status === "running");
+}
+
+/**
+ * Mounted delegated viewers keyed by the exact thread+parent target. A legacy
+ * host releases by parent, so an unmounted old effect must not send a late
+ * release while a newer watcher owns that same slot.
+ */
+const mountedDelegatedViewers = new Map<string, Set<string>>();
+
+function delegatedViewerKey(threadId: string, parentItemId: string): string {
+  return JSON.stringify([threadId, parentItemId]);
+}
+
+function addMountedDelegatedViewer(key: string, viewerId: string): void {
+  const viewers = mountedDelegatedViewers.get(key);
+  if (viewers) viewers.add(viewerId);
+  else mountedDelegatedViewers.set(key, new Set([viewerId]));
+}
+
+function removeMountedDelegatedViewer(key: string, viewerId: string): void {
+  const viewers = mountedDelegatedViewers.get(key);
+  if (!viewers) return;
+  viewers.delete(viewerId);
+  if (viewers.size === 0) mountedDelegatedViewers.delete(key);
+}
+
+function hasNewerMountedDelegatedViewer(key: string, viewerId: string): boolean {
+  const viewers = mountedDelegatedViewers.get(key);
+  if (!viewers) return false;
+  for (const mounted of viewers) {
+    if (mounted !== viewerId) return true;
+  }
+  return false;
+}
+
 /** Shared live subagent content rendered by routed mobile pages and right panels. */
 export function SubAgentContent(props: SubAgentContentProps) {
   const { threadId, parentItemId, visible = true } = props;
@@ -81,9 +127,18 @@ export function SubAgentContent(props: SubAgentContentProps) {
     isWorkflowTool(payload) &&
     parseWorkflowInfo(payload)?.manifestPath
   );
+  const parentActive = isSubAgentParentActive(item, payload);
   const applyRuntimeEvents = useAppStore((s) => s.applyRuntimeEvents);
   const target = `${threadId}:${parentItemId}`;
   const [historyReadyFor, setHistoryReadyFor] = useState<string | null>(null);
+  const stopRenewalRef = useRef<(() => void) | null>(null);
+
+  // A completed parent is a terminal watch state: release any granted viewer
+  // lease instead of renewing a transcript that can no longer emit live output.
+  useEffect(() => {
+    if (parentActive) return;
+    stopRenewalRef.current?.();
+  }, [parentActive]);
 
   // Subscribe to the supervisor's child-event stream for this sub-agent while
   // the overlay is open. Current hosts drain the buffer and replay it onto the
@@ -91,28 +146,161 @@ export function SubAgentContent(props: SubAgentContentProps) {
   // the RPC `history` payload is empty and is a fallback for older hosts that
   // still return the drained buffer here. Late RPC responses are still applied
   // so history is not lost if the panel remounts before the response arrives.
+  // A single attempt loop serializes the initial subscribe and every renewal:
+  // transient failures retry with the same viewer id and bounded backoff while
+  // the parent can still emit, and success resets the delay.
   useEffect(() => {
     const bridge = readBridge();
-    let active = true;
-    void bridge
-      .subagentSubscribe({ threadId, parentItemId })
-      .then((result) => {
-        if (result.history.length === 0) return;
-        applyRuntimeEvents(threadId, result.history);
-      })
-      .catch((err: unknown) => {
-        console.warn("[subagent] subscribe failed", { threadId, parentItemId, err });
-      })
-      .finally(() => {
-        if (active) setHistoryReadyFor(target);
-      });
-    return () => {
-      active = false;
-      void bridge.subagentUnsubscribe({ threadId, parentItemId }).catch((err: unknown) => {
-        console.warn("[subagent] unsubscribe failed", { threadId, parentItemId, err });
-      });
+    const viewerId = crypto.randomUUID();
+    const watchKey = delegatedViewerKey(threadId, parentItemId);
+    addMountedDelegatedViewer(watchKey, viewerId);
+    let closed = false;
+    let stopped = false;
+    let scopedLease = false;
+    let inFlight = false;
+    let initialSettled = false;
+    let retryDelayMs = 1_000;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let leaseTimer: ReturnType<typeof setTimeout> | undefined;
+    let unsubscribed = false;
+
+    const parentCanEmitLiveOutput = () => {
+      const latest = useAppStore.getState().runtimeItemsByIdByThread[threadId]?.[parentItemId];
+      const latestPayload = latest
+        ? getRuntimeItemPayload<ToolCallPayload>(latest, "tool_call")
+        : undefined;
+      return isSubAgentParentActive(latest, latestPayload);
     };
-  }, [threadId, parentItemId, target, applyRuntimeEvents]);
+
+    const unsubscribeViewer = () => {
+      if (unsubscribed) return;
+      // An unconfirmed/legacy release targets the host's parent slot rather
+      // than this viewer id. A newer mounted watcher for the exact target owns
+      // that release (and the host's lease expiry backs up a skipped one).
+      // A confirmed scoped lease always releases its own viewer id.
+      if (!scopedLease && hasNewerMountedDelegatedViewer(watchKey, viewerId)) return;
+      unsubscribed = true;
+      void bridge
+        .subagentUnsubscribe({ threadId, parentItemId, viewerId })
+        .catch((err: unknown) => {
+          console.warn("[subagent] unsubscribe failed", { threadId, parentItemId, err });
+        });
+    };
+
+    const clearRenewal = () => {
+      if (leaseTimer === undefined) return;
+      clearTimeout(leaseTimer);
+      leaseTimer = undefined;
+    };
+
+    const clearRetry = () => {
+      if (retryTimer === undefined) return;
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+    };
+
+    const scheduleRenewal = (leaseMs: number) => {
+      if (closed || stopped || leaseMs <= 0) return;
+      clearRenewal();
+      // Refresh well before the host lease expires; the next timer is scheduled
+      // only from a successful response, keeping one attempt in flight.
+      leaseTimer = setTimeout(
+        () => {
+          leaseTimer = undefined;
+          void attempt();
+        },
+        Math.max(1, Math.floor(leaseMs / 3)),
+      );
+    };
+
+    const scheduleRetry = () => {
+      if (closed || stopped) return;
+      if (!parentCanEmitLiveOutput()) {
+        stopped = true;
+        return;
+      }
+      clearRetry();
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        void attempt();
+      }, retryDelayMs);
+      retryDelayMs = Math.min(15_000, retryDelayMs * 2);
+    };
+
+    const attempt = async () => {
+      if (closed || stopped || inFlight) return;
+      // A completed parent still gets its first one-shot subscribe so a saved
+      // panel can replay legacy history, but never a retry or renewal.
+      if (initialSettled && !parentCanEmitLiveOutput()) {
+        stopped = true;
+        return;
+      }
+      clearRetry();
+      inFlight = true;
+      try {
+        const result = await bridge.subagentSubscribe({
+          threadId,
+          parentItemId,
+          viewerId,
+        });
+        const leaseMs = result.leaseMs;
+        const grantedNow = leaseMs !== undefined && leaseMs > 0;
+        // Record a granted scoped lease before any stale-response guard so a
+        // late valid acknowledgement still releases this viewer id.
+        if (grantedNow) scopedLease = true;
+        // Legacy hosts may return drained history even after the panel closed;
+        // preserve that one-shot delivery before deciding lease cleanup.
+        if (result.history.length > 0) applyRuntimeEvents(threadId, result.history);
+        if (closed || stopped) return;
+        if (grantedNow) {
+          retryDelayMs = 1_000;
+          if (parentCanEmitLiveOutput()) scheduleRenewal(leaseMs);
+          else stopped = true;
+          return;
+        }
+        // Legacy host without a lease: one-shot delivery only, no renewal.
+        retryDelayMs = 1_000;
+      } catch (err: unknown) {
+        if (closed) return;
+        console.warn("[subagent] subscribe attempt failed", { threadId, parentItemId, err });
+        if (stopped) return;
+        if (!parentCanEmitLiveOutput()) {
+          if (scopedLease) stopped = true;
+          return;
+        }
+        scheduleRetry();
+      } finally {
+        inFlight = false;
+        if (!closed && !initialSettled) {
+          initialSettled = true;
+          setHistoryReadyFor(`${threadId}:${parentItemId}`);
+        }
+        // A close or completion before the request settles must not let the
+        // host keep a viewer after the panel or parent has gone.
+        if (closed || stopped) unsubscribeViewer();
+      }
+    };
+
+    const stopWatching = () => {
+      stopped = true;
+      clearRenewal();
+      clearRetry();
+      if (!inFlight) unsubscribeViewer();
+    };
+    stopRenewalRef.current = stopWatching;
+
+    void attempt();
+
+    return () => {
+      closed = true;
+      removeMountedDelegatedViewer(watchKey, viewerId);
+      stopRenewalRef.current = null;
+      clearRenewal();
+      clearRetry();
+      // While an attempt is outstanding, its finally block owns the release.
+      if (!inFlight) unsubscribeViewer();
+    };
+  }, [threadId, parentItemId, applyRuntimeEvents]);
 
   return (
     <PaneVisibility value={visible}>
@@ -136,14 +324,37 @@ function SubAgentTranscript({
   const { t } = useLingui();
   const item = useThreadRuntimeItem(threadId, parentItemId);
   const childEntries = useAppStore(getChildTimelineEntriesStoreSelector(threadId, parentItemId));
+  const thread = useThread(threadId);
+  const project = useProject(thread?.projectId);
+  const hydrationStatus = useAppStore((state) => state.runtimeHydrationStatus[threadId]);
+  const runtimeItemIds = useAppStore((state) => state.runtimeItemIdsByThread[threadId]);
+  const threadsAvailable = useAppStore((state) => state.threads.length > 0);
+  const resolvedProjectLocation =
+    projectLocation ??
+    (thread && project ? resolveProjectLocation(project.location, thread.worktreePath) : undefined);
+  const transcriptImageActions = useThreadTranscriptImageActions(thread, resolvedProjectLocation);
   const target = `${threadId}:${parentItemId}`;
+  // Reload/Back restores this page before the owning thread's persisted history
+  // has necessarily arrived. Only a missing target after hydration settled is
+  // genuinely gone.
+  const waitingForHistory =
+    !item &&
+    (thread !== undefined || !threadsAvailable) &&
+    (hydrationStatus === "pending" ||
+      (hydrationStatus === undefined && runtimeItemIds === undefined));
 
   if (!item) {
     return (
       <Shell title={t`Subagent`} hideHeader={hideHeader} {...(onClose ? { onClose } : {})}>
-        <p className="px-3 py-4 text-sm text-foreground-muted">
-          <Trans>Subagent not found.</Trans>
-        </p>
+        {waitingForHistory ? (
+          <div className="flex h-full min-h-0 items-center justify-center" role="status">
+            <PixelLoader size="lg" />
+          </div>
+        ) : (
+          <p className="px-3 py-4 text-sm text-foreground-muted">
+            <Trans>Subagent not found.</Trans>
+          </p>
+        )}
       </Shell>
     );
   }
@@ -158,7 +369,7 @@ function SubAgentTranscript({
     isCrossagent,
     t`Crossagent`,
   );
-  const isRunning = item.state !== "completed" || payload?.status === "running";
+  const isRunning = isSubAgentParentActive(item, payload);
   const workflow = payload && isWorkflowTool(payload) ? parseWorkflowInfo(payload) : null;
   const workflowProgress: WorkflowOverlayProgress | null = workflow
     ? {
@@ -194,22 +405,24 @@ function SubAgentTranscript({
           itemId={parentItemId}
           workflow={workflow!}
           isRunning={isRunning}
-          projectLocation={projectLocation}
+          projectLocation={resolvedProjectLocation}
         />
       ) : (
-        <SubAgentMessageList
-          key={target}
-          historyReady={childEntries.length > 0 || historyReady}
-          initialScrollRevealDelayMs={initialScrollRevealDelayMs}
-          threadId={threadId}
-          parentItemId={parentItemId}
-          entries={childEntries}
-          stickToBottom={isRunning}
-          turn={turn}
-          crossagentStatus={crossagentStatus}
-          workflow={workflow}
-          workflowProgress={workflowProgress}
-        />
+        <ChatPaneActionsContext.Provider value={transcriptImageActions}>
+          <SubAgentMessageList
+            key={target}
+            historyReady={childEntries.length > 0 || historyReady}
+            initialScrollRevealDelayMs={initialScrollRevealDelayMs}
+            threadId={threadId}
+            parentItemId={parentItemId}
+            entries={childEntries}
+            stickToBottom={isRunning}
+            turn={turn}
+            crossagentStatus={crossagentStatus}
+            workflow={workflow}
+            workflowProgress={workflowProgress}
+          />
+        </ChatPaneActionsContext.Provider>
       )}
     </Shell>
   );

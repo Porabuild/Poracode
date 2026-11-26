@@ -8,6 +8,7 @@ import type { LabRuntime } from "./labRuntime.ts";
 import { validateRouteRequest, type ValidatedRouteRequest } from "./requestValidation.ts";
 import { schemaExample } from "./schemaExamples.ts";
 import { CREW_FIXTURE } from "./crewFixtures.ts";
+import { TRANSCRIPT_PREVIEW_IMAGE } from "../fixtures/tool-taxonomy/media-assets.ts";
 import type { AgentDiscoveryFixture } from "./agentDiscoveryFixture.ts";
 import type { NewsFixture } from "./newsFixture.ts";
 import {
@@ -57,6 +58,10 @@ export class LabRouteWorkspace {
     activeTabId: null as string | null,
   };
   private readonly forwards = new Map<string, Record<string, unknown>>();
+  private readonly runtimeImages = new Map<
+    string,
+    { bytes: Buffer; contentType: string; attachmentName?: string }
+  >();
   private readonly enterTokens = new Map<string, string>();
   private watch: Record<string, unknown> | null = null;
   private pushRegistered = false;
@@ -348,6 +353,19 @@ export class LabRouteWorkspace {
     return structuredClone(this.browserState);
   }
 
+  prepareRuntimeImage(itemId: string): void {
+    this.runtimeImages.set(itemId, {
+      bytes: Buffer.from(TRANSCRIPT_PREVIEW_IMAGE.base64, "base64"),
+      contentType: TRANSCRIPT_PREVIEW_IMAGE.mime,
+    });
+  }
+
+  runtimeImage(
+    itemId: string,
+  ): { bytes: Buffer; contentType: string; attachmentName?: string } | undefined {
+    return this.runtimeImages.get(itemId);
+  }
+
   private forward(targetPort: number): Record<string, unknown> {
     const id = "forward-fixture-001";
     const forward = { id, targetPort, listenPort: 49160, createdAt: 1_786_534_980_000 };
@@ -389,7 +407,11 @@ export async function handleDeterministicRoute(
   }
   if (SPECIAL_ROUTES.has(routeId)) {
     const media =
-      routeId === "file-media" ? runtime.routes.fileMediaForTicket(input.query.ticket) : undefined;
+      routeId === "file-media"
+        ? runtime.routes.fileMediaForTicket(input.query.ticket)
+        : routeId === "runtime-image"
+          ? runtime.routes.runtimeImage(String(input.params.itemId ?? ""))
+          : undefined;
     if (media) {
       await runtime.routes.waitForAttachment();
       if (res.destroyed) return true;

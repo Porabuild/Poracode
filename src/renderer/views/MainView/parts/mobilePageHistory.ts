@@ -22,6 +22,7 @@ const MOBILE_PAGES = new Set<MobileUtilityPage>([
   "pullRequests",
   "schedules",
   "githubActions",
+  "subagent",
   "projectSettings",
   "settings",
 ]);
@@ -43,12 +44,33 @@ interface MobileHistoryEntry {
     readonly projectId: string;
     readonly worktreePath?: string;
   };
+  readonly subagentContext?: SubAgentHistoryContext;
   readonly view?: CompactViewEntry;
+}
+
+interface SubAgentHistoryContext {
+  readonly threadId: string;
+  readonly parentItemId: string;
 }
 
 function readHistoryObject(): Record<string, unknown> {
   const state: unknown = window.history.state;
   return state !== null && typeof state === "object" ? (state as Record<string, unknown>) : {};
+}
+
+/** Only the durable target — never the panel's project location or origin flags. */
+function readSubAgentHistoryContext(candidate: unknown): SubAgentHistoryContext | undefined {
+  if (candidate === null || typeof candidate !== "object") return undefined;
+  const record = candidate as Record<string, unknown>;
+  if (
+    typeof record.threadId !== "string" ||
+    record.threadId.length === 0 ||
+    typeof record.parentItemId !== "string" ||
+    record.parentItemId.length === 0
+  ) {
+    return undefined;
+  }
+  return { threadId: record.threadId, parentItemId: record.parentItemId };
 }
 
 function readCompactViewEntry(candidate: unknown): CompactViewEntry | undefined {
@@ -89,6 +111,12 @@ function readHistoryEntry(): MobileHistoryEntry | null {
   const view = readCompactViewEntry(record.view);
   if (page === undefined && view === undefined) return null;
 
+  const subagentContext = readSubAgentHistoryContext(record.subagentContext);
+  // A malformed subagent page must not discard a valid parent view that was
+  // serialized alongside it. Drop only the unusable page.
+  const usablePage = page === "subagent" && subagentContext === undefined ? undefined : page;
+  if (usablePage === undefined && view === undefined) return null;
+
   const settingsSection =
     typeof record.settingsSection === "string" ? record.settingsSection : undefined;
   const githubCandidate = record.githubActionsContext;
@@ -116,11 +144,12 @@ function readHistoryEntry(): MobileHistoryEntry | null {
   if (page === "projectSettings" && projectSettingsId === undefined) return null;
 
   return {
-    ...(page !== undefined ? { page } : {}),
+    ...(usablePage !== undefined ? { page: usablePage } : {}),
     ...(settingsSection !== undefined ? { settingsSection } : {}),
     ...(githubActionsContext !== undefined ? { githubActionsContext } : {}),
     ...(projectSettingsId !== undefined ? { projectSettingsId } : {}),
     ...(workspaceContext !== undefined ? { workspaceContext } : {}),
+    ...(subagentContext !== undefined && usablePage === "subagent" ? { subagentContext } : {}),
     ...(view !== undefined ? { view } : {}),
   };
 }
@@ -141,7 +170,16 @@ function compactViewFromAppState(view: AppView, focusedPaneId: string | null): C
   return { kind: "home" };
 }
 
-function routeKeyFor(page: MobileUtilityPage | null, view: CompactViewEntry): string {
+function routeKeyFor(
+  page: MobileUtilityPage | null,
+  view: CompactViewEntry,
+  subagentContext?: SubAgentHistoryContext,
+): string {
+  if (page === "subagent") {
+    return subagentContext
+      ? `page:subagent:${subagentContext.threadId}:${subagentContext.parentItemId}`
+      : "page:subagent";
+  }
   if (page !== null) return `page:${page}`;
   if (view.kind === "thread") return `thread:${view.threadId}`;
   if (view.kind === "draft") return `draft:${view.projectId}`;
@@ -153,7 +191,7 @@ function routeKeyFor(page: MobileUtilityPage | null, view: CompactViewEntry): st
 
 function routeKeyFromHistoryEntry(entry: MobileHistoryEntry | null): string {
   if (!entry) return "home";
-  return routeKeyFor(entry.page ?? null, entry.view ?? { kind: "home" });
+  return routeKeyFor(entry.page ?? null, entry.view ?? { kind: "home" }, entry.subagentContext);
 }
 
 /**
@@ -207,7 +245,9 @@ function applyCompactView(view: CompactViewEntry): void {
 
 function applyHistoryEntry(entry: MobileHistoryEntry | null): void {
   const state = usePanelStore.getState();
+  const previousPage = state.mobileUtilityPage;
   const nextPage = entry?.page ?? null;
+  const subagentContext = nextPage === "subagent" ? entry?.subagentContext : undefined;
   if (state.mobileUtilityPage === "terminal" && nextPage !== "terminal") {
     useDevTerminalStore.getState().closePanel();
   }
@@ -225,6 +265,11 @@ function applyHistoryEntry(entry: MobileHistoryEntry | null): void {
     projectSettingsId: nextPage === "projectSettings" ? (entry?.projectSettingsId ?? null) : null,
     // History restores the page, not a one-shot deep link into one of its sections.
     projectSettingsSection: null,
+    ...(nextPage === "subagent" && subagentContext
+      ? { subAgentPanelContext: subagentContext, subAgentPanelOpen: true }
+      : previousPage === "subagent"
+        ? { subAgentPanelContext: null, subAgentPanelOpen: false }
+        : {}),
     ...(nextPage === "workspace" && workspaceContext
       ? { gitReviewContext: workspaceContext }
       : leavingWorkspace
@@ -233,6 +278,14 @@ function applyHistoryEntry(entry: MobileHistoryEntry | null): void {
   });
   if (entry === null) {
     applyCompactView({ kind: "home" });
+  } else if (subagentContext !== undefined) {
+    // Reload/Back/Forward restores the subagent page together with its owning
+    // parent thread. When the catalog has not arrived yet, the page keeps its
+    // loading surface and MobileUtilityPage focuses the thread once it appears.
+    const app = useAppStore.getState();
+    if (app.threads.some((thread) => thread.id === subagentContext.threadId)) {
+      app.openThread(subagentContext.threadId);
+    }
   } else if (entry.view !== undefined) {
     applyCompactView(entry.view);
   }
@@ -244,6 +297,7 @@ function buildHistoryEntry(
   githubActionsContext: GitHubActionsContext | null,
   projectSettingsId: string | null,
   workspaceContext: { readonly projectId: string; readonly worktreePath?: string } | null,
+  subagentContext: SubAgentHistoryContext | null,
   view: CompactViewEntry,
 ): MobileHistoryEntry {
   return {
@@ -252,6 +306,7 @@ function buildHistoryEntry(
     ...(page === "githubActions" && githubActionsContext !== null ? { githubActionsContext } : {}),
     ...(page === "projectSettings" && projectSettingsId !== null ? { projectSettingsId } : {}),
     ...(page === "workspace" && workspaceContext !== null ? { workspaceContext } : {}),
+    ...(page === "subagent" && subagentContext !== null ? { subagentContext } : {}),
     ...(view.kind !== "home" ? { view } : {}),
   };
 }
@@ -267,10 +322,17 @@ export function useMobilePageHistory(compactLayout: boolean): void {
   const githubActionsContext = usePanelStore((state) => state.githubActionsContext);
   const projectSettingsId = usePanelStore((state) => state.projectSettingsId);
   const gitReviewContext = usePanelStore((state) => state.gitReviewContext);
+  const subAgentPanelContext = usePanelStore((state) => state.subAgentPanelContext);
+  const subagentThreadId = subAgentPanelContext?.threadId;
+  const subagentParentItemId = subAgentPanelContext?.parentItemId;
   const appView = useAppStore((state) => state.view);
   const focusedPaneId = useAppStore((state) => state.focusedPaneId);
   const compactView = compactViewFromAppState(appView, focusedPaneId);
-  const routeKey = routeKeyFor(page, compactView);
+  const subagentContext =
+    page === "subagent" && subagentThreadId && subagentParentItemId
+      ? { threadId: subagentThreadId, parentItemId: subagentParentItemId }
+      : null;
+  const routeKey = routeKeyFor(page, compactView, subagentContext ?? undefined);
   const applyingHistoryRef = useRef<{ routeKey: string } | null>(null);
   const previousRouteRef = useRef<string>(routeKey);
   const historyDepthRef = useRef<number>(0);
@@ -306,9 +368,18 @@ export function useMobilePageHistory(compactLayout: boolean): void {
     // Wait for the matching render rather than consuming the restoration and
     // pushing the restored route again on the next commit.
     const liveApp = useAppStore.getState();
+    const livePanel = usePanelStore.getState();
+    const liveSubagentContext =
+      livePanel.mobileUtilityPage === "subagent" && livePanel.subAgentPanelContext
+        ? {
+            threadId: livePanel.subAgentPanelContext.threadId,
+            parentItemId: livePanel.subAgentPanelContext.parentItemId,
+          }
+        : undefined;
     const liveRouteKey = routeKeyFor(
-      usePanelStore.getState().mobileUtilityPage,
+      livePanel.mobileUtilityPage,
       compactViewFromAppState(liveApp.view, liveApp.focusedPaneId),
+      liveSubagentContext,
     );
     if (routeKey !== liveRouteKey) return;
     if (!compactLayout) {
@@ -338,6 +409,10 @@ export function useMobilePageHistory(compactLayout: boolean): void {
             : {}),
         }
       : null;
+    const historySubagentContext =
+      subagentThreadId && subagentParentItemId
+        ? { threadId: subagentThreadId, parentItemId: subagentParentItemId }
+        : null;
     // Closing a utility page while on a thread/draft/etc. must pop the utility
     // page back to the underlying view instead of pushing a duplicate thread
     // entry on top of the closed utility page.
@@ -358,6 +433,7 @@ export function useMobilePageHistory(compactLayout: boolean): void {
                 githubActionsContext,
                 projectSettingsId,
                 workspaceContext,
+                historySubagentContext,
                 compactView,
               ),
             },
@@ -379,6 +455,7 @@ export function useMobilePageHistory(compactLayout: boolean): void {
             githubActionsContext,
             projectSettingsId,
             workspaceContext,
+            historySubagentContext,
             compactView,
           ),
         },
@@ -407,5 +484,7 @@ export function useMobilePageHistory(compactLayout: boolean): void {
     projectSettingsId,
     routeKey,
     settingsSection,
+    subagentParentItemId,
+    subagentThreadId,
   ]);
 }

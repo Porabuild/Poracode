@@ -106,17 +106,28 @@ export const cancelCrossagentRunPayloadSchema = z.object({
   runId: z.string().min(1),
 });
 
+/**
+ * Additive viewer lease (no protocol version bump): older hosts strip the
+ * unknown `viewerId` and keep parent-only subscription semantics; older
+ * clients strip the unknown `leaseMs` from the result. An ID-less request keeps
+ * the exact legacy response `{ history }`.
+ */
 export const subAgentSubscribePayloadSchema = z.object({
   threadId: z.string().min(1),
   parentItemId: z.string().min(1),
+  /** Stable caller-scoped viewer identity; renewals reuse the same UUID. */
+  viewerId: z.uuid().optional(),
 });
 export type SubAgentSubscribePayload = z.infer<typeof subAgentSubscribePayloadSchema>;
 export interface SubAgentSubscribeResult {
   history: RuntimeEvent[];
+  /** Granted lease in milliseconds; absent for legacy parent-only callers. */
+  leaseMs?: number | undefined;
 }
 
 export const subAgentSubscribeResultSchema: z.ZodType<SubAgentSubscribeResult> = z.object({
   history: z.array(runtimeEventSchema),
+  leaseMs: z.number().int().positive().optional(),
 });
 
 export const workflowGetRunPayloadSchema = z.object({

@@ -298,7 +298,12 @@ struct RichChatCompactControlDock: View {
       }
     case .delegatedAgents(let kind):
       RichChatInfoSheet(title: delegatedAgentLabel(kind)) {
-        RichChatDelegatedAgentsView(agents: delegatedAgents.filter { $0.kind == kind }, defersWorkflowPresentation: true)
+        RichChatDelegatedAgentsView(
+          agents: delegatedAgents.filter { $0.kind == kind },
+          defersWorkflowPresentation: true,
+          watchController: suite.delegatedWatch,
+          dismissOnWatch: true
+        )
       }
     case .backgroundTasks:
       RichChatBackgroundTasksSheet(suite: suite, canOperate: canOperate)

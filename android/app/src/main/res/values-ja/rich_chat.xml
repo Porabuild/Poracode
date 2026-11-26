@@ -118,6 +118,8 @@
     <string name="rich_chat_subagent">サブエージェント</string>
     <string name="rich_chat_crossagent">クロスエージェント</string>
     <string name="rich_chat_workflow">ワークフロー</string>
+    <string name="rich_chat_watch_live">ライブで表示</string>
+    <string name="rich_chat_stop_watching">表示を停止</string>
     <string name="rich_chat_activity_count">アクティビティ：%1$d</string>
     <string name="rich_chat_sign_in_required">サインインが必要です</string>
     <string name="rich_chat_plan">プラン</string>

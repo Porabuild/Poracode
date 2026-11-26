@@ -2,7 +2,6 @@ package com.poracode.app.session.richchat
 
 import com.poracode.app.chat.RichFollowUpQueueEnvelope
 import com.poracode.app.chat.RichPendingSteerEnvelope
-import com.poracode.app.chat.RichReducer
 import com.poracode.app.chat.RichRequestQueue
 import com.poracode.app.chat.RichRuntimeEvent
 import com.poracode.app.chat.containsAttachmentSegment

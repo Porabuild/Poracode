@@ -17,6 +17,7 @@ import type { CallToolResult } from "@modelcontextprotocol/client";
 
 interface ImageViewProps {
   item: RuntimeChatItem;
+  threadId?: string;
 }
 const EMPTY_APP_ARGUMENTS: Record<string, unknown> = {};
 
@@ -34,13 +35,15 @@ const EMPTY_APP_ARGUMENTS: Record<string, unknown> = {};
  * renderable image (still running, errored, a user-attachment read, or a
  * non-image "image" tool), so progress and error states still surface normally.
  */
-export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
+export const ImageView = memo(function ImageView({ item, threadId }: ImageViewProps) {
   const payload = item.payload as ToolCallPayload | undefined;
   const actions = useChatPaneActions();
-  const threadId = actions?.threadId;
+  const attachmentThreadId = threadId ?? actions?.threadId;
   const readiness = actions?.remoteImageReadiness;
   const userAttachmentPaths = useAppStore((state) =>
-    threadId ? selectThreadUserAttachmentImagePaths(state, threadId) : EMPTY_USER_ATTACHMENT_PATHS,
+    attachmentThreadId
+      ? selectThreadUserAttachmentImagePaths(state, attachmentThreadId)
+      : EMPTY_USER_ATTACHMENT_PATHS,
   );
   // Keep `sources` referentially stable so `RemoteImageCard` does not resubscribe
   // its host-held image readiness listener on unrelated renders.

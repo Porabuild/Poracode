@@ -313,15 +313,15 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentSubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_ff495aee3e> = .init(id: "procedure.subagentSubscribe.request", schema: RemoteSchemas.schema_ff495aee3e719fab)
+  static let procedureU2ESubagentSubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_830623dd7f> = .init(id: "procedure.subagentSubscribe.request", schema: RemoteSchemas.schema_830623dd7fb1dd6e)
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_1caa7842d1> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_1caa7842d12d0d9e)
+  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_fb8d487dc0> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_fb8d487dc0b16899)
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentUnsubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_ff495aee3e> = .init(id: "procedure.subagentUnsubscribe.request", schema: RemoteSchemas.schema_ff495aee3e719fab)
+  static let procedureU2ESubagentUnsubscribeU2ERequest: RemoteRootCodec<ProceduresubagentSubscribeRequest_830623dd7f> = .init(id: "procedure.subagentUnsubscribe.request", schema: RemoteSchemas.schema_830623dd7fb1dd6e)
 }
 
 public extension RemoteRootCodecs {

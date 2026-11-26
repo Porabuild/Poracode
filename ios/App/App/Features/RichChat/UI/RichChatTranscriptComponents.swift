@@ -4,6 +4,14 @@ import UIKit
 /// PWA-aligned transcript item dispatcher. User prompts, assistant prose,
 /// reasoning, and activity rows each retain a distinct native surface instead
 /// of sharing one generic labeled card.
+/// Only a top-level item may mount an interactive MCP App. Child results in a
+/// delegated transcript stay on the inert activity/image path because their
+/// parent still owns lifecycle actions.
+func interactiveMcpAppPresentation(for item: RichRuntimeItem) -> RichMcpAppPresentation? {
+  guard item.parentItemID == nil else { return nil }
+  return RichMcpAppPresentation(item: item)
+}
+
 struct RichChatTranscriptItemView: View {
   let item: RichRuntimeItem
   let mediaController: RichChatMediaController
@@ -22,7 +30,10 @@ struct RichChatTranscriptItemView: View {
 
   var body: some View {
     Group {
-      if let app = RichMcpAppPresentation(item: item) {
+      // A child result belongs to a delegated transcript whose parent still
+      // owns lifecycle actions. Only a top-level item may mount the
+      // interactive MCP App; children use the inert activity/image path.
+      if let app = interactiveMcpAppPresentation(for: item) {
         RichChatMcpAppView(app: app, actions: actions, fallback: bodyText).id(item.id)
       } else {
       switch item.type {

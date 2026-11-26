@@ -123,6 +123,8 @@
     <string name="rich_chat_subagent">Subagent</string>
     <string name="rich_chat_crossagent">Crossagent</string>
     <string name="rich_chat_workflow">Workflow</string>
+    <string name="rich_chat_watch_live">Watch live</string>
+    <string name="rich_chat_stop_watching">Stop watching</string>
     <string name="rich_chat_activity_count">Activity: %1$d</string>
     <string name="rich_chat_sign_in_required">Sign in required</string>
     <string name="rich_chat_plan">Plan</string>

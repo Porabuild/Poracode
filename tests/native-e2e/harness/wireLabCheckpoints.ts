@@ -9,6 +9,7 @@ import {
 } from "./composerFixtures.ts";
 import { crewAgentEvents } from "./crewFixtures.ts";
 import { modelVisibilityAgentEvents } from "./modelVisibilityFixtures.ts";
+import { installDelegatedWatchFixture } from "./delegatedWatchFixtures.ts";
 
 /** Controlled stories stay separate from peer ownership and transport lifecycle. */
 export function applyLabCheckpoint(lab: WireLab, id: CheckpointFixtureId): void {
@@ -171,6 +172,11 @@ export function applyLabCheckpoint(lab: WireLab, id: CheckpointFixtureId): void 
   }
   if (id === "transcript-image-ready" || id === "transcript-image-gallery-ready") {
     lab.lifecycle.prepareTranscriptImage(id === "transcript-image-gallery-ready");
+    return;
+  }
+  if (id === "delegated-watch-ready") {
+    lab.lifecycle.prepareDelegatedWatch();
+    installDelegatedWatchFixture(lab);
     return;
   }
   if (id === "project-notes-ready") {

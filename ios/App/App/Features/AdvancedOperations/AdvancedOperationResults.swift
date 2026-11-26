@@ -56,6 +56,8 @@ struct AdvancedFinalizeFileCheckpointResult: Codable, Equatable, Sendable {
 
 struct AdvancedSubagentSubscribeResult: Codable, Equatable, Sendable {
   let history: [AdvancedRuntimeEvent]
+  /// Additive viewer lease; absent for legacy hosts and ID-less callers.
+  let leaseMs: Int64?
 }
 
 struct AdvancedWorkflowAgentChatResult: Codable, Equatable, Sendable {

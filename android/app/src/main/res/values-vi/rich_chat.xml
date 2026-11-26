@@ -123,6 +123,8 @@
     <string name="rich_chat_subagent">Tác nhân phụ</string>
     <string name="rich_chat_crossagent">Tác nhân chéo</string>
     <string name="rich_chat_workflow">Quy trình làm việc</string>
+    <string name="rich_chat_watch_live">Xem trực tiếp</string>
+    <string name="rich_chat_stop_watching">Dừng xem</string>
     <string name="rich_chat_activity_count">Hoạt động: %1$d</string>
     <string name="rich_chat_sign_in_required">Cần đăng nhập</string>
     <string name="rich_chat_plan">Kế hoạch</string>

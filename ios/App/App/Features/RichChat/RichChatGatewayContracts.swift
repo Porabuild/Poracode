@@ -290,6 +290,42 @@ protocol RichChatTerminalGateway: Sendable {
   func stopRichTerminalTransport(target: RichChatThreadTarget) async
 }
 
+/// One scoped viewer lease for an active delegated agent roster row. The host
+/// drains child events into the normal live stream; `history` is the legacy
+/// one-shot replay and `leaseMs` is absent on hosts that predate leases.
+struct RichChatDelegatedWatchResult: Equatable, Sendable {
+  let history: [RichRuntimeEvent]
+  let leaseMs: Int64?
+}
+
+protocol RichChatDelegatedWatchGateway: Sendable {
+  func subscribeRichDelegatedAgent(
+    target: RichChatThreadTarget,
+    parentItemID: String,
+    viewerID: String
+  ) async throws -> RichChatDelegatedWatchResult
+  func unsubscribeRichDelegatedAgent(
+    target: RichChatThreadTarget,
+    parentItemID: String,
+    viewerID: String
+  ) async throws
+}
+
+extension RichChatDelegatedWatchGateway {
+  func subscribeRichDelegatedAgent(
+    target _: RichChatThreadTarget,
+    parentItemID _: String,
+    viewerID _: String
+  ) async throws -> RichChatDelegatedWatchResult {
+    throw RichChatGatewayError.unavailable
+  }
+  func unsubscribeRichDelegatedAgent(
+    target _: RichChatThreadTarget,
+    parentItemID _: String,
+    viewerID _: String
+  ) async throws {}
+}
+
 extension RichChatHistoryGateway {
   func loadRichTurns(
     target _: RichChatThreadTarget,
@@ -316,5 +352,6 @@ protocol RichChatSessionGateway:
   RichChatRequestGateway,
   RichChatTerminalGateway,
   RichChatNoticeGateway,
-  RichChatSessionActionsGateway
+  RichChatSessionActionsGateway,
+  RichChatDelegatedWatchGateway
 {}

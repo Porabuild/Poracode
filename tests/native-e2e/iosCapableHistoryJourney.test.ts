@@ -360,6 +360,21 @@ describe("ios capable-history xctestrun environment injection", () => {
     expect(injected).toContain("<key>ParallelizationEnabled</key>");
   });
 
+  it("accepts an absent or already-serial parallelization key under the explicit CLI flag", () => {
+    const withoutKey = generated.replace(
+      "\n\t\t\t\t\t<key>ParallelizationEnabled</key>\n\t\t\t\t\t<true/>",
+      "",
+    );
+    const absent = injectIosXctestEnvironment(withoutKey, { PROBE: "yes" });
+    expect(absent).toContain("<key>PROBE</key>");
+    expect(absent).not.toContain("<key>ParallelizationEnabled</key>");
+
+    const alreadyFalse = generated.replace("<true/>", "<false/>");
+    const serial = injectIosXctestEnvironment(alreadyFalse, { PROBE: "yes" });
+    expect(serial).toContain("<key>PROBE</key>");
+    expect(serial).toContain("<key>ParallelizationEnabled</key>\n\t\t\t\t\t<false/>");
+  });
+
   it("refuses a plist without the NativeE2ETests blueprint", () => {
     expect(() => injectIosXctestEnvironment("<plist><dict/></plist>", {})).toThrow(
       /xctestrun-blueprint-missing/,

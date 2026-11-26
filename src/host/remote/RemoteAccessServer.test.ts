@@ -4284,11 +4284,19 @@ describe("RemoteAccessServer", () => {
   });
 
   it("allows paired clients to subscribe to subagent overlay streams through the remote bridge", async () => {
-    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
-      if (name === "subagentSubscribe") return { history: [] } as never;
-      if (name === "subagentUnsubscribe") return undefined as never;
-      throw new Error(`unexpected supervisor call: ${name}`);
-    });
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async (name, payload) => {
+        if (name === "subagentSubscribe") {
+          return (
+            "viewerId" in (payload as Record<string, unknown>)
+              ? { history: [], leaseMs: 90_000 }
+              : { history: [] }
+          ) as never;
+        }
+        if (name === "subagentUnsubscribe") return undefined as never;
+        throw new Error(`unexpected supervisor call: ${name}`);
+      },
+    );
     const server = createTestServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
@@ -4321,6 +4329,29 @@ describe("RemoteAccessServer", () => {
       parentItemId: "agent-1",
     });
 
+    const viewerId = "11111111-1111-4111-8111-111111111111";
+    const viewerResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "subagentSubscribe",
+        payload: { threadId: "thread-1", parentItemId: "agent-1", viewerId },
+      }),
+    });
+    expect(viewerResponse.status).toBe(200);
+    await expect(viewerResponse.json()).resolves.toEqual({
+      result: { history: [], leaseMs: 90_000 },
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("subagentSubscribe", {
+      threadId: "thread-1",
+      parentItemId: "agent-1",
+      viewerId,
+    });
+
     const unsubscribeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
@@ -4339,6 +4370,26 @@ describe("RemoteAccessServer", () => {
     expect(callSupervisor).toHaveBeenCalledWith("subagentUnsubscribe", {
       threadId: "thread-1",
       parentItemId: "agent-1",
+    });
+
+    const scopedUnsubscribeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "subagentUnsubscribe",
+        payload: { threadId: "thread-1", parentItemId: "agent-1", viewerId },
+      }),
+    });
+    expect(scopedUnsubscribeResponse.status).toBe(200);
+    await expect(scopedUnsubscribeResponse.json()).resolves.toEqual({});
+    expect(callSupervisor).toHaveBeenCalledWith("subagentUnsubscribe", {
+      threadId: "thread-1",
+      parentItemId: "agent-1",
+      viewerId,
     });
   });
 

@@ -158,12 +158,14 @@ sealed interface ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117 {
 }
 
 @Serializable
-data class ProceduresubagentSubscribeResult_1caa7842d1(
+data class ProceduresubagentSubscribeResult_fb8d487dc0(
     @SerialName("history") val history: List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117>,
+    @SerialName("leaseMs") val leaseMs: RemoteField<Long> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("history", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_db70082117>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("leaseMs", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

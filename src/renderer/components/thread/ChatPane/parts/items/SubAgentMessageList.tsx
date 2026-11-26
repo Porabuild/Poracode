@@ -144,6 +144,7 @@ function MountedSubAgentMessageList({
         isTurnActive={stickToBottom}
         markTailAsLive={stickToBottom}
         canRevertCheckpoints={false}
+        measureInlineImageRows
         drawDistance={100}
         setScrollContainer={setScrollContainer}
         scrollContentRef={contentRef}

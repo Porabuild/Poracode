@@ -48,6 +48,7 @@ import {
   transcriptVideoItems,
   transcriptWideTableItems,
 } from "./lifecycleTranscriptFixtures.ts";
+import { prepareDelegatedWatchItems } from "./delegatedWatchFixtures.ts";
 import {
   applyDesktopProjectActionsEdit,
   applyProjectActionsFixture,
@@ -243,6 +244,10 @@ export class LabLifecycleState {
 
   prepareTranscriptImage(withGallery = false): void {
     this.setFinishedItems(transcriptImageItems(withGallery));
+  }
+
+  prepareDelegatedWatch(): void {
+    this.runtimeItems = prepareDelegatedWatchItems(this.thread);
   }
 
   prepareToolPresentation(options?: Parameters<typeof toolPresentationItems>[0]): void {

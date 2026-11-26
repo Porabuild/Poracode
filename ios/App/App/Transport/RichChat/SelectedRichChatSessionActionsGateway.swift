@@ -21,3 +21,27 @@ extension SelectedRichChatSessionGateway: RichChatSessionActionsGateway {
     }
   }
 }
+
+extension SelectedRichChatSessionGateway: RichChatDelegatedWatchGateway {
+  func subscribeRichDelegatedAgent(
+    target: RichChatThreadTarget,
+    parentItemID: String,
+    viewerID: String
+  ) async throws -> RichChatDelegatedWatchResult {
+    try await executeRead(target: target, capability: .sessionRead) { api in
+      try await api.richSubagentSubscribe(
+        threadID: target.threadID, parentItemID: parentItemID, viewerID: viewerID)
+    }
+  }
+
+  func unsubscribeRichDelegatedAgent(
+    target: RichChatThreadTarget,
+    parentItemID: String,
+    viewerID: String
+  ) async throws {
+    try await executeMutation(target: target, capability: .sessionRead) { api in
+      try await api.richSubagentUnsubscribe(
+        threadID: target.threadID, parentItemID: parentItemID, viewerID: viewerID)
+    }
+  }
+}

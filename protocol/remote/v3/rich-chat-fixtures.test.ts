@@ -212,12 +212,39 @@ describe("remote v3 rich chat fixture foundation", () => {
       snapshot.runtimeItems
         .filter((item) => item.parentItemId)
         .map((item) => byId.get(item.parentItemId ?? "")?.type),
-    ).toEqual(["tool_call", "tool_call"]);
+    ).toEqual(["tool_call", "tool_call", "tool_call", "tool_call"]);
+    const subagentParent = byId.get("rich-parent-tool");
+    const crossagentParent = byId.get("rich-crossagent-parent-tool");
+    expect(subagentParent?.state).toBe("completed");
+    expect(crossagentParent?.state).toBe("completed");
+    expect(object(subagentParent?.payload, "subagent parent payload").isSubAgent).toBe(true);
+    expect(object(crossagentParent?.payload, "crossagent parent payload")).toMatchObject({
+      isCrossagent: true,
+      crossagentStatus: "completed",
+    });
+    const imageRef = (itemId: string) => {
+      const item = byId.get(itemId);
+      const payload = object(item?.payload, `${itemId} payload`);
+      const result = object(payload.result, `${itemId} result`);
+      const content = array(result.content, `${itemId} content`);
+      return readRemoteImageRef(object(content[0], `${itemId} image block`).data);
+    };
+    for (const itemId of ["rich-child-image", "rich-crossagent-child-image"]) {
+      expect(imageRef(itemId)).toMatchObject({
+        threadId: "thread-rich",
+        itemId,
+        path: ["result", "content", 0, "data"],
+        mime: "image/png",
+        bytes: 65_536,
+        width: 880,
+        height: 700,
+      });
+    }
     for (const turn of snapshot.completedTurns) {
       persistedCompletedTurnSchema.parse(turn);
       expect(turn.anchorItemId && byId.get(turn.anchorItemId)?.parentItemId).toBeUndefined();
     }
-    expect(snapshot.runtimeItems.filter((item) => item.parentItemId)).toHaveLength(2);
+    expect(snapshot.runtimeItems.filter((item) => item.parentItemId)).toHaveLength(4);
     expect(snapshot.completedTurns.map((turn) => turn.anchorItemId)).toEqual([
       "rich-assistant-1",
       "rich-assistant-2",

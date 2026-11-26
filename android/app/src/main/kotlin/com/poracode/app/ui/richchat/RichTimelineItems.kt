@@ -218,7 +218,14 @@ private fun RichActivityRow(item: RichRuntimeItem, text: String, runtime: RichCh
         (resolvedItem.payload as? kotlinx.serialization.json.JsonObject)
             ?.get("detailsDeferred") == kotlinx.serialization.json.JsonPrimitive(true)
     val needsDeferredFetch = isDeferred && resolvedItem.id !in advisoryState.fullItemsByItemId
-    val mcpApp = com.poracode.app.chat.McpAppPresentation.from(resolvedItem)
+    // Child results belong to a delegated transcript whose parent still owns
+    // lifecycle actions. Only a top-level item may mount the interactive MCP
+    // App; children use the inert activity/image path.
+    val mcpApp = if (resolvedItem.parentItemId == null) {
+        com.poracode.app.chat.McpAppPresentation.from(resolvedItem)
+    } else {
+        null
+    }
     val images = RichChatUiLogic.images(resolvedItem)
     val isError = resolvedItem.type == RichItemTypes.ERROR
     val expandedByDefault = isError || resolvedItem.type == RichItemTypes.PLAN || resolvedItem.type == RichItemTypes.GOAL

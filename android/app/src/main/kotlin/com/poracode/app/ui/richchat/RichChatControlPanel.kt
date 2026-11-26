@@ -46,16 +46,33 @@ internal fun RichChatControlPanel(
     modifier: Modifier,
     /** The phone dock renders the task section inline; its sheet omits the duplicate. */
     showBackgroundTasks: Boolean = true,
+    /** Compact sheets dismiss after Watch live so the chat is immediately visible. */
+    onDelegatedWatchStarted: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val backgroundTaskStop by runtime.backgroundTasks.stop.collectAsStateWithLifecycle()
+    // The roster must react to reconnect/offline transitions even when the
+    // watch lease state itself has not changed.
+    val watchForeground by runtime.foreground.collectAsStateWithLifecycle()
+    val watchHost by runtime.hostLease.collectAsStateWithLifecycle()
+    val watchSelection by runtime.chat.selection.collectAsStateWithLifecycle()
+    val canStartWatch = com.poracode.app.session.richchat.delegatedWatchCanStart(
+        foreground = watchForeground,
+        selection = watchSelection,
+        host = watchHost,
+    )
     val delegatedAgents = RichChatRuntimeInfo.activeDelegatedAgents(items)
     val recentErrors = RichChatRuntimeInfo.recentErrors(items)
     val authenticationRequired = RichChatRuntimeInfo.authenticationRequired(agentStatus, recentErrors)
     val visibleErrors = RichChatRuntimeInfo.visibleRecentErrors(recentErrors, agentStatus)
     val plan = RichChatRuntimeInfo.latestActivePlan(items)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        RichDelegatedAgentsCard(delegatedAgents)
+        RichDelegatedAgentsCard(
+            agents = delegatedAgents,
+            watchController = runtime.delegatedWatch,
+            canStartWatch = canStartWatch,
+            onWatchStarted = onDelegatedWatchStarted,
+        )
         if (authenticationRequired && agentStatus != null) {
             RichAuthenticationRequiredCard(agentStatus, onOpenAgentSettings)
         }

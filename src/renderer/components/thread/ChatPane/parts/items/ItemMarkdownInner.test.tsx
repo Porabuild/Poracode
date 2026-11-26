@@ -395,6 +395,27 @@ describe("ItemMarkdownInner", () => {
     expect(container.textContent).toContain("See the guide for details");
   });
 
+  it("keeps an explicit folder chip for Home-scope actions that can open files", () => {
+    const homeActions: ChatPaneActions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
+    };
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={homeActions}>
+          <ItemMarkdownInner
+            text={`[Guide](${pathRefUrl({ kind: "folder", path: "/tmp/project/docs" })})`}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chip = container.querySelector(".poracode-inline-path-chip");
+    expect(chip).not.toBeNull();
+    expect(chip?.getAttribute("title")).toBe("/tmp/project/docs");
+    expect(chip?.textContent).toContain("/tmp/project/docs");
+    expect(container.querySelector("a")).toBeNull();
+  });
+
   it.each([
     { refreshRate: 60, initial: "Hello" },
     { refreshRate: 120, initial: "Hello" },
@@ -806,6 +827,53 @@ describe("ItemMarkdownInner", () => {
     expect(src).toContain("E%253A%255Cwork");
     expect(src).toContain(".grok");
     expect(src).not.toContain("sdsle.grok");
+  });
+
+  it("uses an image-only markdown root without enabling file actions", () => {
+    const actions = {
+      markdownImageRoot: "/tmp/project",
+    } as ChatPaneActions;
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner
+            text={"![Screenshot](images/screenshot.png)\n\n[Report](docs/report.pdf)"}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    expect(screen.getByAltText("Screenshot")).toHaveAttribute(
+      "src",
+      "poracode-local://local/tmp/project/images/screenshot.png",
+    );
+    expect(screen.getByText("report.pdf")).toBeInTheDocument();
+  });
+
+  it("keeps explicit local path links inert in an image-only markdown context", () => {
+    const actions = {
+      markdownImageRoot: "/tmp/project",
+    } as ChatPaneActions;
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner
+            text={
+              "![Screenshot](images/screenshot.png)\n\n[Report](poracode:path:v2/%2Ftmp%2Freport.pdf)"
+            }
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    expect(screen.getByAltText("Screenshot")).toHaveAttribute(
+      "src",
+      "poracode-local://local/tmp/project/images/screenshot.png",
+    );
+    expect(screen.getByText("Report")).toBeInTheDocument();
+    expect(screen.queryByText("report.pdf")).not.toBeInTheDocument();
   });
 
   it("renders project-relative markdown image paths via the local file protocol", () => {

@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_8fd899986e6ebd80: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("action", "catalogId"), properties = mapOf("action" to schema_231ec8a79bbdd4ae, "catalogId" to schema_d855999aed5e6438), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
+}
+
 internal val schema_902ee7904a410968: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("page"), JsonPrimitive("inventory")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

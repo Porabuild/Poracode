@@ -368,3 +368,129 @@ describe("SubAgentRegistry", () => {
     ]);
   });
 });
+
+describe("scoped subagent viewer leases", () => {
+  const threadId = "t1";
+  const parentId = "task-1";
+  const viewerA = "11111111-1111-4111-8111-111111111111";
+  const viewerB = "22222222-2222-4222-8222-222222222222";
+
+  function childEvent(itemId: string): RuntimeEvent {
+    return {
+      type: "item.started",
+      threadId,
+      itemId,
+      itemType: "assistant_message",
+      parentItemId: parentId,
+    };
+  }
+
+  it("drains one buffered prefix, renews the same viewer, and releases only matching ids", () => {
+    let now = 1_000;
+    const registry = new SubAgentRegistry({ now: () => now });
+    registry.bufferEvent(threadId, parentId, childEvent("child-1"));
+
+    expect(registry.subscribeWithLease(threadId, parentId, viewerA)).toEqual({
+      history: [childEvent("child-1")],
+      leaseMs: 90_000,
+    });
+    now += 30_000;
+    expect(registry.subscribeWithLease(threadId, parentId, viewerA)).toEqual({
+      history: [],
+      leaseMs: 90_000,
+    });
+    expect(registry.subscribeWithLease(threadId, parentId, viewerB)).toEqual({
+      history: [],
+      leaseMs: 90_000,
+    });
+    expect(registry.isSubscribed(threadId, parentId)).toBe(true);
+
+    registry.unsubscribe(threadId, parentId, "unknown-viewer");
+    expect(registry.isSubscribed(threadId, parentId)).toBe(true);
+    // Legacy release cannot evict scoped viewers.
+    registry.unsubscribe(threadId, parentId);
+    expect(registry.isSubscribed(threadId, parentId)).toBe(true);
+    registry.unsubscribe(threadId, parentId, viewerA);
+    expect(registry.isSubscribed(threadId, parentId)).toBe(true);
+    registry.unsubscribe(threadId, parentId, viewerB);
+    expect(registry.isSubscribed(threadId, parentId)).toBe(false);
+  });
+
+  it("expires lazily and extends the lease on same-id renewal", () => {
+    let now = 0;
+    const registry = new SubAgentRegistry({ now: () => now });
+    registry.subscribeWithLease(threadId, parentId, viewerA);
+    now = 89_000;
+    expect(registry.subscribeWithLease(threadId, parentId, viewerA).leaseMs).toBe(90_000);
+    now = 178_000;
+    expect(registry.isSubscribed(threadId, parentId)).toBe(true);
+    now = 179_001;
+    expect(registry.isSubscribed(threadId, parentId)).toBe(false);
+
+    registry.bufferEvent(threadId, parentId, childEvent("child-2"));
+    expect(registry.subscribeWithLease(threadId, parentId, viewerB)).toEqual({
+      history: [childEvent("child-2")],
+      leaseMs: 90_000,
+    });
+  });
+
+  it("checks and prunes only the requested parent's expiry", () => {
+    let now = 0;
+    const registry = new SubAgentRegistry({ now: () => now });
+    registry.subscribeWithLease("a", parentId, viewerA);
+    now = 50_000;
+    registry.subscribeWithLease("b", parentId, viewerB);
+    now = 100_000;
+
+    expect(registry.isSubscribed("a", parentId)).toBe(false);
+    expect(registry.isSubscribed("b", parentId)).toBe(true);
+    expect(registry.liveViewerLeaseCount()).toBe(1);
+  });
+
+  it("bounds live admissions globally and frees only expired entries", () => {
+    let now = 0;
+    const registry = new SubAgentRegistry({ now: () => now, maxLiveViewers: 2 });
+    registry.subscribeWithLease("a", parentId, viewerA);
+    registry.subscribeWithLease("b", parentId, viewerB);
+    expect(() =>
+      registry.subscribeWithLease("c", parentId, "33333333-3333-4333-8333-333333333333"),
+    ).toThrow(/Too many active subagent viewers/);
+    expect(registry.isSubscribed("a", parentId)).toBe(true);
+    expect(registry.isSubscribed("b", parentId)).toBe(true);
+    expect(registry.isSubscribed("c", parentId)).toBe(false);
+
+    now = 90_001;
+    expect(() =>
+      registry.subscribeWithLease("c", parentId, "33333333-3333-4333-8333-333333333333"),
+    ).not.toThrow();
+    expect(registry.liveViewerLeaseCount()).toBe(1);
+  });
+
+  it("passes a granted lease through the router while legacy callers keep the exact shape", () => {
+    const { router, emit } = makeRouter();
+    expect(router.subscribeWithLease(threadId, parentId, viewerA)).toEqual({
+      history: [],
+      leaseMs: 90_000,
+    });
+    expect(router.subscribeWithLease(threadId, parentId)).toEqual({ history: [] });
+    expect(router.subscribe(threadId, parentId)).toEqual([]);
+
+    router.append(threadId, childEvent("child-live"));
+    router.flush();
+    expect(collectEmittedRuntimeEvents(emit)).toEqual([childEvent("child-live")]);
+  });
+
+  it("clears legacy and scoped subscriptions on parent completion or thread close", () => {
+    const registry = new SubAgentRegistry();
+    registry.subscribe(threadId, parentId);
+    registry.subscribeWithLease(threadId, parentId, viewerA);
+    expect(registry.isSubscribed(threadId, parentId)).toBe(true);
+    registry.clear(threadId, parentId);
+    expect(registry.isSubscribed(threadId, parentId)).toBe(false);
+
+    registry.subscribe(threadId, parentId);
+    registry.subscribeWithLease(threadId, parentId, viewerB);
+    registry.clearAllForThread(threadId);
+    expect(registry.isSubscribed(threadId, parentId)).toBe(false);
+  });
+});

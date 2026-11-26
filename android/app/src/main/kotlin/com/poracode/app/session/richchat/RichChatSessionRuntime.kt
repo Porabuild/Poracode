@@ -56,6 +56,16 @@ class RichChatSessionRuntime(
         lifecycle,
         sessionActions::invoke,
     )
+    /** One selected delegated parent watch, shared by phone dock and inspector. */
+    val delegatedWatch = RichChatDelegatedWatchController(
+        session = session,
+        selection = chat.selection,
+        chat = chat,
+        gateway = gateway,
+        lifecycle = lifecycle,
+        scope = scope,
+        watchIdFactory = watchIdFactory,
+    )
     private val mutableForeground = MutableStateFlow(true)
     /** App foreground state for poll loops; true only while rich-chat operations may run. */
     val foreground: StateFlow<Boolean> = mutableForeground.asStateFlow()
@@ -97,6 +107,7 @@ class RichChatSessionRuntime(
         checkpoints.reset()
         sessionActions.reset()
         backgroundTasks.reset()
+        delegatedWatch.reset()
         return chat.selectThread(threadId)
     }
 
@@ -107,6 +118,7 @@ class RichChatSessionRuntime(
         checkpoints.reset()
         sessionActions.reset()
         backgroundTasks.reset()
+        delegatedWatch.reset()
         chat.closeThread()
     }
 
@@ -120,6 +132,7 @@ class RichChatSessionRuntime(
         checkpoints.reset()
         sessionActions.reset()
         backgroundTasks.reset()
+        delegatedWatch.reset()
         if (chat.selection.value != null) chat.closeThread()
     }
 
@@ -136,6 +149,7 @@ class RichChatSessionRuntime(
         checkpoints.reset()
         sessionActions.reset()
         backgroundTasks.reset()
+        delegatedWatch.reset()
         if (chat.selection.value != null) chat.closeThread()
         val state = terminal.state.value
         if (state.lease?.terminalId == terminalId &&
@@ -158,6 +172,7 @@ class RichChatSessionRuntime(
         cancelRefresh()
         checkpoints.reset()
         backgroundTasks.reset()
+        delegatedWatch.reset()
         if (chat.selection.value != null) chat.closeThread()
         terminalJob?.cancel()
         terminalJob = scope.launch {
@@ -327,6 +342,7 @@ class RichChatSessionRuntime(
         terminalJob?.cancel()
         terminalJob = null
         mutableForeground.value = false
+        delegatedWatch.reset()
         media.enterBackground()
         backgroundTasks.reset()
         terminal.enterBackground()
@@ -361,6 +377,7 @@ class RichChatSessionRuntime(
             checkpoints.reset()
             sessionActions.reset()
             backgroundTasks.reset()
+            delegatedWatch.reset()
         }
         val terminalLease = terminal.state.value.lease ?: return
         val current = session.value

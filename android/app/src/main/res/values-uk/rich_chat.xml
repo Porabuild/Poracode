@@ -118,6 +118,8 @@
     <string name="rich_chat_subagent">Субагент</string>
     <string name="rich_chat_crossagent">Кросагент</string>
     <string name="rich_chat_workflow">Робочий процес</string>
+    <string name="rich_chat_watch_live">Дивитися наживо</string>
+    <string name="rich_chat_stop_watching">Припинити перегляд</string>
     <string name="rich_chat_activity_count">Дії: %1$d</string>
     <string name="rich_chat_sign_in_required">Потрібно ввійти</string>
     <string name="rich_chat_plan">План</string>

@@ -46,6 +46,79 @@
       "parentItemId": "rich-parent-tool"
     },
     {
+      "id": "rich-child-image",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "screenshot",
+        "status": "success",
+        "result": {
+          "content": [
+            {
+              "type": "image",
+              "mimeType": "image/png",
+              "data": {
+                "__poracodeImageRef": {
+                  "threadId": "thread-rich",
+                  "itemId": "rich-child-image",
+                  "path": ["result", "content", 0, "data"],
+                  "mime": "image/png",
+                  "bytes": 65536,
+                  "width": 880,
+                  "height": 700
+                }
+              }
+            }
+          ]
+        }
+      },
+      "streams": {},
+      "parentItemId": "rich-parent-tool"
+    },
+    {
+      "id": "rich-crossagent-parent-tool",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "Crossagent",
+        "status": "success",
+        "isCrossagent": true,
+        "crossagentStatus": "completed",
+        "result": { "summary": "Crossagent finished" }
+      },
+      "streams": {}
+    },
+    {
+      "id": "rich-crossagent-child-image",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "screenshot",
+        "status": "success",
+        "result": {
+          "content": [
+            {
+              "type": "image",
+              "mimeType": "image/png",
+              "data": {
+                "__poracodeImageRef": {
+                  "threadId": "thread-rich",
+                  "itemId": "rich-crossagent-child-image",
+                  "path": ["result", "content", 0, "data"],
+                  "mime": "image/png",
+                  "bytes": 65536,
+                  "width": 880,
+                  "height": 700
+                }
+              }
+            }
+          ]
+        }
+      },
+      "streams": {},
+      "parentItemId": "rich-crossagent-parent-tool"
+    },
+    {
       "id": "rich-assistant-2",
       "type": "assistant_message",
       "state": "completed",

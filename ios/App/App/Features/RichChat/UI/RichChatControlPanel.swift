@@ -107,7 +107,9 @@ struct RichChatControlPanel: View {
           saved: savedCrews.first { $0.id == crew.crewID }, items: items, openCrew: openCrew)
       }
     case .agents:
-      RichChatDelegatedAgentsView(agents: agents, embedded: true)
+      RichChatDelegatedAgentsView(
+        agents: agents, embedded: true, watchController: suite.delegatedWatch
+      )
     case .backgroundTasks:
       RichChatBackgroundTasksPanel(suite: suite, tasks: tasks, canOperate: canOperate, embedded: true)
     case .info:

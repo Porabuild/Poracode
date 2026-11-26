@@ -12904,6 +12904,7 @@ msgstr "Chỉ nguồn chính thức"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/views/MainView/parts/MobileUtilityPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -16183,6 +16184,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+#: src/renderer/views/MainView/parts/MobileUtilityPage.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
@@ -18800,10 +18802,12 @@ msgstr "Mức nỗ lực suy luận của tác nhân phụ"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/views/MainView/parts/MainPageLayout.tsx
 msgid "Subagent"
 msgstr "Tác nhân phụ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/views/MainView/parts/MobileUtilityPage.tsx
 msgid "Subagent not found."
 msgstr "Không tìm thấy tác nhân phụ."
 

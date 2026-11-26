@@ -83,14 +83,16 @@ data class ProcedurestageThreadInputRequest_d4db039cba(
 }
 
 @Serializable
-data class ProceduresubagentSubscribeRequest_ff495aee3e(
+data class ProceduresubagentSubscribeRequest_830623dd7f(
     @SerialName("parentItemId") val parentItemId: String,
     @SerialName("threadId") val threadId: String,
+    @SerialName("viewerId") val viewerId: RemoteField<String> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("parentItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("viewerId", "String", false, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)\$", "uuid", listOf()),
         ), listOf())
     }
 }

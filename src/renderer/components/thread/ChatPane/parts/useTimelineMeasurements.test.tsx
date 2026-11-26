@@ -52,7 +52,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function fixture(width: number, font = "14px", sizes = new Map([["stable", 184]])) {
+function fixture(width: number, font = "14px", sizes = new Map([["stable", 184]]), enabled = true) {
   const readSizes = vi.fn<() => { sizes: Map<string, number> }>(() => ({ sizes }));
   const setItemSize = vi.fn<(key: string, size: { height: number; width: number }) => void>();
   const list = { getState: readSizes, setItemSize } as unknown as LegendListRef;
@@ -88,6 +88,7 @@ function fixture(width: number, font = "14px", sizes = new Map([["stable", 184]]
       entriesRef,
       listRef,
       scrollElementRef,
+      enabled,
     });
     useLayoutEffect(() => {
       controller.element = scrollElementRef.current!;
@@ -190,6 +191,25 @@ describe("timeline measurement lifecycle", () => {
       height: 184,
       width: 500,
     });
+  });
+
+  it("keeps the main snapshot when a delegated list detaches", () => {
+    const main = fixture(500);
+    main.snapshot();
+    expect(readTimelineMeasurements("t", "500:14px")).toEqual([
+      { key: "stable", index: 0, size: 184 },
+    ]);
+
+    const delegatedSizes = new Map<string, number>();
+    const delegated = fixture(500, "14px", delegatedSizes, false);
+    expect(delegated.setItemSize).not.toHaveBeenCalled();
+    delegatedSizes.set("stable", 71);
+    delegated.snapshot();
+    delegated.view.unmount();
+
+    expect(readTimelineMeasurements("t", "500:14px")).toEqual([
+      { key: "stable", index: 0, size: 184 },
+    ]);
   });
 
   it("retires confirmed catalog removal and does not resave its measurements", () => {
