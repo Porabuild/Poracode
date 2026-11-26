@@ -1,9 +1,10 @@
-import { fireEvent, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import type { AgentStatus, Thread } from "@/shared/contracts";
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AgentStatus, Project, Thread } from "@/shared/contracts";
 import type { SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { ActiveSubAgentRow } from "./ChatPane/parts/items/ActiveSubAgentTile";
@@ -57,6 +58,13 @@ const thread = {
   updatedAt: "2026-10-01T00:00:00.000Z",
 } as unknown as Thread;
 
+const localProject = {
+  id: "project-1",
+  name: "Local repo",
+  location: { kind: "posix", path: "/repo" },
+  createdAt: "2026-10-01T00:00:00.000Z",
+} as Project;
+
 function seedRuns() {
   const ids = ["run-trimmed", "run-case", "run-other"];
   useAppStore.setState({
@@ -86,6 +94,48 @@ function seedRuns() {
 }
 
 describe("CrewDockSection", () => {
+  const originalProjects = useAppStore.getState().projects;
+  const originalAgentStatuses = useAgentStatusesStore.getState().agentStatuses;
+  const originalWslAgentStatuses = useAgentStatusesStore.getState().wslAgentStatuses;
+  const originalRuntime = useRemoteServersStore.getState().runtime;
+  const studioRuntime = { status: "online" as const, projects: [], threads: [] };
+  const pairedThread = { ...thread, remoteServerId: "studio" } as Thread;
+  const reviewerBinding: ThreadCrewBinding = {
+    version: 1,
+    name: "Review crew",
+    policy: "crew-first",
+    roles: [
+      {
+        id: "reviewer",
+        label: "Reviewer",
+        selection: { agentKind: "claude:z-ai", model: "glm-5.4[1m]", effort: "max" },
+      },
+    ],
+  };
+
+  function claudeStatus(label: string, modelLabel: string): AgentStatus {
+    return {
+      kind: "claude:z-ai",
+      label,
+      installed: true,
+      authState: "authenticated",
+      envKind: "windows",
+      capabilities: {
+        models: [{ id: "glm-5.4[1m]", label: modelLabel }],
+      },
+    } as unknown as AgentStatus;
+  }
+
+  afterEach(() => {
+    cleanup();
+    useAppStore.setState({ projects: originalProjects });
+    useAgentStatusesStore.setState({
+      agentStatuses: originalAgentStatuses,
+      wslAgentStatuses: originalWslAgentStatuses,
+    });
+    useRemoteServersStore.setState({ runtime: originalRuntime });
+  });
+
   it("nests trimmed case-insensitive role runs and puts unmatched runs under Other agents", () => {
     seedRuns();
     useAgentStatusesStore.setState({ agentStatuses: [] });
@@ -121,11 +171,13 @@ describe("CrewDockSection", () => {
   });
 
   it("shows the helper subprovider alongside provider and effort", () => {
+    useAppStore.setState({ projects: [localProject] });
     useAgentStatusesStore.setState({
       agentStatuses: [
         {
           kind: "codex",
           label: "Provider",
+          installed: true,
           capabilities: {
             models: [{ id: "gpt-5.5", label: "Model" }],
             modelSubProvider: { "gpt-5.5": "route" },
@@ -147,11 +199,57 @@ describe("CrewDockSection", () => {
         showPlacementToggle={false}
       />,
     );
-    expect(
-      view.container.querySelector(
-        '[data-crew-member-row="Builder"] [data-crew-member-line="meta"]',
-      ),
-    ).toHaveTextContent("Provider · Route · High");
+    const row = view.container.querySelector('[data-crew-member-row="Builder"]');
+    expect(row?.querySelector('[data-crew-member-line="text"]')).toHaveTextContent("Model");
+    expect(row?.querySelector('[data-crew-member-line="meta"]')).toHaveTextContent(
+      "Provider · Route · High",
+    );
+  });
+
+  it("shows the paired host's profile and model labels instead of the client catalog", () => {
+    useAppStore.setState({ projects: [localProject] });
+    useAgentStatusesStore.setState({
+      agentStatuses: [claudeStatus("Claude", "Client GLM 5.4")],
+      wslAgentStatuses: [],
+    });
+    useRemoteServersStore.setState({ runtime: { studio: studioRuntime } });
+    const view = renderWithI18n(
+      <CrewDockSection
+        threadId="thread-1"
+        thread={pairedThread}
+        binding={reviewerBinding}
+        runIds={[]}
+        renderRun={() => null}
+        showPlacementToggle={false}
+      />,
+    );
+    const row = () => view.container.querySelector('[data-crew-member-row="Reviewer"]');
+    const text = () => row()?.querySelector('[data-crew-member-line="text"]');
+    const meta = () => row()?.querySelector('[data-crew-member-line="meta"]');
+
+    expect(text()).toHaveTextContent("glm-5.4[1m]");
+    expect(text()).not.toHaveTextContent("Client GLM 5.4");
+    expect(meta()).toHaveTextContent("claude:z-ai · Max");
+
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: {
+          studio: {
+            ...studioRuntime,
+            agentStatuses: {
+              windows: [claudeStatus("Z.AI", "GLM 5.4")],
+              wsl: [],
+              updatedAt: "2026-11-04T00:00:00.000Z",
+            },
+          },
+        },
+      });
+    });
+
+    expect(text()).toHaveTextContent("GLM 5.4");
+    expect(text()).not.toHaveTextContent("glm-5.4[1m]");
+    expect(text()).not.toHaveTextContent("Client GLM 5.4");
+    expect(meta()).toHaveTextContent("Z.AI · Max");
   });
 
   it("routes runs to Other agents after the role is renamed", () => {

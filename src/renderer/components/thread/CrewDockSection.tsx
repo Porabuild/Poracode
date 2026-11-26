@@ -4,7 +4,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { distinctSubProviderLabel } from "@/renderer/components/common/ProviderModelMenu/parts/deriveSubProvider";
-import type { Thread, ToolCallPayload } from "@/shared/contracts";
+import type { AgentStatus, Thread, ToolCallPayload } from "@/shared/contracts";
 import type { CrewMemberSelection, ThreadCrewBinding } from "@/shared/crew";
 import {
   isLeadEdited,
@@ -14,7 +14,7 @@ import {
   leadSelectionOf,
 } from "@/renderer/components/crew/crewComposerModel";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject } from "@/renderer/state/useThread";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
@@ -45,14 +45,15 @@ export function CrewDockSection(props: {
   showPlacementToggle: boolean;
 }) {
   const { t } = useLingui();
-  const statuses = useAgentStatusesStore(
-    useShallow((state) => [...state.agentStatuses, ...state.wslAgentStatuses]),
-  );
-  const location = useProject(props.thread.projectId)?.location;
+  const project = useProject(props.thread.projectId);
+  const location = project?.location;
+  const resolvedHost =
+    props.thread.remoteServerId ?? project?.remoteServerId ?? project?.location.remoteServerId;
+  const statuses = useHostAgentStatuses(resolvedHost, location);
   const { crews } = useCrewLibrary(
     machineKeyForLocation({
       ...(location ?? { kind: "native" }),
-      ...(props.thread.remoteServerId ? { remoteServerId: props.thread.remoteServerId } : {}),
+      ...(resolvedHost ? { remoteServerId: resolvedHost } : {}),
     }),
   );
   const saved = savedCrewFor(props.binding, crews);
@@ -209,7 +210,7 @@ export function CrewDockSection(props: {
 function CrewMemberInfo(props: {
   label: string;
   selection: CrewMemberSelection;
-  statuses: ReturnType<typeof useAgentStatusesStore.getState>["agentStatuses"];
+  statuses: readonly AgentStatus[];
   changed: boolean;
   fast?: boolean;
   noEdits?: boolean;
