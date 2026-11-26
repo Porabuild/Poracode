@@ -179,7 +179,7 @@ struct RichChatDelegatedAgentsView: View {
       Text(watching ? RichChatStrings.stopWatching : RichChatStrings.watchLive)
         .poracodeChatText(.metadata, weight: .semibold)
     }
-    .buttonStyle(.bordered)
+    .poracodeSurfaceButtonStyle()
     .controlSize(.small)
     // Stop stays available while a subscribe/renew is pending or retrying.
     .disabled(!watching && (controller.isBusy(agent.id) || !controller.canStart))
