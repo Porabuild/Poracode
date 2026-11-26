@@ -9,13 +9,7 @@ import {
 } from "./composerFixtures.ts";
 import { crewAgentEvents } from "./crewFixtures.ts";
 import { modelVisibilityAgentEvents } from "./modelVisibilityFixtures.ts";
-import {
-  DELEGATED_WATCH_CROSSAGENT_CHILD_ID,
-  DELEGATED_WATCH_CROSSAGENT_ID,
-  DELEGATED_WATCH_SUBAGENT_CHILD_ID,
-  DELEGATED_WATCH_SUBAGENT_ID,
-} from "./lifecycleTranscriptFixtures.ts";
-import { TRANSCRIPT_PREVIEW_IMAGE } from "../fixtures/tool-taxonomy/media-assets.ts";
+import { installDelegatedWatchFixture } from "./delegatedWatchFixtures.ts";
 
 /** Controlled stories stay separate from peer ownership and transport lifecycle. */
 export function applyLabCheckpoint(lab: WireLab, id: CheckpointFixtureId): void {
@@ -446,77 +440,4 @@ export function applyLabCheckpoint(lab: WireLab, id: CheckpointFixtureId): void 
     return;
   }
   lab.auth.expireAllTickets();
-}
-
-/** Active delegated rows whose child PNG arrives only on the canonical subscribe. */
-const delegatedWatchEmissions = new WeakMap<WireLab, Set<string>>();
-
-function installDelegatedWatchFixture(lab: WireLab): void {
-  const emitted = new Set<string>();
-  delegatedWatchEmissions.set(lab, emitted);
-  lab.routes.prepareRuntimeImage(DELEGATED_WATCH_SUBAGENT_CHILD_ID);
-  lab.routes.prepareRuntimeImage(DELEGATED_WATCH_CROSSAGENT_CHILD_ID);
-  const workspace = lab.workspace as typeof lab.workspace & {
-    __delegatedWatchInstalled?: boolean;
-  };
-  if (workspace.__delegatedWatchInstalled) return;
-  workspace.__delegatedWatchInstalled = true;
-  const originalInvoke = workspace.invoke.bind(workspace);
-  const emitChild = (parentItemId: string, itemId: string) => {
-    const current = delegatedWatchEmissions.get(lab);
-    if (!current || current.has(parentItemId)) return;
-    current.add(parentItemId);
-    const payload = {
-      name: "screenshot",
-      status: "success",
-      result: {
-        content: [
-          {
-            type: "image",
-            mimeType: "image/png",
-            data: {
-              __poracodeImageRef: {
-                threadId: FIXTURE_THREAD_ID,
-                itemId,
-                path: ["result", "content", 0, "data"],
-                mime: "image/png",
-                bytes: Buffer.from(TRANSCRIPT_PREVIEW_IMAGE.base64, "base64").byteLength,
-                width: TRANSCRIPT_PREVIEW_IMAGE.width,
-                height: TRANSCRIPT_PREVIEW_IMAGE.height,
-              },
-            },
-          },
-        ],
-      },
-    };
-    for (const type of ["item.started", "item.completed"] as const) {
-      lab.emit({
-        kind: "runtime",
-        threadId: FIXTURE_THREAD_ID,
-        runtimeEvent: {
-          ...buildRuntimeEvent(type),
-          itemId,
-          itemType: "tool_call",
-          parentItemId,
-          payload,
-        },
-      });
-    }
-  };
-  workspace.invoke = (name, payload) => {
-    const body = payload as { parentItemId?: string };
-    const watched =
-      body.parentItemId === DELEGATED_WATCH_SUBAGENT_ID ||
-      body.parentItemId === DELEGATED_WATCH_CROSSAGENT_ID;
-    if (name === "subagentSubscribe" && watched) {
-      if (body.parentItemId === DELEGATED_WATCH_SUBAGENT_ID) {
-        emitChild(DELEGATED_WATCH_SUBAGENT_ID, DELEGATED_WATCH_SUBAGENT_CHILD_ID);
-      } else if (body.parentItemId === DELEGATED_WATCH_CROSSAGENT_ID) {
-        emitChild(DELEGATED_WATCH_CROSSAGENT_ID, DELEGATED_WATCH_CROSSAGENT_CHILD_ID);
-      }
-      return { history: [], leaseMs: 90_000 };
-    }
-    if (name === "subagentUnsubscribe" && watched) return undefined;
-    return originalInvoke(name, payload);
-  };
 }

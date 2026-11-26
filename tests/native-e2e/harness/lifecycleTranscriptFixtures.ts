@@ -163,48 +163,6 @@ export function transcriptImageItems(withGallery: boolean): Array<Record<string,
   ]);
 }
 
-export const DELEGATED_WATCH_SUBAGENT_ID = "fixture-subagent-live";
-export const DELEGATED_WATCH_CROSSAGENT_ID = "fixture-crossagent-live";
-export const DELEGATED_WATCH_SUBAGENT_CHILD_ID = "fixture-subagent-live-image";
-export const DELEGATED_WATCH_CROSSAGENT_CHILD_ID = "fixture-crossagent-live-image";
-
-export function delegatedWatchItems(): Array<Record<string, unknown>> {
-  return [
-    {
-      id: "item-fixture-delegated-watch-root",
-      type: "assistant_message",
-      state: "completed",
-      payload: { content: [{ kind: "text", text: "Delegated watch ready." }] },
-      streams: {},
-    },
-    {
-      id: DELEGATED_WATCH_SUBAGENT_ID,
-      type: "tool_call",
-      state: "started",
-      payload: {
-        name: "Task",
-        status: "running",
-        isSubAgent: true,
-        args: { description: "Live Subagent image" },
-      },
-      streams: {},
-    },
-    {
-      id: DELEGATED_WATCH_CROSSAGENT_ID,
-      type: "tool_call",
-      state: "started",
-      payload: {
-        name: "Crossagent",
-        status: "running",
-        isCrossagent: true,
-        crossagentStatus: "running",
-        args: { description: "Live Crossagent image" },
-      },
-      streams: {},
-    },
-  ];
-}
-
 export function transcriptMcpAppItems(): Array<Record<string, unknown>> {
   return [
     {

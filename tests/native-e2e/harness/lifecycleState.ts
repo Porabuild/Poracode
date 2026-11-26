@@ -38,7 +38,6 @@ import { buildTurnTimingStory } from "./timingFixtures.ts";
 import {
   longFindReplyItem,
   transcriptCodeItems,
-  delegatedWatchItems,
   transcriptEditableFileItems,
   transcriptFileItems,
   transcriptHtmlVisualItems,
@@ -49,6 +48,7 @@ import {
   transcriptVideoItems,
   transcriptWideTableItems,
 } from "./lifecycleTranscriptFixtures.ts";
+import { prepareDelegatedWatchItems } from "./delegatedWatchFixtures.ts";
 import {
   applyDesktopProjectActionsEdit,
   applyProjectActionsFixture,
@@ -247,10 +247,7 @@ export class LabLifecycleState {
   }
 
   prepareDelegatedWatch(): void {
-    this.thread.status = "working";
-    this.thread.attention = "none";
-    delete this.thread.activeTurnStartedAt;
-    this.runtimeItems = delegatedWatchItems();
+    this.runtimeItems = prepareDelegatedWatchItems(this.thread);
   }
 
   prepareToolPresentation(options?: Parameters<typeof toolPresentationItems>[0]): void {
