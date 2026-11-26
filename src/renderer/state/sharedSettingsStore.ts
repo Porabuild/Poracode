@@ -1114,14 +1114,22 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setPrivacySetting: (key, value) => {
     const current = get().privacy;
-    if (current[key] === value) return;
-    // Touching a privacy toggle is itself a decision, so the first-run
-    // prompt never reappears after a Settings change.
-    set({ privacy: { ...current, [key]: value, consentDecided: true } });
+    // Turning ordinary crash reports off revokes the separate raw-dump
+    // choice. Toggling it off again still clears a stale raw opt-in.
+    const clearsRawConsent = key === "crashReports" && value === false && current.nativeCrashDumps;
+    if (current[key] === value && !clearsRawConsent) return;
+    // Raw native dumps extend crash reports; they can never be enabled alone.
+    if (key === "nativeCrashDumps" && value === true && !current.crashReports) return;
+    const privacy = { ...current, consentDecided: true };
+    privacy[key] = value;
+    if (key === "crashReports" && value === false) privacy.nativeCrashDumps = false;
+    set({ privacy });
     persistSettings(selectSharedSettings(get()));
   },
   setTelemetryConsent: (consent) => {
-    set({ privacy: { ...consent, consentDecided: true } });
+    // The ordinary first-run choice never grants raw memory consent; that
+    // needs its own Settings toggle after crash reports are enabled.
+    set({ privacy: { ...consent, nativeCrashDumps: false, consentDecided: true } });
     persistSettings(selectSharedSettings(get()));
   },
   setHostResourceAdmissionSetting: (key, value) => {

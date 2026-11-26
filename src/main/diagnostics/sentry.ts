@@ -1,7 +1,7 @@
 import { app } from "electron";
 import { join } from "node:path";
 import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
-import { createCrashReportConsentGate } from "@/host/diagnostics/crashReportConsent";
+import { createCrashReportConsentReader } from "@/host/diagnostics/crashReportConsent";
 import { isCrashReportsDisabledByEnv } from "@/shared/telemetryConsent";
 import type { PoracodeChannel } from "@/shared/channel";
 import {
@@ -30,6 +30,28 @@ const DISABLED_INTEGRATIONS = new Set([
   "LocalVariables",
   "Screenshots",
 ]);
+
+/**
+ * Native crash dumps are unscrubbed memory snapshots. Only the minidump
+ * attachment for a native crash event may leave the machine, and only with the
+ * separate raw-dump opt-in; every other attachment is dropped. Mutates the hint
+ * array in place: Sentry builds the envelope from this hint after `beforeSend`.
+ */
+function filterMainSentryAttachments(
+  event: SentryEventLike & { platform?: unknown },
+  hint: { attachments?: Array<{ attachmentType?: string }> } | undefined,
+  nativeCrashDumps: boolean,
+): void {
+  const attachments = hint?.attachments;
+  if (!attachments || attachments.length === 0) return;
+  const keepMinidump = nativeCrashDumps && event.platform === "native";
+  for (let index = attachments.length - 1; index >= 0; index -= 1) {
+    const attachmentType = attachments[index]?.attachmentType;
+    if (!keepMinidump || attachmentType !== "event.minidump") {
+      attachments.splice(index, 1);
+    }
+  }
+}
 
 type MainSentryModule = typeof import("@sentry/electron/main");
 
@@ -113,7 +135,7 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     return false;
   }
 
-  const crashReportsConsented = createCrashReportConsentGate(options.settingsPath);
+  const readCrashReportConsent = createCrashReportConsentReader(options.settingsPath);
   const shouldSendMainSentryEvent = createPersistentSentryEventLimiter(
     join(app.getPath("userData"), "sentry", "event-budget.json"),
   );
@@ -141,17 +163,23 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     beforeBreadcrumb() {
       return null;
     },
-    beforeSend(event) {
-      // Consent is checked per event (native minidumps included, they enter
-      // through captureEvent) so opting out stops sending without a restart.
-      if (!crashReportsConsented()) return null;
+    beforeSend(event, hint) {
+      // Consent is checked per event, with ordinary reports and raw dumps read
+      // from one snapshot. Opting out stops sending without a restart, and
+      // revoking raw dumps keeps the scrubbed native crash summary.
+      const consent = readCrashReportConsent();
+      if (!consent.crashReports) return null;
       const prepared = prepareMainSentryEvent(
         event as unknown as SentryEventLike,
         process.platform,
       );
-      return prepared && shouldSendMainSentryEvent(prepared)
-        ? (prepared as unknown as typeof event)
-        : null;
+      if (!prepared || !shouldSendMainSentryEvent(prepared)) return null;
+      filterMainSentryAttachments(
+        prepared as unknown as SentryEventLike & { platform?: unknown },
+        hint,
+        consent.nativeCrashDumps,
+      );
+      return prepared as unknown as typeof event;
     },
     integrations(defaultIntegrations) {
       return defaultIntegrations.filter(

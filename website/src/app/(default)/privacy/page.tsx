@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import contact from "../../../../../branding/contact.json";
-import { createPageMetadata } from "@/lib/seo";
+import { createPageMetadata, GITHUB_URL } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Poracode Privacy Policy",
@@ -12,7 +12,7 @@ export const metadata: Metadata = createPageMetadata({
   path: "/privacy",
 });
 
-const EFFECTIVE_DATE = "November 1, 2026";
+const EFFECTIVE_DATE = "November 26, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -45,12 +45,9 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-3 text-xl font-semibold text-white">Overview</h2>
             <p>
-              Poracode is one application across Electron, browsers, installed PWAs, and native
-              shells. Browser and native clients connect to a Poracode host that you control. The
-              app sends no telemetry unless you opt in to the privacy-bounded product analytics or
-              crash diagnostics described below. Poracode does not show ads or sell personal
-              information. This policy also explains the limited services used by the Poracode
-              website and optional push notifications.
+              Poracode is an independent open-source project maintained under the Porabuild name.
+              Browser and native clients connect to a Poracode host that you control. This policy
+              covers the app, optional telemetry and push notifications, and the Poracode website.
             </p>
           </section>
 
@@ -140,24 +137,34 @@ export default function PrivacyPage() {
             </h2>
             <div className="space-y-3">
               <p>
-                Poracode sends no telemetry unless you opt in. If you turn on anonymous product
-                analytics in Settings → Privacy, the desktop app sends allowlisted events to PostHog
-                using a random installation identifier generated on your device. Events describe
-                feature use, app and platform versions, and bucketed counts or durations. Person
-                profiles and IP/location capture are disabled, and events never include prompts,
-                file content, terminal output, token counts, or project and thread names or
-                identifiers. You can turn analytics off at any time in Settings → Privacy; turning
-                it off stops sending immediately. Environment variables
-                (PORACODE_TELEMETRY_ENABLED=0 or DO_NOT_TRACK=1) disable every stream regardless of
-                the in-app switches.
+                With your consent, the desktop app sends allowlisted events to PostHog to help
+                understand how people use Poracode. Events describe feature use, app and platform
+                versions, and bucketed counts or durations. A random installation identifier groups
+                events from the same installation. Person profiles and IP or location capture are
+                disabled. Events exclude prompts, file content, terminal output, token counts, and
+                project and thread names or identifiers.
               </p>
               <p>
-                If you separately opt in to crash reports, configured releases may send scrubbed
-                crash diagnostics to Sentry. Default personal information, screenshots, breadcrumbs,
-                and performance traces are disabled, and paths, secrets, and other identifying
-                values are stripped before sending. The complete telemetry catalog is published in
-                the project documentation. The public Poracode website uses Vercel Analytics and
-                Speed Insights to understand aggregate site usage and performance.
+                If you opt in to crash reports, configured releases can send scrubbed diagnostic
+                data to Sentry to help investigate crashes and errors. This can include app and
+                system versions, error details, and stack traces. A separate desktop setting lets
+                you also send native crash dumps to Sentry. These attachments can contain fragments
+                of process memory, including sensitive information.
+              </p>
+              <p>
+                You can withdraw any telemetry choice in Settings → Privacy to stop future sending.
+                See the{" "}
+                <a
+                  href={`${GITHUB_URL}/blob/master/docs/TELEMETRY.md`}
+                  className="text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white"
+                >
+                  telemetry documentation
+                </a>{" "}
+                for the complete list and the environment switches that disable collection.
+              </p>
+              <p>
+                The public Poracode website uses Vercel Analytics and Speed Insights to understand
+                aggregate site usage and performance.
               </p>
             </div>
           </section>
@@ -167,8 +174,15 @@ export default function PrivacyPage() {
             <div className="space-y-3">
               <p>
                 Poracode does not sell or rent app data or use it for advertising. Data is shared
-                only when needed to connect to services you choose through the paired host, to
-                deliver optional notifications, to operate the website, or when required by law.
+                when needed to connect to services you choose through the paired host, deliver
+                optional notifications, operate the website, process feedback, send telemetry you
+                opt in to, or meet legal requirements.
+              </p>
+              <p>
+                PostHog and Sentry may process analytics or crash diagnostics in the United States,
+                depending on the release configuration. Retention depends on the receiving
+                project&apos;s settings. Contact us for details about retention and any applicable
+                transfer safeguards.
               </p>
               <p>
                 Pairing data and cached content remain on your device until you remove the host or
@@ -200,18 +214,25 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-xl font-semibold text-white">Changes and contact</h2>
-            <p>
-              We may update this policy as Poracode changes and will publish the new effective date
-              here. Questions or privacy requests can be sent to{" "}
-              <a
-                href={`mailto:${contact.supportEmail}`}
-                className="text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white"
-              >
-                {contact.supportEmail}
-              </a>
-              .
-            </p>
+            <h2 className="mb-3 text-xl font-semibold text-white">Privacy requests</h2>
+            <div className="space-y-3">
+              <p>
+                For privacy questions or requests, email{" "}
+                <a
+                  href={`mailto:${contact.supportEmail}`}
+                  className="text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white"
+                >
+                  {contact.supportEmail}
+                </a>
+                .
+              </p>
+              <p>
+                Where applicable, you can ask to access, correct, delete, restrict, or receive a
+                portable copy of your personal data, or object to its processing. You also have the
+                right to lodge a complaint with your data protection authority.
+              </p>
+              <p>We publish the date of the latest update at the top of this page.</p>
+            </div>
           </section>
         </div>
       </main>

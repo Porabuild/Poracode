@@ -12,6 +12,18 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isWelcomeSeen } from "@/renderer/state/welcomeGateStore";
 import { isTelemetryHardDisabled } from "@/renderer/analytics/telemetryConsentState";
 
+function TelemetryDocLink() {
+  return (
+    <button
+      type="button"
+      className="self-start text-xs text-primary hover:underline"
+      onClick={() => void readBridge().openExternal(PORACODE_TELEMETRY_DOC_URL)}
+    >
+      <Trans>See exactly what is collected</Trans>
+    </button>
+  );
+}
+
 function ConsentChoices(props: {
   productAnalytics: boolean;
   crashReports: boolean;
@@ -23,14 +35,14 @@ function ConsentChoices(props: {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">{t`Anonymous product analytics`}</p>
+          <p className="text-sm font-medium text-foreground">{t`Product analytics`}</p>
           <p className="text-xs text-muted" id="consent-analytics-description">
-            <Trans>Anonymous feature-use events. No prompts, code, or location.</Trans>
+            <Trans>Send feature-use events and a random installation ID to PostHog.</Trans>
           </p>
         </div>
         <ToggleSwitch
           aria-describedby="consent-analytics-description"
-          aria-label={t`Anonymous product analytics`}
+          aria-label={t`Product analytics`}
           isSelected={props.productAnalytics}
           onChange={props.onProductAnalyticsChange}
         />
@@ -39,7 +51,7 @@ function ConsentChoices(props: {
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{t`Crash reports`}</p>
           <p className="text-xs text-muted" id="consent-crash-description">
-            <Trans>Crash diagnostics with personal data removed.</Trans>
+            <Trans>Send scrubbed crash diagnostics to Sentry.</Trans>
           </p>
         </div>
         <ToggleSwitch
@@ -69,6 +81,7 @@ export function WelcomeTelemetryChoices(props: {
         </Trans>
       </p>
       <ConsentChoices {...props} />
+      <TelemetryDocLink />
     </div>
   );
 }
@@ -159,10 +172,7 @@ export function TelemetryConsentPrompt() {
             {t`Help improve Poracode?`}
           </h2>
           <p id="telemetry-consent-description" className="text-xs text-muted">
-            <Trans>
-              Poracode can send anonymous usage analytics and crash reports. No prompts, code, file
-              names, or terminal output.
-            </Trans>
+            <Trans>Poracode can send product analytics and crash reports.</Trans>
           </p>
         </div>
         <Button
@@ -182,13 +192,7 @@ export function TelemetryConsentPrompt() {
         onProductAnalyticsChange={setProductAnalytics}
         onCrashReportsChange={setCrashReports}
       />
-      <button
-        type="button"
-        className="self-start text-xs text-primary hover:underline"
-        onClick={() => void readBridge().openExternal(PORACODE_TELEMETRY_DOC_URL)}
-      >
-        <Trans>See exactly what is collected</Trans>
-      </button>
+      <TelemetryDocLink />
       <div className="flex flex-wrap justify-end gap-2">
         <Button
           size="sm"

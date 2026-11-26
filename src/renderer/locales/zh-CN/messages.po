@@ -2045,8 +2045,12 @@ msgid "An agent is fixing this PR."
 msgstr "代理正在修复此 PR。"
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "An environment variable on this machine keeps both options off."
-msgstr "此机器上的一个环境变量使这两个选项保持关闭。"
+#~ msgid "An environment variable on this machine keeps both options off."
+#~ msgstr "此机器上的一个环境变量使这两个选项保持关闭。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "An environment variable on this machine keeps telemetry off."
+msgstr "此计算机上的环境变量会使遥测保持关闭。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -2066,14 +2070,14 @@ msgstr "已存在同名的 MCP 服务器。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Anonymous feature-use events. No prompts, code, or location."
-msgstr "匿名功能使用事件。不包含提示词、代码或位置。"
+#~ msgid "Anonymous feature-use events. No prompts, code, or location."
+#~ msgstr "匿名功能使用事件。不包含提示词、代码或位置。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Anonymous product analytics"
-msgstr "匿名产品分析"
+#~ msgid "Anonymous product analytics"
+#~ msgstr "匿名产品分析"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -3754,6 +3758,10 @@ msgstr "选择错过计划时间后的处理方式。"
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "选择 Poracode 对新拉取请求执行的操作：不执行任何操作、修复合并阻碍，或修复后合并。"
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Choose what the desktop app sends."
+msgstr "选择桌面应用发送的内容。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
 msgstr "选择新会话的启动位置。在聊天中使用 /handoff 转移现有会话。"
@@ -5383,8 +5391,8 @@ msgstr "所有已报告币种的覆盖范围"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Crash diagnostics with personal data removed."
-msgstr "不含个人数据的崩溃诊断。"
+#~ msgid "Crash diagnostics with personal data removed."
+#~ msgstr "不含个人数据的崩溃诊断。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -7947,6 +7955,12 @@ msgstr "收藏"
 msgid "Favorites"
 msgstr "收藏夹"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
+#~ msgstr "与随机安装 ID 关联的功能使用事件。不包含提示词、代码或位置。"
+
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "反馈"
@@ -9486,6 +9500,11 @@ msgstr "加入同步"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include memory when a thread starts."
 msgstr "会话开始时带上记忆。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include native crash dumps"
+msgstr "包含原生崩溃转储"
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
@@ -14238,8 +14257,12 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode 会在进行中的计算机操作轮次期间短暂解锁这台 Mac，工作时遮挡所有显示器，并在轮次结束时重新锁定。在这台 Mac 上按下任意键或移动指针都会立即将其锁定。安装需要一次性的管理员批准。如果这台 Mac 由你的组织管理，请先咨询 IT 部门。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-msgstr "Poracode 可发送匿名使用情况分析和崩溃报告。不包含提示词、代码、文件名或终端输出。"
+#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
+#~ msgstr "Poracode 可发送匿名使用情况分析和崩溃报告。不包含提示词、代码、文件名或终端输出。"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Poracode can send product analytics and crash reports."
+msgstr "Poracode 可以发送产品分析和崩溃报告。"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
@@ -14312,8 +14335,8 @@ msgid "Poracode remembers preferences and corrections across providers. Capture 
 msgstr "Poracode 会跨提供方记住偏好和纠正。记录在回合结束后开始。每天整理一次。从重复工作中学到的技能会保持为建议，直到你批准。"
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-msgstr "除非你打开，Poracode 不会发送任何数据。提示词、代码或文件名——永不。"
+#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
+#~ msgstr "除非你打开，Poracode 不会发送任何数据。提示词、代码或文件名——永不。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14582,6 +14605,12 @@ msgstr "正在探测{0} v{1}"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Probing v{0}"
 msgstr "正在探测 v{0}"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Product analytics"
+msgstr "产品分析"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
@@ -17052,6 +17081,12 @@ msgstr "滚动到底部"
 msgid "Scroll to prompt: {preview}"
 msgstr "滚动到提示：{preview}"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
+#~ msgstr "经过清理的崩溃诊断会发送到 Sentry。原生崩溃转储是单独的选择。"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK 已安装"
@@ -17457,6 +17492,12 @@ msgstr "发送"
 msgid "Send a message..."
 msgstr "发送消息..."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send feature-use events and a random installation ID to PostHog."
+msgstr "将功能使用事件和随机安装 ID 发送到 PostHog。"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Send feedback"
@@ -17471,6 +17512,12 @@ msgstr "通过 Apple 推送服务发送通用文本，而非对话标题。"
 msgid "Send message"
 msgstr "发送消息"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send scrubbed crash diagnostics to Sentry."
+msgstr "将经过清理的崩溃诊断发送到 Sentry。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "发送终端输入"
@@ -17478,6 +17525,11 @@ msgstr "发送终端输入"
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Sending {sent} of {total}…"
 msgstr "正在发送 {sent} / {total}…"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sends memory snapshots to Sentry that may contain sensitive data."
+msgstr "将可能包含敏感数据的内存快照发送到 Sentry。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -21035,6 +21087,10 @@ msgstr "立即试用"
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "为此项目中的线程开启或关闭已安装的插件。线程自身的插件选择仍然优先；正在运行的线程会在下次启动时应用更改。"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Turn on crash reports to include native dumps."
+msgstr "开启崩溃报告以包含原生崩溃转储。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."

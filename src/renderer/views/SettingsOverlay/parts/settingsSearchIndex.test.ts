@@ -125,6 +125,15 @@ describe("searchSettings", () => {
     );
   });
 
+  it("finds the privacy native crash dump choice", () => {
+    expect(searchSettings("native crash dumps", t).map((result) => result.anchor)).toContain(
+      "privacy.nativeCrashDumps",
+    );
+    expect(searchSettings("memory snapshots", t).map((result) => result.anchor)).toContain(
+      "privacy.nativeCrashDumps",
+    );
+  });
+
   it("hides dev-only settings unless dev mode is on", () => {
     const anchor = "dev.disableCliHookPlugin";
     expect(searchSettings("hook plugin", t).map((r) => r.anchor)).not.toContain(anchor);

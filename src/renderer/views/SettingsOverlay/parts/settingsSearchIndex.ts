@@ -480,15 +480,25 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   {
     section: "privacy",
     anchor: "privacy.productAnalytics",
-    title: msg`Anonymous product analytics`,
-    keywords: "telemetry posthog tracking opt in opt out usage data",
+    title: msg`Product analytics`,
+    description: msg`Send feature-use events and a random installation ID to PostHog.`,
+    keywords: "telemetry posthog tracking opt in opt out usage data install id",
     desktopOnly: true,
   },
   {
     section: "privacy",
     anchor: "privacy.crashReports",
     title: msg`Crash reports`,
+    description: msg`Send scrubbed crash diagnostics to Sentry.`,
     keywords: "telemetry sentry diagnostics opt in opt out",
+    desktopOnly: true,
+  },
+  {
+    section: "privacy",
+    anchor: "privacy.nativeCrashDumps",
+    title: msg`Include native crash dumps`,
+    description: msg`Sends memory snapshots to Sentry that may contain sensitive data.`,
+    keywords: "native crash dump minidump memory snapshot sentry diagnostics sensitive",
     desktopOnly: true,
   },
   {

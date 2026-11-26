@@ -2045,8 +2045,12 @@ msgid "An agent is fixing this PR."
 msgstr "Một tác nhân đang sửa PR này."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "An environment variable on this machine keeps both options off."
-msgstr "Một biến môi trường trên máy này giữ cả hai tùy chọn ở trạng thái tắt."
+#~ msgid "An environment variable on this machine keeps both options off."
+#~ msgstr "Một biến môi trường trên máy này giữ cả hai tùy chọn ở trạng thái tắt."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "An environment variable on this machine keeps telemetry off."
+msgstr "Một biến môi trường trên máy này giữ telemetry ở trạng thái tắt."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -2066,14 +2070,14 @@ msgstr "Máy chủ MCP có tên này đã tồn tại."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Anonymous feature-use events. No prompts, code, or location."
-msgstr "Sự kiện sử dụng tính năng ẩn danh. Không có prompt, mã hay vị trí."
+#~ msgid "Anonymous feature-use events. No prompts, code, or location."
+#~ msgstr "Sự kiện sử dụng tính năng ẩn danh. Không có prompt, mã hay vị trí."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Anonymous product analytics"
-msgstr "Phân tích sản phẩm ẩn danh"
+#~ msgid "Anonymous product analytics"
+#~ msgstr "Phân tích sản phẩm ẩn danh"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -3754,6 +3758,10 @@ msgstr "Chọn hành động khi bỏ lỡ thời điểm đã lên lịch."
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm gì, khắc phục các trở ngại hợp nhất, hoặc khắc phục rồi hợp nhất."
 
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Choose what the desktop app sends."
+msgstr "Chọn nội dung ứng dụng máy tính gửi đi."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
 msgstr "Chọn nơi bắt đầu các phiên mới. Dùng /handoff trong cuộc trò chuyện để chuyển một phiên hiện có."
@@ -5383,8 +5391,8 @@ msgstr "Phạm vi của các loại tiền được báo cáo"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Crash diagnostics with personal data removed."
-msgstr "Chẩn đoán sự cố không có dữ liệu cá nhân."
+#~ msgid "Crash diagnostics with personal data removed."
+#~ msgstr "Chẩn đoán sự cố không có dữ liệu cá nhân."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -7947,6 +7955,12 @@ msgstr "Yêu thích"
 msgid "Favorites"
 msgstr "Yêu thích"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
+#~ msgstr "Sự kiện sử dụng gắn với ID cài đặt ngẫu nhiên. Không có lời nhắc, mã hoặc vị trí."
+
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
 msgstr "Phản hồi"
@@ -9486,6 +9500,11 @@ msgstr "Thêm vào đồng bộ hóa"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include memory when a thread starts."
 msgstr "Đưa bộ nhớ vào khi chuỗi bắt đầu."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include native crash dumps"
+msgstr "Bao gồm bản kết xuất sự cố gốc"
 
 #: src/renderer/components/providers/deepseek/DeepSeekAdvancedSettings.tsx
 msgid "Include session logs with official DeepSeek API requests. Enabled by default in DeepSeek Harness."
@@ -14239,8 +14258,12 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode mở khóa máy Mac này trong chốc lát cho một lượt Sử dụng máy tính đang chạy, che mọi màn hình trong lúc làm việc và khóa lại khi lượt kết thúc. Bất kỳ lần nhấn phím hay di chuyển con trỏ nào trên máy Mac này sẽ khóa máy ngay lập tức. Việc cài đặt cần quản trị viên phê duyệt một lần. Trên máy Mac do tổ chức của bạn quản lý, hãy hỏi bộ phận IT trước."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-msgstr "Poracode có thể gửi phân tích sử dụng ẩn danh và báo cáo sự cố. Không có prompt, mã, tên tệp hay đầu ra terminal."
+#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
+#~ msgstr "Poracode có thể gửi phân tích sử dụng ẩn danh và báo cáo sự cố. Không có prompt, mã, tên tệp hay đầu ra terminal."
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+msgid "Poracode can send product analytics and crash reports."
+msgstr "Poracode có thể gửi phân tích sản phẩm và báo cáo sự cố."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
@@ -14313,8 +14336,8 @@ msgid "Poracode remembers preferences and corrections across providers. Capture 
 msgstr "Poracode nhớ sở thích và chỉnh sửa giữa các nhà cung cấp. Việc ghi bắt đầu khi lượt kết thúc. Một lượt mỗi ngày sẽ gộp chúng. Kỹ năng học từ công việc lặp lại vẫn là gợi ý cho đến khi bạn duyệt."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-msgstr "Poracode không gửi gì trừ khi bạn bật lên. Prompt, mã hay tên tệp — không bao giờ."
+#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
+#~ msgstr "Poracode không gửi gì trừ khi bạn bật lên. Prompt, mã hay tên tệp — không bao giờ."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14583,6 +14606,12 @@ msgstr "Đang kiểm tra {0} v{1}"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Probing v{0}"
 msgstr "Đang kiểm tra v{0}"
+
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Product analytics"
+msgstr "Phân tích sản phẩm"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
@@ -17053,6 +17082,12 @@ msgstr "Cuộn xuống dưới cùng"
 msgid "Scroll to prompt: {preview}"
 msgstr "Cuộn đến lời nhắc: {preview}"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
+#~ msgstr "Chẩn đoán sự cố đã làm sạch được gửi đến Sentry. Bản kết xuất sự cố gốc là lựa chọn riêng."
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "Đã cài SDK"
@@ -17458,6 +17493,12 @@ msgstr "Gửi"
 msgid "Send a message..."
 msgstr "Gửi tin nhắn..."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send feature-use events and a random installation ID to PostHog."
+msgstr "Gửi sự kiện sử dụng và ID cài đặt ngẫu nhiên đến PostHog."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Send feedback"
@@ -17472,6 +17513,12 @@ msgstr "Gửi văn bản chung chung thay vì tiêu đề cuộc trò chuyện q
 msgid "Send message"
 msgstr "Gửi tin nhắn"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Send scrubbed crash diagnostics to Sentry."
+msgstr "Gửi chẩn đoán sự cố đã làm sạch đến Sentry."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "Gửi dữ liệu vào terminal"
@@ -17479,6 +17526,11 @@ msgstr "Gửi dữ liệu vào terminal"
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Sending {sent} of {total}…"
 msgstr "Đang gửi {sent} trên {total}…"
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sends memory snapshots to Sentry that may contain sensitive data."
+msgstr "Gửi ảnh chụp bộ nhớ đến Sentry, có thể chứa dữ liệu nhạy cảm."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -21036,6 +21088,10 @@ msgstr "Dùng thử"
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Bật hoặc tắt plugin đã cài đặt cho các luồng trong dự án này. Lựa chọn plugin riêng của luồng vẫn được ưu tiên; các luồng đang chạy sẽ áp dụng thay đổi ở lần khởi chạy tiếp theo."
+
+#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
+msgid "Turn on crash reports to include native dumps."
+msgstr "Bật báo cáo sự cố để bao gồm bản kết xuất sự cố gốc."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."

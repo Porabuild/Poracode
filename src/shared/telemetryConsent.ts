@@ -17,6 +17,11 @@ export interface TelemetryConsent {
   productAnalytics: boolean;
   /** Scrubbed crash diagnostics (Sentry). Off until opted in. */
   crashReports: boolean;
+  /**
+   * Native crash memory dumps (minidumps) sent with crash reports. A separate
+   * opt-in that only takes effect while `crashReports` is on.
+   */
+  nativeCrashDumps: boolean;
   /** The user has seen and answered the first-run telemetry choice. */
   consentDecided: boolean;
 }
@@ -24,6 +29,7 @@ export interface TelemetryConsent {
 export const DEFAULT_TELEMETRY_CONSENT: TelemetryConsent = {
   productAnalytics: false,
   crashReports: false,
+  nativeCrashDumps: false,
   consentDecided: false,
 };
 
@@ -68,9 +74,12 @@ export function isCrashReportsDisabledByEnv(env: Record<string, string | undefin
 export function telemetryConsentFromPrivacy(value: unknown): TelemetryConsent {
   if (!value || typeof value !== "object") return { ...DEFAULT_TELEMETRY_CONSENT };
   const record = value as Record<string, unknown>;
+  const crashReports = record.crashReports === true;
   return {
     productAnalytics: record.productAnalytics === true,
-    crashReports: record.crashReports === true,
+    crashReports,
+    // Raw memory dumps are a separate opt-in that cannot exist on its own.
+    nativeCrashDumps: crashReports && record.nativeCrashDumps === true,
     consentDecided: record.consentDecided === true,
   };
 }

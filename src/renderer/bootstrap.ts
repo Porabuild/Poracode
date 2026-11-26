@@ -8,8 +8,6 @@ import {
   startDesktopLoopbackEventIntake,
 } from "./clientRuntime";
 import { installManagedParentRuntime } from "./state/remoteServers/managedParentRuntime";
-import { installManagedRootCatalogRuntime } from "./state/managedRootCatalog/rootCatalogAdapter";
-import { installManagedExperimentAuthorityRuntime } from "./state/managedRootCatalog/rootExperimentAuthority";
 import { msg } from "@lingui/core/macro";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import {
@@ -125,6 +123,16 @@ if (window.poracodeHost) {
     // The managed-parent subscription keeps persisted children aligned with
     // the live loopback authority (reconnect on publish, offline on clear).
     installManagedParentRuntime();
+    // Load the managed settings consumers only after the Electron runtime is
+    // installed. Both module graphs reach sharedSettingsStore during
+    // evaluation, whose initial read needs readBridge()/readClientRuntime;
+    // static imports evaluated them during module boot before the runtime
+    // existed and refused cold-start settings write authority.
+    const [{ installManagedRootCatalogRuntime }, { installManagedExperimentAuthorityRuntime }] =
+      await Promise.all([
+        import("./state/managedRootCatalog/rootCatalogAdapter"),
+        import("./state/managedRootCatalog/rootExperimentAuthority"),
+      ]);
     // B4: the root catalog is a bounded projection of the co-located server,
     // driven by the same loopback client. Installed before intake start so the
     // activation that paints the shell is observed.
