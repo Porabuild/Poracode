@@ -1,8 +1,8 @@
 diff --git a/packages/tui/src/component/dialog-model.tsx b/packages/tui/src/component/dialog-model.tsx
-index bd0d348..8fd9597 100644
+index bd0d348..120aa36 100644
 --- a/packages/tui/src/component/dialog-model.tsx
 +++ b/packages/tui/src/component/dialog-model.tsx
-@@ -1,24 +1,20 @@
+@@ -1,27 +1,29 @@
  import type { ModelInfo } from "@opencode/client"
 -import { createMemo, createSignal, Show } from "solid-js"
 +import { createMemo, createSignal } from "solid-js"
@@ -19,6 +19,7 @@ index bd0d348..8fd9597 100644
  import { useLocation } from "../context/location"
  import { useNewDesigns } from "../config"
 -import { DialogFreeModels } from "./dialog-model-free"
++import { useIsPoracode } from "../context/runtime"
  import { FavoriteMarker, isFreeModel, prioritizeFavorites, sortModelOptions } from "./model-options"
  
  export function DialogModel(props: { providerID?: string }) {
@@ -26,10 +27,18 @@ index bd0d348..8fd9597 100644
    const dialog = useDialog()
 -  const newDesigns = useNewDesigns()
 -  const connected = useConnected()
++  const poracode = useIsPoracode()
  
    function select(providerID: string, modelID: string) {
      local.model.set({ providerID, modelID }, { recent: true })
-@@ -36,19 +32,10 @@ export function DialogModel(props: { providerID?: string }) {
++    if (poracode) {
++      dialog.clear()
++      return
++    }
+     const list = local.model.variant.list()
+     const cur = local.model.variant.current()
+     if (cur && list.includes(cur)) {
+@@ -36,19 +38,10 @@ export function DialogModel(props: { providerID?: string }) {
    }
  
    function connect() {
@@ -51,7 +60,7 @@ index bd0d348..8fd9597 100644
  }
  
  function DialogConnectedModels(props: {
-@@ -63,7 +50,9 @@ function DialogConnectedModels(props: {
+@@ -63,7 +56,9 @@ function DialogConnectedModels(props: {
    const [query, setQuery] = createSignal("")
    // Under new designs, favoriting does not reorder the list until the dialog is reopened.
    const favoritesAtOpen = [...local.model.favorite()]
@@ -62,7 +71,7 @@ index bd0d348..8fd9597 100644
    const isFavorite = (value: { providerID: string; modelID: string } | undefined) =>
      value !== undefined &&
      local.model.favorite().some((item) => item.providerID === value.providerID && item.modelID === value.modelID)
-@@ -83,10 +72,10 @@ function DialogConnectedModels(props: {
+@@ -83,10 +78,10 @@ function DialogConnectedModels(props: {
    const models = createMemo(() => data.location.model.list(location.ref) ?? [])
  
    const showExtra = createMemo(() => connected() && !props.providerID)
@@ -76,7 +85,7 @@ index bd0d348..8fd9597 100644
      const favorites = connected() ? (newDesigns() ? favoritesAtOpen : local.model.favorite()) : []
      const recents = local.model.recent()
  
-@@ -161,21 +150,25 @@ function DialogConnectedModels(props: {
+@@ -161,21 +156,25 @@ function DialogConnectedModels(props: {
        connected(),
      )
  
@@ -111,7 +120,7 @@ index bd0d348..8fd9597 100644
  
      return [
        ...favoriteOptions,
-@@ -199,17 +192,13 @@ function DialogConnectedModels(props: {
+@@ -199,17 +198,13 @@ function DialogConnectedModels(props: {
        titlePlaceholder="Search models"
        options={options()}
        actions={[

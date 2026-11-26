@@ -1,5 +1,5 @@
 diff --git a/packages/plugin/src/tui/context.ts b/packages/plugin/src/tui/context.ts
-index fe641b3..d48efd1 100644
+index fe641b3..15f8e57 100644
 --- a/packages/plugin/src/tui/context.ts
 +++ b/packages/plugin/src/tui/context.ts
 @@ -24,7 +24,14 @@ import type {
@@ -18,6 +18,15 @@ index fe641b3..d48efd1 100644
  import type { JSX } from "@opentui/solid"
  import type { Store } from "solid-js/store"
  
+@@ -140,7 +147,7 @@ export interface Data {
+ }
+ 
+ export type Route =
+-  | { readonly type: "home" }
++  | { readonly type: "home"; readonly location?: LocationRef }
+   | { readonly type: "session"; readonly sessionID: string }
+   | {
+       readonly type: "plugin"
 @@ -177,6 +184,62 @@ export interface PanelInput {
    readonly toggleFullscreen: () => void
  }
@@ -81,8 +90,14 @@ index fe641b3..d48efd1 100644
  /**
   * The host UI's slot tree. Every path is one slot: a named boundary a plugin
   * may render around, inside, or take over. Paths are absolute and
-@@ -196,7 +259,32 @@ export interface SlotMap {
+@@ -192,11 +255,42 @@ export interface SlotMap {
+   readonly app: Readonly<Record<string, never>>
+   readonly "home.footer": Readonly<Record<string, never>>
+   readonly "home.footer.status": Readonly<Record<string, never>>
++  readonly "home.draft.header": Readonly<Record<string, never>>
+   readonly "prompt.footer": PromptFooterInput
    readonly "prompt.footer.status": PromptFooterInput
++  readonly "prompt.footer.status.draft": PromptFooterInput
    readonly "prompt.footer.file": PromptFooterInput
    readonly "session.composer.top": { readonly sessionID: string }
 +  /** poracode: the prompt's agent/model metadata row. */
@@ -100,6 +115,10 @@ index fe641b3..d48efd1 100644
 +    readonly muted: boolean
 +    /** Columns available to the row (the host's own metadata width). */
 +    readonly width: number
++    readonly canSubmit: boolean
++    readonly running: boolean
++    readonly submit: () => void
++    readonly interrupt: () => void
 +  }
    readonly "session.panel": PanelInput
 +  /** poracode: each transcript row of the open session. */
@@ -114,7 +133,15 @@ index fe641b3..d48efd1 100644
    readonly "sidebar.content": { readonly sessionID: string }
    readonly "sidebar.footer": { readonly sessionID: string }
  }
-@@ -530,6 +618,8 @@ export interface UI {
+@@ -488,6 +582,7 @@ export interface Keymap {
+ }
+ 
+ export interface UI {
++  animationsEnabled(): boolean
+   readonly dialog: Dialog
+   readonly toast: Toast
+   readonly format: {
+@@ -530,6 +625,8 @@ export interface UI {
    readonly model: {
      /** The prompt's selected model; variant is undefined for the model default. Reactive when read in a Solid computation. */
      current(): { readonly providerID: string; readonly modelID: string; readonly variant?: string } | undefined
@@ -123,7 +150,7 @@ index fe641b3..d48efd1 100644
      readonly variant: {
        /** Variant IDs of the selected model. Reactive when read in a Solid computation. */
        list(): readonly string[]
-@@ -551,6 +641,8 @@ export interface Context {
+@@ -551,6 +648,8 @@ export interface Context {
    readonly attention: Attention
    readonly theme: ResolvedTheme
    readonly themeMode: "dark" | "light"

@@ -69,7 +69,9 @@ export function createRouter(input: {
   Object.assign(ctx, createRequests(ctx));
   Object.assign(ctx, createPrompt(ctx));
   Object.assign(ctx, createRemoteEvents(ctx));
-  Object.assign(ctx, createFacade(ctx));
+  const facade = createFacade(ctx);
+  Object.assign(ctx, facade);
+  const { takeDraftApproval: _takeDraftApproval, ...publicFacade } = facade;
   const {
     goalState,
     controlGoal,
@@ -80,22 +82,10 @@ export function createRouter(input: {
     disposeStatusPolling,
     sendPrompt,
     handleRemoteEvent,
-    sessionOptions,
-    setSessionOptions,
     composerState,
     gitChanges,
     exportSession,
-    offeredProviders,
-    threadFlags,
-    setStarred,
-    setDone,
-    resumeQueue,
-    sessionActions,
-    invokeSessionAction,
-    archivedThreads,
-    providerUsage,
     startSideChat,
-    loginCandidates,
     crewState,
     updateCrew,
     startNewCrew,
@@ -197,10 +187,9 @@ export function createRouter(input: {
   };
 
   return {
+    ...publicFacade,
     handle,
     handleRemoteEvent,
-    sessionOptions,
-    setSessionOptions,
     // Plugin calls bypass `handle`; run them in their session's project.
     composerState: (...args: Parameters<typeof composerState>) =>
       ctx.runInSessionScope(args[0], () => composerState(...args)),
@@ -208,11 +197,6 @@ export function createRouter(input: {
       ctx.runInSessionScope(args[0], () => gitChanges(...args)),
     exportSession: (...args: Parameters<typeof exportSession>) =>
       ctx.runInSessionScope(args[0], () => exportSession(...args)),
-    offeredProviders,
-    threadFlags,
-    setStarred,
-    setDone,
-    resumeQueue,
     goalState,
     controlGoal,
     subscribeGoal,
@@ -220,13 +204,8 @@ export function createRouter(input: {
     goalSupported,
     sendPrompt: (...args: Parameters<typeof sendPrompt>) =>
       ctx.runInSessionScope(args[0], () => sendPrompt(...args)),
-    sessionActions,
-    invokeSessionAction,
-    archivedThreads,
-    providerUsage,
     startSideChat: (...args: Parameters<typeof startSideChat>) =>
       ctx.runInSessionScope(args[0], () => startSideChat(...args)),
-    loginCandidates,
     crewState,
     updateCrew,
     startNewCrew,

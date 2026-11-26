@@ -46,6 +46,7 @@ import { useOptionalPanel } from "../context/panel"
 import { useLocal } from "../context/local"
 import { errorMessage } from "../util/error"
 import { abbreviateHome } from "../util/path-format"
+import { useConfig } from "../config"
 
 export type Dispose = () => Promise<void>
 
@@ -96,6 +97,7 @@ export function usePluginHost() {
     sessionTabs: useSessionTabs(),
     panel: useOptionalPanel(),
     local: useLocal(),
+    config: useConfig().data,
   }
 }
 
@@ -224,6 +226,7 @@ export function createPluginContext(input: {
       memory: (key, options) => host.storage.memory(`plugin.${input.id}.${key}`, options),
     },
     ui: {
+      animationsEnabled: () => host.config.animations ?? true,
       dialog: dialogApi,
       toast: toastApi,
       format: {

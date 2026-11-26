@@ -75176,6 +75176,12 @@
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
                 },
+                "newsLineActivity": {
+                  "type": "boolean"
+                },
+                "newsLineEnabled": {
+                  "type": "boolean"
+                },
                 "prAutomationDefault": {
                   "enum": [
                     "off",
@@ -77018,6 +77024,12 @@
                   ],
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
+                },
+                "newsLineActivity": {
+                  "type": "boolean"
+                },
+                "newsLineEnabled": {
+                  "type": "boolean"
                 },
                 "prAutomationDefault": {
                   "enum": [
@@ -95876,7 +95888,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:3d0881a2b8371ca5dc1aad74f90689d81e37c04c0dd163aacd3811855a8998af",
+  "sourceHash": "sha256:6f50d877932513398e6593729906bd53a7df341c22750484060c234612596292",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

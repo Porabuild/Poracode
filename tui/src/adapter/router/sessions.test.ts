@@ -10,6 +10,92 @@ import { join } from "node:path";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import type { MessageListOutput, SessionInfo, SessionListOutput } from "@opencode/client";
 
+test("a draft's project, branch, approval, and effective effort reach the first launch", async () => {
+  const project = remoteProjectSchema.parse({
+    ...S.forkProject(),
+    id: "project-2",
+    name: "Other",
+    location: { kind: "windows", path: "C:/other" },
+  });
+  const status = agentStatusSchema.parse({
+    ...S.promptFixture.status,
+    capabilities: {
+      ...S.promptFixture.status.capabilities,
+      approvalPolicies: [
+        { id: "ask", label: "Ask" },
+        { id: "auto", label: "Auto" },
+      ],
+      efforts: ["low", "medium", "high"],
+      defaultEffort: "medium",
+      modelDefaultEfforts: { m1: "high" },
+    },
+  });
+  const worktrees: Record<string, unknown>[] = [];
+  const starts: Parameters<RemoteDesktopClient["startNewThread"]>[0][] = [];
+  const { value } = S.router(
+    S.promptClient({
+      agentStatuses: async () => ({ windows: [status], wsl: [] }),
+      boundedProjectListPage: async () => ({ projects: [S.forkProject(), project] }),
+      boundedThreadListPage: async () => ({ page: { threads: [] } }),
+      callRemoteProcedure: async (procedure: string, payload: Record<string, unknown>) => {
+        if (procedure === "gitAddWorktree") {
+          worktrees.push(payload);
+          return { path: "C:/worktrees/new" };
+        }
+        return { entries: [] };
+      },
+      startNewThread: async (request: Parameters<RemoteDesktopClient["startNewThread"]>[0]) => {
+        starts.push(request);
+        return { threadId: request.threadId };
+      },
+    }),
+  );
+  expect(await value.draftProject("c:\\other\\src")).toMatchObject({ id: project.id });
+  expect(await value.modelReasoning("codex", "m1")).toEqual({
+    default: "high",
+    values: ["low", "medium", "high"],
+  });
+  expect(await value.draftApprovalState("codex")).toMatchObject({ current: "ask" });
+  expect(await value.draftApprovalState("poracode")).toBeUndefined();
+  await value.setDraftApproval("codex", "auto");
+  value.setDraftWorktree(project.id, "origin/main");
+
+  const launch = async (id: string) => {
+    const create = await value.handle(
+      new Request("http://poracode.invalid/api/session", {
+        method: "POST",
+        body: JSON.stringify({
+          id,
+          location: { directory: "C:/other/src" },
+          model: { providerID: "codex", id: "m1" },
+        }),
+      }),
+    );
+    expect(create.ok).toBe(true);
+    expect(await create.json()).toMatchObject({ data: { projectID: project.id } });
+    expect(await value.sendPrompt(id, { text: "Hello" })).toHaveProperty("data");
+  };
+  await launch("ses_first");
+  expect(worktrees).toEqual([
+    expect.objectContaining({
+      projectLocation: project.location,
+      createBranch: true,
+      startPoint: "origin/main",
+    }),
+  ]);
+  expect(starts[0]).toMatchObject({
+    projectId: project.id,
+    config: { approvalPolicy: "auto", effort: "high" },
+    worktreePath: "C:/worktrees/new",
+    worktreeBranch: worktrees[0]?.branch,
+    isNewWorktree: true,
+  });
+  await launch("ses_second");
+  expect(worktrees).toHaveLength(1);
+  expect(starts[1]).toMatchObject({ config: { approvalPolicy: "ask", effort: "high" } });
+  expect(starts[1]).not.toHaveProperty("worktreePath");
+});
+
 test("maps a persisted remote thread to a resumable OpenCode session ID", async () => {
   const project = remoteProjectSchema.parse({
     id: "project-1",

@@ -201,8 +201,8 @@ test("a finished turn reads like the desktop chat: bubble, collapsed groups, pil
     items: turn,
     waitFor: ["Worked for", "Done."],
   });
-  expect(frame).toContain("╭");
-  expect(frame).toContain("│ Make the server port configurable and run the tests.");
+  expect(frame).toContain("  Make the server port configurable and run the tests.");
+  expect(frame).not.toContain("│ Make the server port configurable");
   // The desktop group summary orders categories by count, then view/search/edit/command priority.
   expect(frame).toContain("✱ 2 searches · ◉ 1 view · ✻ 1 thought");
   expect(frame).toContain("✱ 1 search · ✎ 1 edit +2 -1 · $ 1 command");

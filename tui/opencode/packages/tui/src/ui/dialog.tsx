@@ -13,7 +13,8 @@ import {
   type ParentProps,
 } from "solid-js"
 import { Keymap } from "../context/keymap"
-import { ThemeContextProvider, useTheme } from "../context/theme"
+import { useIsPoracode } from "../context/runtime"
+import { ThemeContextProvider, usePoracodeActiveBg, usePoracodeOverlayBg, useTheme } from "../context/theme"
 import { InputRenderable, MouseButton, Renderable, RGBA, TextAttributes } from "@opentui/core"
 import { createStore } from "solid-js/store"
 import { useToast } from "./toast"
@@ -42,7 +43,9 @@ export function Dialog(
 ) {
   const dimensions = useTerminalDimensions()
   const theme = useTheme().surface("dialog")
+  const overlayBg = usePoracodeOverlayBg(() => theme.background.base)
   const renderer = useRenderer()
+  const poracode = useIsPoracode()
 
   let dismiss = false
   return (
@@ -67,7 +70,7 @@ export function Dialog(
         paddingTop={props.centered ? 0 : dimensions().height / 4}
         left={0}
         top={0}
-        backgroundColor={RGBA.fromInts(0, 0, 0, 150)}
+        backgroundColor={poracode ? undefined : RGBA.fromInts(0, 0, 0, 150)}
       >
         <box
           onMouseUp={(e: { stopPropagation(): void }) => {
@@ -77,9 +80,12 @@ export function Dialog(
             dismiss = false
             e.stopPropagation()
           }}
-          width={dialogWidth(props.size ?? "medium")}
+          width={dialogWidth(props.size ?? "medium") + (poracode ? 2 : 0)}
           maxWidth={dimensions().width - 2}
-          backgroundColor={theme.background.base}
+          border={poracode ? true : undefined}
+          borderStyle={poracode ? "rounded" : undefined}
+          borderColor={poracode ? theme.background.raised.max : undefined}
+          backgroundColor={poracode ? overlayBg() : theme.background.base}
           paddingTop={1}
         >
           {props.children}
@@ -181,18 +187,41 @@ export type DialogButton = { label: string; run: () => void }
 /** A right-aligned row of buttons; the active one is highlighted. Arrow keys and Enter are bound by the dialog. */
 export function DialogButtons(props: { buttons: DialogButton[]; active: number; onActive?: (index: number) => void }) {
   const theme = useTheme().surface("dialog")
+  const overlayBg = usePoracodeOverlayBg(() => theme.background.base)
+  const poracode = useIsPoracode()
+  const poracodeActiveBg = usePoracodeActiveBg(overlayBg, theme)
   return (
-    <box flexDirection="row" justifyContent="flex-end">
+    <box flexDirection="row" justifyContent="flex-end" gap={poracode ? 1 : undefined}>
       <For each={props.buttons}>
         {(button, index) => (
           <box
             paddingLeft={1}
             paddingRight={1}
-            backgroundColor={props.active === index() ? theme.background.action.primary.focused : undefined}
+            backgroundColor={
+              props.active === index()
+                ? poracode
+                  ? poracodeActiveBg()
+                  : theme.background.action.primary.focused
+                : undefined
+            }
             onMouseOver={() => props.onActive?.(index())}
             onMouseUp={() => button.run()}
           >
-            <text fg={props.active === index() ? theme.text.action.primary.focused : theme.text.muted}>
+            <text
+              fg={
+                props.active === index()
+                  ? poracode
+                    ? theme.text.base
+                    : theme.text.action.primary.focused
+                  : theme.text.muted
+              }
+              attributes={poracode && props.active === index() ? TextAttributes.BOLD : undefined}
+            >
+              <Show when={poracode}>
+                <span style={{ fg: props.active === index() ? theme.text.brand : theme.text.muted }}>
+                  {props.active === index() ? "› " : "  "}
+                </span>
+              </Show>
               {button.label}
             </text>
           </box>

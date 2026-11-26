@@ -3,6 +3,7 @@ import { createComponent, createSignal } from "solid-js";
 import type { Adapter } from "../adapter";
 import { configureSessionOptions, configureSessionToggles } from "./composer/actions";
 import { registerComposerUi } from "./composer";
+import { registerDraftUi } from "./composer/draft";
 import { registerCrewUi } from "./crew";
 import { registerServerUi } from "./servers";
 import { SlotText } from "./slotText";
@@ -39,6 +40,7 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
       registerServerUi(context, adapter);
       registerTranscriptUi(context);
       registerComposerUi(context, adapter);
+      registerDraftUi(context, adapter);
       registerRepaint(context);
       const [goalTick, setGoalTick] = createSignal(0);
       adapter.subscribeGoal(() => setGoalTick((value) => value + 1));

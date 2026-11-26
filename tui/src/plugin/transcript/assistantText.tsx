@@ -1,9 +1,14 @@
-import { createMemo, createResource, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, onCleanup, Show } from "solid-js";
 import { BoxRenderable, SyntaxStyle, type MarkdownOptions, type Renderable } from "@opentui/core";
 import type { Plugin } from "@opencode/plugin/tui";
 import type { TranscriptEntry, TranscriptRowInput } from "@opencode/plugin/tui/context";
 import { resolvePart } from "./items";
 import { chatMarkdown } from "./chatMarkdown";
+import {
+  INITIAL_STREAM_REVEAL_RATE,
+  streamArrivalRate,
+  streamRevealVelocity,
+} from "@/shared/streamReveal";
 
 /** Top-level entry names per session directory, fetched once through the host client. */
 const rootNamesCache = new Map<string, Promise<ReadonlySet<string> | undefined>>();
@@ -79,6 +84,64 @@ function assistantSyntax(context: Plugin.Context): SyntaxStyle {
  * block, but inline code, file paths, and links render as code spans via
  * `chatMarkdown`, and fenced code sits on a raised panel.
  */
+export function revealStreamedText(text: () => string, animate: () => boolean, initial = text()) {
+  const [revealed, setRevealed] = createSignal(initial);
+  let target = initial;
+  let shown = initial.length;
+  let velocity = 0;
+  let arrivalRate = INITIAL_STREAM_REVEAL_RATE;
+  let lastChunk: number | undefined;
+  let lastFrame = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stop = () => {
+    clearTimeout(timer);
+    timer = undefined;
+  };
+  const frame = () => {
+    timer = undefined;
+    const now = performance.now();
+    const elapsed = Math.min((now - lastFrame) / 1_000, 0.05);
+    lastFrame = now;
+    velocity = streamRevealVelocity(velocity, arrivalRate, target.length - shown);
+    shown = Math.min(shown + velocity * elapsed, target.length);
+    if (target.length - shown < 0.25) shown = target.length;
+    let end = Math.floor(shown);
+    if (end > 0 && end < target.length && /[\uDC00-\uDFFF]/u.test(target[end] ?? "")) end--;
+    setRevealed(target.slice(0, end));
+    if (shown < target.length) timer = setTimeout(frame, 32);
+  };
+  createEffect(() => {
+    const next = text();
+    if (!animate() || !next.startsWith(target)) {
+      stop();
+      target = next;
+      shown = next.length;
+      velocity = 0;
+      arrivalRate = INITIAL_STREAM_REVEAL_RATE;
+      lastChunk = undefined;
+      setRevealed(next);
+      return;
+    }
+    const now = performance.now();
+    if (next.length > target.length) {
+      if (lastChunk !== undefined)
+        arrivalRate = streamArrivalRate(
+          arrivalRate,
+          next.length - target.length,
+          (now - lastChunk) / 1_000,
+        );
+      lastChunk = now;
+    }
+    target = next;
+    if (shown < target.length && timer === undefined) {
+      lastFrame = now;
+      timer = setTimeout(frame, 32);
+    }
+  });
+  onCleanup(stop);
+  return () => (animate() ? revealed() : text());
+}
+
 export function AssistantText(props: {
   context: Plugin.Context;
   markdown: TranscriptRowInput["markdown"];
@@ -86,10 +149,23 @@ export function AssistantText(props: {
   streaming: boolean;
   root: string | undefined;
   rootNames: ReadonlySet<string> | undefined;
+  revealKey?: string;
 }) {
   const theme = () => props.context.theme;
+  const revealed = revealStreamedText(
+    () => props.text,
+    () => props.streaming && props.context.ui.animationsEnabled(),
+    props.revealKey && !revealedPartKeys.has(props.revealKey) ? "" : props.text,
+  );
+  createEffect(() => {
+    const key = props.revealKey;
+    if (!key || !props.streaming || !revealed()) return;
+    revealedPartKeys.add(key);
+    if (revealedPartKeys.size > 500)
+      revealedPartKeys.delete(revealedPartKeys.values().next().value!);
+  });
   const content = createMemo(() => {
-    const text = props.text.trim();
+    const text = revealed().trim();
     if (!text) return "";
     if (props.markdown.mode === "source") return text;
     return chatMarkdown(text, { root: props.root, rootNames: props.rootNames });
@@ -150,6 +226,7 @@ export function AssistantText(props: {
 }
 
 type PartEntry = Extract<TranscriptEntry, { type: "part" }>;
+const revealedPartKeys = new Set<string>();
 
 /**
  * A part entry's text presentation: assistant text parts render through
@@ -181,6 +258,7 @@ export function PartText(props: {
           markdown={props.input.markdown}
           text={value().text}
           streaming={streaming()}
+          revealKey={`${sessionID()}:${props.entry.messageID}:${props.entry.partID}`}
           root={directory()}
           rootNames={rootNames()}
         />

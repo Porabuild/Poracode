@@ -259,7 +259,11 @@ export async function handlePromptRoutes({
       ...(pick?.lead.fast !== undefined ? { fast: pick.lead.fast } : {}),
       ...(pick ? { crew: pick.binding } : hadCrew ? { crew: null } : {}),
     };
-    if (pick && !pick.lead.effort) delete updated.effort;
+    if (
+      (pick && !pick.lead.effort) ||
+      (!pick && !effort && (current.providerID !== leadProviderID || current.model !== leadModelID))
+    )
+      delete updated.effort;
     if (current.providerID !== leadProviderID) {
       delete updated.approvalPolicy;
       delete updated.sandboxMode;

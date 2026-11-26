@@ -1,0 +1,182 @@
+diff --git a/packages/tui/test/cli/tui/dialog-select.test.tsx b/packages/tui/test/cli/tui/dialog-select.test.tsx
+index 2c8b586..588f3b1 100644
+--- a/packages/tui/test/cli/tui/dialog-select.test.tsx
++++ b/packages/tui/test/cli/tui/dialog-select.test.tsx
+@@ -10,9 +10,10 @@ import {
+   dialogSelectContentWidth,
+   type DialogSelectOption,
+   type DialogSelectProps,
++  type DialogSelectRef,
+ } from "../../../src/ui/dialog-select"
+ import { truncateFilePath } from "../../../src/ui/file-path"
+-import { getOpenCodeTheme } from "../../../src/theme"
++import { getPoracodeTheme } from "../../../src/theme"
+ import { resolveThemeDocument } from "@opencode/theme/tui"
+ import { stringWidth } from "../../../src/util/string-width"
+ import { emptyThemeSource, tmpdir } from "../../fixture/fixture"
+@@ -172,6 +173,26 @@ async function mountSelect<T>(
+   return { app, moved, replaceOptions, replaceCurrent, selected }
+ }
+ 
++test("search keeps matches beyond the viewport and follows replacement options", async () => {
++  await using tmp = await tmpdir()
++  const rows = Array.from({ length: 16 }, (_, i) => ({ title: `Project ${i}`, value: `p${i}` }))
++  let picker!: DialogSelectRef<string>
++  const select = await mountSelect(tmp.path, rows, undefined, undefined, { ref: (ref) => { picker = ref } })
++  try {
++    await select.app.mockInput.typeText("project")
++    await select.app.waitFor(() => picker.filter === "project")
++    expect(picker.filtered).toHaveLength(16)
++    picker.moveTo("p15")
++    select.app.mockInput.pressEnter()
++    await select.app.waitFor(() => select.selected.includes("p15"))
++    select.replaceOptions([{ title: "Project replacement", value: "new" }, { title: "Project hidden", value: "off", disabled: true }])
++    await select.app.waitFor(() => picker.filtered.length === 1)
++    expect(picker.filtered[0]?.value).toBe("new")
++  } finally {
++    select.app.renderer.destroy()
++  }
++})
++
+ test.each([true, false])("filter refs are ready when published with renderFilter=%s", async (renderFilter) => {
+   await using tmp = await tmpdir()
+   const queries: string[] = []
+@@ -380,7 +401,7 @@ test("dialog actions run without options while row actions still require a selec
+ 
+ test("uses the base text color for the search cursor under new designs", async () => {
+   await using tmp = await tmpdir()
+-  const theme = resolveThemeDocument(getOpenCodeTheme(), "dark")
++  const theme = resolveThemeDocument(getPoracodeTheme(), "dark")
+   const app = await renderSelect(
+     tmp.path,
+     [{ title: "First", value: "first" }],
+@@ -695,3 +716,129 @@ test("keeps the first row selected when current is only a marker", async () => {
+     select.app.renderer.destroy()
+   }
+ })
++
++test("poracode destructive active row preserves foreground contrast on description, footer, and markers", async () => {
++  await using tmp = await tmpdir()
++  const state = path.join(tmp.path, "state")
++  await mkdir(state, { recursive: true })
++  const config = createTuiResolvedConfig()
++  const [{ ConfigProvider }, { ThemeProvider, useTheme }, { TuiAppProvider }, { Keymap }, { DialogProvider }, { DialogSelect }, { ToastProvider }] = await Promise.all([
++    import("../../../src/config"),
++    import("../../../src/context/theme"),
++    import("../../../src/context/runtime"),
++    import("../../../src/context/keymap"),
++    import("../../../src/ui/dialog"),
++    import("../../../src/ui/dialog-select"),
++    import("../../../src/ui/toast"),
++  ])
++
++  let destructiveFg!: RGBA
++  let destructiveBg!: RGBA
++  function Harness() {
++    function Select() {
++      const theme = useTheme().surface("dialog")
++      destructiveFg = theme.text.action.destructive.focused
++      destructiveBg = theme.background.action.destructive.focused
++      return (
++        <DialogSelect
++          title="Confirm delete"
++          current="danger"
++          options={[
++            {
++              title: "Confirm delete",
++              value: "danger",
++              description: "Press again to delete",
++              footer: "~/repo",
++              bg: theme.background.action.destructive.focused,
++              fg: theme.text.action.destructive.focused,
++            },
++          ]}
++        />
++      )
++    }
++    return (
++      <TestTuiContexts directory={tmp.path} paths={{ home: tmp.path, state, worktree: tmp.path }}>
++        <TuiAppProvider app={{ name: "poracode", version: "1.0.0", channel: "test" }}>
++          <ConfigProvider config={config}>
++            <Keymap.Provider>
++              <ThemeProvider mode="dark" source={emptyThemeSource}>
++                <ToastProvider>
++                  <DialogProvider>
++                    <Select />
++                  </DialogProvider>
++                </ToastProvider>
++              </ThemeProvider>
++            </Keymap.Provider>
++          </ConfigProvider>
++        </TuiAppProvider>
++      </TestTuiContexts>
++    )
++  }
++
++  const app = await testRender(() => <Harness />, { width: 80, height: 18, kittyKeyboard: true })
++  try {
++    app.renderer.start()
++    await app.waitForFrame((frame) => frame.includes("Press again to delete"))
++    const lines = app.captureSpans().lines
++    const row = lines.find((line) => line.spans.some((span) => span.text.includes("Confirm delete") && span.bg.equals(destructiveBg)))
++    expect(row).toBeDefined()
++    for (const piece of ["●", "Confirm delete", "Press again to delete", "~/repo"]) {
++      const span = row!.spans.find((item) => item.text.includes(piece))
++      expect(span?.fg.equals(destructiveFg)).toBe(true)
++    }
++  } finally {
++    app.renderer.destroy()
++  }
++})
++
++test("poracode dialog stays opaque under transparent system theme", async () => {
++  await using tmp = await tmpdir()
++  const state = path.join(tmp.path, "state")
++  await mkdir(state, { recursive: true })
++  const config = createTuiResolvedConfig({ theme: { name: "system" } })
++  const [{ ConfigProvider }, { ThemeProvider }, { TuiAppProvider }, { Keymap }, { DialogProvider, useDialog }, { DialogSelect }, { ToastProvider }] = await Promise.all([
++    import("../../../src/config"),
++    import("../../../src/context/theme"),
++    import("../../../src/context/runtime"),
++    import("../../../src/context/keymap"),
++    import("../../../src/ui/dialog"),
++    import("../../../src/ui/dialog-select"),
++    import("../../../src/ui/toast"),
++  ])
++
++  function Harness() {
++    function Fixture() {
++      const dialog = useDialog()
++      onMount(() => dialog.replace(() => <DialogSelect title="Opaque overlay" options={[{ title: "Row", value: "row" }]} />))
++      return null
++    }
++    return (
++      <TestTuiContexts directory={tmp.path} paths={{ home: tmp.path, state, worktree: tmp.path }}>
++        <TuiAppProvider app={{ name: "poracode", version: "1.0.0", channel: "test" }}>
++          <ConfigProvider config={config}>
++            <Keymap.Provider>
++              <ThemeProvider mode="dark" source={emptyThemeSource}>
++                <ToastProvider>
++                  <DialogProvider>
++                    <Fixture />
++                  </DialogProvider>
++                </ToastProvider>
++              </ThemeProvider>
++            </Keymap.Provider>
++          </ConfigProvider>
++        </TuiAppProvider>
++      </TestTuiContexts>
++    )
++  }
++
++  const app = await testRender(() => <Harness />, { width: 80, height: 18, kittyKeyboard: true })
++  try {
++    app.renderer.start()
++    await app.waitForFrame((frame) => frame.includes("Opaque overlay"))
++    const row = app.captureSpans().lines.find((line) => line.spans.some((span) => span.text.includes("Opaque overlay")))
++    const cell = row?.spans.find((span) => span.text.includes("Opaque overlay"))
++    expect(cell?.bg.a).toBe(1)
++  } finally {
++    app.renderer.destroy()
++  }
++})

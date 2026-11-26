@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  INITIAL_STREAM_REVEAL_RATE,
+  streamArrivalRate,
+  streamRevealVelocity,
+} from "@/shared/streamReveal";
 
-const INITIAL_CHARS_PER_SECOND = 60;
-const MIN_CHARS_PER_SECOND = 25;
-const MAX_CHARS_PER_SECOND = 2_500;
-const DRAIN_WINDOW_SECONDS = 0.24;
-const VELOCITY_LERP = 0.15;
 const MAX_FRAME_SECONDS = 0.05;
-const ARRIVAL_RATE_ALPHA = 0.35;
 const IDLE_GRACE_MS = 200;
 const FRAME_TIME_TOLERANCE_MS = 0.5;
 
@@ -56,7 +55,7 @@ export function useSmoothStreamedText(
   const shownRef = useRef(initialText.length);
   const emittedRef = useRef(initialText.length);
   const velocityRef = useRef(0);
-  const arrivalRateRef = useRef(INITIAL_CHARS_PER_SECOND);
+  const arrivalRateRef = useRef(INITIAL_STREAM_REVEAL_RATE);
   const lastChunkTimeRef = useRef(0);
   const idleSinceRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -83,16 +82,14 @@ export function useSmoothStreamedText(
       const target = targetRef.current;
       if (shownRef.current > target.length) shownRef.current = target.length;
       const backlog = target.length - shownRef.current;
+      velocityRef.current = streamRevealVelocity(
+        velocityRef.current,
+        arrivalRateRef.current,
+        backlog,
+      );
 
       if (backlog > 0) {
         idleSinceRef.current = null;
-        // Combine estimated arrival cadence with proportional catch-up
-        const catchUpVelocity = backlog / DRAIN_WINDOW_SECONDS;
-        const targetVelocity = Math.min(
-          MAX_CHARS_PER_SECOND,
-          Math.max(arrivalRateRef.current, catchUpVelocity),
-        );
-        velocityRef.current += (targetVelocity - velocityRef.current) * VELOCITY_LERP;
         shownRef.current = Math.min(
           target.length,
           shownRef.current + velocityRef.current * elapsed,
@@ -101,11 +98,10 @@ export function useSmoothStreamedText(
           shownRef.current = target.length;
         }
       } else {
-        // Backlog is drained but stream may still be active: gently ease velocity
+        // Backlog is drained; record when idle began for the grace window
         if (idleSinceRef.current === null) {
           idleSinceRef.current = now;
         }
-        velocityRef.current += (0 - velocityRef.current) * VELOCITY_LERP;
       }
 
       const nextCount = Math.floor(shownRef.current);
@@ -154,17 +150,11 @@ export function useSmoothStreamedText(
       const deltaChars = text.length - previousTarget.length;
       const lastChunkTime = lastChunkTimeRef.current;
       if (lastChunkTime > 0) {
-        const deltaSeconds = (now - lastChunkTime) / 1_000;
-        if (deltaSeconds > 0.005 && deltaSeconds < 2.0) {
-          const instantRate = deltaChars / deltaSeconds;
-          arrivalRateRef.current = Math.min(
-            MAX_CHARS_PER_SECOND,
-            Math.max(
-              MIN_CHARS_PER_SECOND,
-              arrivalRateRef.current * (1 - ARRIVAL_RATE_ALPHA) + instantRate * ARRIVAL_RATE_ALPHA,
-            ),
-          );
-        }
+        arrivalRateRef.current = streamArrivalRate(
+          arrivalRateRef.current,
+          deltaChars,
+          (now - lastChunkTime) / 1_000,
+        );
       }
       lastChunkTimeRef.current = now;
     }
@@ -179,7 +169,7 @@ export function useSmoothStreamedText(
       shownRef.current = text.length;
       emittedRef.current = text.length;
       velocityRef.current = 0;
-      arrivalRateRef.current = INITIAL_CHARS_PER_SECOND;
+      arrivalRateRef.current = INITIAL_STREAM_REVEAL_RATE;
       lastChunkTimeRef.current = 0;
       idleSinceRef.current = null;
       lastFrameRef.current = 0;

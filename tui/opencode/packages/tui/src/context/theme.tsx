@@ -1,4 +1,4 @@
-import { CliRenderEvents, SyntaxStyle, type TerminalColors } from "@opentui/core"
+import { CliRenderEvents, SyntaxStyle, type RGBA, type TerminalColors } from "@opentui/core"
 import { useRenderer } from "@opentui/solid"
 import { generateSyntax, type ResolvedTheme, type SurfaceName } from "@opencode/theme/tui"
 import {
@@ -14,6 +14,7 @@ import {
 import { BRAND } from "../brand"
 import { generateSystem, terminalMode } from "../theme/system"
 import { discoverThemes } from "../theme/discovery"
+import { tint } from "../theme/color"
 import { createComponentTheme, type ComponentTheme } from "../theme/component"
 import { createEffect, createMemo, createSignal, onCleanup, onMount, type Accessor, type ParentProps } from "solid-js"
 import { createStore, produce } from "solid-js/store"
@@ -363,6 +364,21 @@ export function useThemes() {
 }
 export function useTheme(): ComponentTheme {
   return themeContext.use().current
+}
+export function usePoracodeOverlayBg(fallback: () => RGBA): Accessor<RGBA> {
+  const themes = useThemes()
+  return () => {
+    const base = themes.currentTokens().background.base
+    return base.a > 0 ? base : fallback()
+  }
+}
+export function usePoracodeActiveBg(surfaceBg: () => RGBA, theme: ComponentTheme): Accessor<RGBA> {
+  const themes = useThemes()
+  return () => {
+    const bg = surfaceBg()
+    if (themes.mode() === "light") return tint(bg, theme.text.base, 0.06)
+    return theme.background.raised.high.equals(bg) ? tint(bg, theme.text.base, 0.08) : theme.background.raised.high
+  }
 }
 export const ThemeProvider = themeContext.provider
 

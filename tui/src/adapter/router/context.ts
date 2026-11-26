@@ -298,6 +298,9 @@ export interface RouterContext {
       contextSize?: string;
     },
   ) => Promise<{ error: string; status: number } | { ok: true }>;
+  takeDraftApproval: (providerID: string) => string | undefined;
+  draftWorktreeStartPoint: (projectId: string) => string | undefined;
+  setDraftWorktree: (projectId: string, startPoint?: string) => void;
   composerState: (session: string) => Promise<{
     approval?: {
       current: string;

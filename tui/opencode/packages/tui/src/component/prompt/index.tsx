@@ -16,7 +16,7 @@ import { useTheme, useThemes } from "../../context/theme"
 import { tint } from "../../theme/color"
 import { createAnimatable, tween } from "../../ui/animation"
 import { EmptyBorder, SplitBorder } from "../../ui/border"
-import { useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
+import { useIsPoracode, useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
 import { useClipboard } from "../../context/clipboard"
 import { Spinner } from "../spinner"
 import { useClient } from "../../context/client"
@@ -182,6 +182,7 @@ function argumentSlash(input: string, commands: readonly KeymapCommand[]) {
 }
 
 export function Prompt(props: PromptProps) {
+  const poracode = useIsPoracode()
   let input: TextareaRenderable
   let anchor: BoxRenderable
   const [inputTarget, setInputTarget] = createSignal<TextareaRenderable | undefined>()
@@ -345,9 +346,11 @@ export function Prompt(props: PromptProps) {
     }, 0)
   })
 
+  const hiddenCursorColor = () => (poracode ? theme.background.base : theme.background.raised.base)
+
   createEffect(() => {
     if (!input || input.isDestroyed) return
-    input.cursorColor = disabled() ? theme.background.raised.base : theme.text.base
+    input.cursorColor = disabled() ? hiddenCursorColor() : theme.text.base
   })
 
   const [store, setStore] = createStore<{
@@ -1670,22 +1673,71 @@ export function Prompt(props: PromptProps) {
 
   return (
     <>
+      <Show when={poracode && !props.sessionID && props.visible !== false}>
+        <box
+          width="100%"
+          flexDirection="row"
+          justifyContent="space-between"
+          gap={2}
+          paddingLeft={1}
+          paddingRight={1}
+        >
+          <box flexDirection="row" gap={2} flexShrink={1} minWidth={0} overflow="hidden">
+            <Slot path="home.draft.header" />
+          </box>
+          <box
+            flexGrow={1}
+            flexShrink={1}
+            minWidth={0}
+            flexDirection="row"
+            justifyContent="flex-end"
+            onSizeChange={function (this: BoxRenderable) {
+              const width = this.width
+              queueMicrotask(() => setLocationWidth(width))
+            }}
+          >
+            <Show when={locationLabelDisplay()}>
+              {(location) => (
+                <text
+                  id="prompt.footer.location"
+                  fg={locationActions.hovered() ? theme.text.base : theme.text.muted}
+                  wrapMode="none"
+                  truncate
+                  onMouseOver={locationActions.onMouseOver}
+                  onMouseOut={locationActions.onMouseOut}
+                  onMouseUp={locationActions.onMouseUp}
+                >
+                  {location()}
+                </text>
+              )}
+            </Show>
+          </box>
+        </box>
+      </Show>
       <box ref={(r: BoxRenderable) => (anchor = r)} visible={props.visible !== false} width="100%">
         <box
           width="100%"
-          border={["left"]}
-          borderColor={borderHighlight()}
-          customBorderChars={{
-            ...SplitBorder.customBorderChars,
-            bottomLeft: "╹",
-          }}
+          border={poracode ? true : ["left"]}
+          borderStyle="rounded"
+          borderColor={
+            poracode
+              ? store.mode === "shell"
+                ? theme.text.feedback.warning.base
+                : muted()
+                  ? tint(theme.background.base, theme.border.base, 0.5)
+                  : theme.border.base
+              : borderHighlight()
+          }
+          customBorderChars={
+            poracode ? undefined : { ...SplitBorder.customBorderChars, bottomLeft: "╹" }
+          }
         >
           <box
             paddingLeft={dimensions().width < 44 ? 1 : 2}
             paddingRight={dimensions().width < 44 ? 1 : 2}
-            paddingTop={1}
+            paddingTop={poracode ? 0 : 1}
             flexShrink={0}
-            backgroundColor={promptBg()}
+            backgroundColor={poracode ? undefined : promptBg()}
             flexGrow={1}
             width="100%"
           >
@@ -1834,7 +1886,7 @@ export function Prompt(props: PromptProps) {
                 setTimeout(() => {
                   // setTimeout is a workaround and needs to be addressed properly
                   if (!input || input.isDestroyed) return
-                  input.cursorColor = disabled() ? theme.background.raised.base : theme.text.base
+                  input.cursorColor = disabled() ? hiddenCursorColor() : theme.text.base
                 }, 0)
               }}
               onMouseDown={(r: MouseEvent) => {
@@ -1852,7 +1904,7 @@ export function Prompt(props: PromptProps) {
                 r.stopPropagation()
               }}
               focusedBackgroundColor="transparent"
-              cursorColor={disabled() ? theme.background.raised.base : theme.text.base}
+              cursorColor={disabled() ? hiddenCursorColor() : theme.text.base}
               syntaxStyle={syntax()}
             />
             <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1} justifyContent="space-between">
@@ -1887,6 +1939,19 @@ export function Prompt(props: PromptProps) {
                   get width() {
                     return Math.max(0, dimensions().width - (dimensions().width < 44 ? 9 : 13))
                   },
+                  get canSubmit() {
+                    return !disabled() && store.prompt.text.trim().length > 0
+                  },
+                  get running() {
+                    return status() === "running"
+                  },
+                  submit: () => {
+                    void submit()
+                  },
+                  interrupt: () => {
+                    if (!props.sessionID) return
+                    void client.api.session.interrupt({ sessionID: props.sessionID, resume: true })
+                  },
                 }}
               >
                 <PromptMetadataRow
@@ -1907,33 +1972,35 @@ export function Prompt(props: PromptProps) {
             </box>
           </box>
         </box>
-        <box
-          height={1}
-          border={["left"]}
-          borderColor={borderHighlight()}
-          customBorderChars={{
-            ...EmptyBorder,
-            vertical: promptBg().a !== 0 ? "╹" : " ",
-          }}
-        >
+        <Show when={!poracode}>
           <box
             height={1}
-            border={["bottom"]}
-            borderColor={promptBg()}
-            customBorderChars={
-              promptBg().a !== 0
-                ? {
-                    ...EmptyBorder,
-                    horizontal: "▀",
-                  }
-                : {
-                    ...EmptyBorder,
-                    horizontal: " ",
-                  }
-            }
-          />
-        </box>
-        <box width="100%" flexDirection="row" justifyContent="space-between" gap={2}>
+            border={["left"]}
+            borderColor={borderHighlight()}
+            customBorderChars={{
+              ...EmptyBorder,
+              vertical: promptBg().a !== 0 ? "╹" : " ",
+            }}
+          >
+            <box
+              height={1}
+              border={["bottom"]}
+              borderColor={promptBg()}
+              customBorderChars={{
+                ...EmptyBorder,
+                horizontal: promptBg().a !== 0 ? "▀" : " ",
+              }}
+            />
+          </box>
+        </Show>
+        <box
+          width="100%"
+          flexDirection="row"
+          justifyContent="space-between"
+          gap={2}
+          paddingLeft={poracode ? 1 : 0}
+          paddingRight={poracode ? 1 : 0}
+        >
           <Slot path="prompt.footer" input={footerInput()}>
             <Slot path="prompt.footer.status" input={footerInput()}>
               <box
@@ -1941,6 +2008,7 @@ export function Prompt(props: PromptProps) {
                 flexShrink={1}
                 minWidth={0}
                 onSizeChange={function (this: BoxRenderable) {
+                  if (poracode && !props.sessionID) return
                   const width = this.width
                   queueMicrotask(() => setLocationWidth(width))
                 }}
@@ -1979,6 +2047,9 @@ export function Prompt(props: PromptProps) {
                         (new worktree)
                       </text>
                     </box>
+                  </Match>
+                  <Match when={poracode && !props.sessionID}>
+                    <Slot path="prompt.footer.status.draft" input={footerInput()} />
                   </Match>
                   <Match when={true}>
                     <Show when={locationLabelDisplay()} fallback={<text />}>

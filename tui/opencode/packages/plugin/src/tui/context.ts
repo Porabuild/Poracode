@@ -147,7 +147,7 @@ export interface Data {
 }
 
 export type Route =
-  | { readonly type: "home" }
+  | { readonly type: "home"; readonly location?: LocationRef }
   | { readonly type: "session"; readonly sessionID: string }
   | {
       readonly type: "plugin"
@@ -255,8 +255,10 @@ export interface SlotMap {
   readonly app: Readonly<Record<string, never>>
   readonly "home.footer": Readonly<Record<string, never>>
   readonly "home.footer.status": Readonly<Record<string, never>>
+  readonly "home.draft.header": Readonly<Record<string, never>>
   readonly "prompt.footer": PromptFooterInput
   readonly "prompt.footer.status": PromptFooterInput
+  readonly "prompt.footer.status.draft": PromptFooterInput
   readonly "prompt.footer.file": PromptFooterInput
   readonly "session.composer.top": { readonly sessionID: string }
   /** poracode: the prompt's agent/model metadata row. */
@@ -274,6 +276,10 @@ export interface SlotMap {
     readonly muted: boolean
     /** Columns available to the row (the host's own metadata width). */
     readonly width: number
+    readonly canSubmit: boolean
+    readonly running: boolean
+    readonly submit: () => void
+    readonly interrupt: () => void
   }
   readonly "session.panel": PanelInput
   /** poracode: each transcript row of the open session. */
@@ -576,6 +582,7 @@ export interface Keymap {
 }
 
 export interface UI {
+  animationsEnabled(): boolean
   readonly dialog: Dialog
   readonly toast: Toast
   readonly format: {

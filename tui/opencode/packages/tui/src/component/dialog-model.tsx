@@ -10,14 +10,20 @@ import { useData } from "../context/data"
 import { modelPreferenceKey } from "../model-preference"
 import { useLocation } from "../context/location"
 import { useNewDesigns } from "../config"
+import { useIsPoracode } from "../context/runtime"
 import { FavoriteMarker, isFreeModel, prioritizeFavorites, sortModelOptions } from "./model-options"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const dialog = useDialog()
+  const poracode = useIsPoracode()
 
   function select(providerID: string, modelID: string) {
     local.model.set({ providerID, modelID }, { recent: true })
+    if (poracode) {
+      dialog.clear()
+      return
+    }
     const list = local.model.variant.list()
     const cur = local.model.variant.current()
     if (cur && list.includes(cur)) {

@@ -85,6 +85,11 @@ export function useTuiApp() {
   return required(AppContext, "TuiAppProvider")
 }
 
+/** Safe check for Poracode styling inside primitives that unit tests may mount without TuiAppProvider. */
+export function useIsPoracode() {
+  return useContext(AppContext)?.name === "poracode"
+}
+
 export function useTuiTerminalEnvironment() {
   return required(TerminalEnvironmentContext, "TuiTerminalEnvironmentProvider")
 }

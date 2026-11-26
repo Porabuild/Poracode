@@ -417,6 +417,8 @@ export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
   searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
   memory: sharedSettingsSchema.shape.memory.removeDefault().optional(),
   installedPlugins: sharedSettingsSchema.shape.installedPlugins.removeDefault().optional(),
+  newsLineEnabled: sharedSettingsSchema.shape.newsLineEnabled.optional(),
+  newsLineActivity: sharedSettingsSchema.shape.newsLineActivity.optional(),
 });
 
 export const settingsReadResultWireSchema = z.object({
@@ -428,7 +430,12 @@ export const settingsWriteResultWireSchema = z.object({
 });
 
 export const remoteSettingsPatchWireSchema = remoteSettingsWireSchema
-  .omit({ enabledMcpServers: true, disabledBuiltInMcpServers: true })
+  .omit({
+    enabledMcpServers: true,
+    disabledBuiltInMcpServers: true,
+    newsLineEnabled: true,
+    newsLineActivity: true,
+  })
   .partial()
   .extend({
     followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional(),

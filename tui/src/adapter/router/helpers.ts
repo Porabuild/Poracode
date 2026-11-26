@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { VcsDiffOutput } from "@opencode/client";
 import type { AgentStatus } from "@/shared/contracts";
+import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
 
 export const recordSchema = z.record(z.string(), z.unknown());
 
@@ -14,11 +15,20 @@ export const guiModelEfforts = (status: AgentStatus, modelID: string) => {
   const capabilities = guiCapabilities(status);
   return (
     capabilities.modelEfforts?.[modelID] ??
-    status.capabilities.modelEfforts[modelID] ??
+    status.capabilities.modelEfforts?.[modelID] ??
     capabilities.efforts ??
     status.capabilities.efforts
   );
 };
+
+export const guiModelReasoning = (status: AgentStatus, modelID: string) =>
+  modelSelectionFor(
+    {
+      ...capabilitiesForPresentation(status.capabilities, "gui"),
+      modelEfforts: { [modelID]: guiModelEfforts(status, modelID) },
+    },
+    modelID,
+  ).reasoning;
 
 export function gitFileStatus(status: string): "added" | "deleted" | "modified" {
   const normalized = status.toLowerCase();

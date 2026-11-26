@@ -1,5 +1,6 @@
 import {
   measureEditText,
+  TextAttributes,
   type RGBA,
   type BoxRenderable,
   type TextareaRenderable,
@@ -25,10 +26,10 @@ import { useEditorContext } from "../../context/editor"
 import { useClient } from "../../context/client"
 import { useData } from "../../context/data"
 import { getScrollAcceleration } from "../../util/scroll"
-import { useTuiPaths } from "../../context/runtime"
+import { useIsPoracode, useTuiPaths } from "../../context/runtime"
 import { useConfig, useNewDesigns } from "../../config"
 import { useLocation } from "../../context/location"
-import { useTheme } from "../../context/theme"
+import { usePoracodeActiveBg, usePoracodeOverlayBg, useTheme } from "../../context/theme"
 import { SplitBorder } from "../../ui/border"
 import { useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { Locale } from "../../util/locale"
@@ -846,11 +847,16 @@ export function Autocomplete(props: {
     })
   })
 
+  const poracode = useIsPoracode()
+  const poracodePopup = () => poracode && !newDesigns()
+  const poracodeOverlayBg = usePoracodeOverlayBg(() => theme.background.raised.high)
+  const poracodeSelectedBg = usePoracodeActiveBg(poracodeOverlayBg, theme)
   const height = createMemo(() => {
     const count = options().length || 1
     if (!store.visible) return Math.min(10, count)
     positionTick()
-    return Math.min(10, count, Math.max(1, props.anchor().y))
+    const chrome = poracodePopup() ? 2 : 0
+    return Math.min(10, count, Math.max(1, props.anchor().y - chrome))
   })
 
   let scroll: ScrollBoxRenderable | undefined
@@ -881,14 +887,16 @@ export function Autocomplete(props: {
     <box
       visible={store.visible !== false}
       position="absolute"
-      top={position().y - height()}
+      top={position().y - height() - (poracodePopup() ? 2 : 0)}
       left={position().x}
       width={position().width}
       zIndex={100}
-      {...SplitBorder}
       // Under new designs each row draws its own left rail so the selected row can show the selection bar.
-      border={newDesigns() ? ["right"] : SplitBorder.border}
+      border={poracodePopup() ? true : newDesigns() ? ["right"] : SplitBorder.border}
+      borderStyle={poracodePopup() ? "rounded" : undefined}
+      customBorderChars={poracodePopup() ? undefined : SplitBorder.customBorderChars}
       borderColor={theme.border.base}
+      backgroundColor={poracodePopup() ? poracodeOverlayBg() : undefined}
     >
       <scrollbox
         ref={(r: ScrollBoxRenderable) => {
@@ -897,7 +905,7 @@ export function Autocomplete(props: {
           scroll.verticalScrollBar.on("change", syncSelectionWindow)
         }}
         // Under new designs rows paint the background themselves so the rail cell stays transparent like the border.
-        backgroundColor={newDesigns() ? undefined : theme.background.raised.high}
+        backgroundColor={newDesigns() ? undefined : poracodePopup() ? poracodeOverlayBg() : theme.background.raised.high}
         height={height()}
         scrollbarOptions={{ visible: false }}
         scrollAcceleration={scrollAcceleration()}
@@ -931,12 +939,14 @@ export function Autocomplete(props: {
             }
             const contentWidth = () => {
               const text = label()
-              return Math.max(1, position().width - 4 - (text ? stringWidth(text) + 2 : 0))
+              return Math.max(1, position().width - (poracodePopup() ? 6 : 4) - (text ? stringWidth(text) + 2 : 0))
             }
             const confirmingAction = () => {
               const action = destructive()
               return action !== undefined && action.id === confirming()
             }
+            const secondaryFg = () =>
+              index === store.selected && !poracodePopup() ? theme.text.action.primary.focused : theme.text.muted
             return (
               <AutocompleteRail
                 enabled={newDesigns()}
@@ -956,7 +966,9 @@ export function Autocomplete(props: {
                     confirmingAction()
                       ? theme.background.action.destructive.focused
                       : index === store.selected
-                        ? theme.background.action.primary.focused
+                        ? poracodePopup()
+                          ? poracodeSelectedBg()
+                          : theme.background.action.primary.focused
                         : rowBackground()
                   }
                   flexDirection="row"
@@ -964,13 +976,35 @@ export function Autocomplete(props: {
                   onMouseDown={() => moveTo(index)}
                   onMouseUp={() => select()}
                 >
+                  <Show when={poracodePopup()}>
+                    <text
+                      fg={
+                        confirmingAction()
+                          ? theme.text.action.destructive.focused
+                          : index === store.selected
+                            ? theme.text.brand
+                            : theme.text.muted
+                      }
+                      flexShrink={0}
+                      wrapMode="none"
+                    >
+                      {index === store.selected ? "› " : "  "}
+                    </text>
+                  </Show>
                   <text
                     fg={
                       confirmingAction()
                         ? theme.text.action.destructive.focused
                         : index === store.selected
-                          ? theme.text.action.primary.focused
+                          ? poracodePopup()
+                            ? theme.text.base
+                            : theme.text.action.primary.focused
                           : theme.text.base
+                    }
+                    attributes={
+                      poracodePopup() && index === store.selected && !confirmingAction()
+                        ? TextAttributes.BOLD
+                        : undefined
                     }
                     flexShrink={0}
                     wrapMode="none"
@@ -981,21 +1015,13 @@ export function Autocomplete(props: {
                     )}
                   </text>
                   <Show when={!confirmingAction() && option().description}>
-                    <text
-                      fg={index === store.selected ? theme.text.action.primary.focused : theme.text.muted}
-                      wrapMode="none"
-                      flexShrink={1}
-                      minWidth={0}
-                    >
+                    <text fg={secondaryFg()} wrapMode="none" flexShrink={1} minWidth={0}>
                       {" " + option().description?.replace(/\s+/g, " ").trim()}
                     </text>
                   </Show>
                   <Show when={!confirmingAction() && label()}>
                     <box flexGrow={1} minWidth={2} />
-                    <text
-                      flexShrink={0}
-                      fg={index === store.selected ? theme.text.action.primary.focused : theme.text.muted}
-                    >
+                    <text flexShrink={0} fg={secondaryFg()}>
                       {label()}
                     </text>
                   </Show>
