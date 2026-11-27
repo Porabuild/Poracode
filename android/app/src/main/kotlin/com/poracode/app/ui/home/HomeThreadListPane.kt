@@ -71,9 +71,6 @@ import com.poracode.app.ui.theme.PoracodeMetrics
 import com.poracode.app.ui.theme.PoracodeTextStyles
 import com.poracode.app.ui.theme.PoracodeTheme
 
-/** Room under the list for the floating bottom row (`--m-floating-control-height` + gaps). */
-private val FloatingDockClearance = 96.dp
-
 @Composable
 internal fun ThreadListPane(
     state: AppSession.UiState,
@@ -200,10 +197,6 @@ internal fun ThreadListPane(
             HomeSocketBanner(
                 loadState = state.projectsLoadState,
                 socketState = state.socketState,
-            )
-            HomeFailureBanners(
-                globalError = state.globalError,
-                connectionError = state.connectionError,
             )
             when {
                 entries.isNotEmpty() -> HomeThreadEntryList(
@@ -383,7 +376,7 @@ private fun HomeThreadEntryList(
             start = PoracodeMetrics.pageInline,
             top = 4.dp,
             end = PoracodeMetrics.pageInline,
-            bottom = FloatingDockClearance,
+            bottom = HomeFloatingDockClearance,
         ),
         verticalArrangement = Arrangement.spacedBy(PoracodeMetrics.rowGap),
     ) {

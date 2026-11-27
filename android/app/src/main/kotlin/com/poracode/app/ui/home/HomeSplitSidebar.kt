@@ -182,10 +182,6 @@ internal fun HomeSplitSidebar(
             loadState = state.projectsLoadState,
             socketState = state.socketState,
         )
-        HomeFailureBanners(
-            globalError = state.globalError,
-            connectionError = state.connectionError,
-        )
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {

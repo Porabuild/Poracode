@@ -221,8 +221,10 @@ class AppSession(
     fun shouldPresentPush(route: PushRouteV1): Boolean =
         notificationBridge.shouldPresentPush(route)
 
-    fun clearGlobalError() {
-        _state.update { it.copy(globalError = null) }
+    fun clearGlobalError(expected: String) {
+        _state.update { current ->
+            if (current.globalError == expected) current.copy(globalError = null) else current
+        }
     }
 
     /**

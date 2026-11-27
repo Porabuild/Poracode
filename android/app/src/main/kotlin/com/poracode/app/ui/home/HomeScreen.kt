@@ -1,20 +1,11 @@
 package com.poracode.app.ui.home
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
@@ -39,7 +30,6 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.model.ClientConnectionId
@@ -77,6 +67,7 @@ internal fun HomeScreen(
     onRefreshModelVisibility: () -> Unit,
     threads: List<HostPresentation.UnifiedThreadItem>,
     onRefresh: () -> Unit,
+    onAckGlobalError: (String) -> Unit,
     onReconnect: (ClientConnectionId) -> Unit,
     onUnpair: () -> Unit,
     onOpenThread: (String) -> Unit,
@@ -207,6 +198,7 @@ internal fun HomeScreen(
         )
     }
 
+    val failurePopupHostState = rememberHomeFailurePopups(state.globalError, state.connectionError, onAckGlobalError)
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -470,23 +462,16 @@ internal fun HomeScreen(
             }
         }
 
-        AnimatedContent(
-            targetState = notificationBanner,
-            modifier = Modifier.align(Alignment.TopCenter).padding(12.dp),
-            transitionSpec = {
-                (fadeIn() + slideInVertically { -it / 2 }) togetherWith
-                    (fadeOut() + slideOutVertically { -it / 2 })
-            },
-            label = "remote-user-notification",
-        ) { banner ->
-            if (banner != null) {
-                RemoteUserNotificationBannerView(
-                    banner = banner,
-                    onOpen = { onOpenNotification(banner.id) },
-                    onDismiss = { onDismissNotification(banner.id) },
-                    modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp),
-                )
-            }
+        if (!layout.isSplit && state.openThreadId == null) {
+            HomeFailurePopups(failurePopupHostState, Modifier.align(Alignment.BottomCenter))
         }
+
+        HomeTopOverlays(
+            notificationBanner = notificationBanner,
+            onOpenNotification = onOpenNotification,
+            onDismissNotification = onDismissNotification,
+            failurePopupHostState = failurePopupHostState.takeIf { layout.isSplit },
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
     }
 }
