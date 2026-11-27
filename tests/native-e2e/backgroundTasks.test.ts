@@ -66,6 +66,11 @@ function snapshot(harness: Harness): BackgroundTaskLabSnapshot {
   return harness.scenario.state().backgroundTasks;
 }
 
+function readOrdinal(value: unknown): number {
+  const output = backgroundTaskOutputSchema.parse(value).output;
+  return Number(/read (\d+)/.exec(output)?.[1] ?? 0);
+}
+
 async function scenarioAction(harness: Harness, body: Record<string, unknown>): Promise<Response> {
   return controlRequest(harness, "/v1/scenario/actions", {
     method: "POST",
@@ -297,6 +302,127 @@ describe("shared background-task fixture", () => {
       stops: 1,
     });
     socket.ws.close();
+  });
+
+  it("holds exactly one output read, serves a fresh read while held, then releases the stale reply last", async () => {
+    harness = await startLab();
+    const lab = harness.lab.backgroundTasks;
+    const read = () => lab.invoke(invokePayload(fixture.actions.output, monitorAction("output")));
+
+    // A deterministic, test-only hold parks exactly the next read.
+    expect((await scenarioAction(harness, { type: "background-task-output-hold" })).status).toBe(
+      200,
+    );
+    const stale = read();
+    expect(stale).toBeInstanceOf(Promise);
+    expect(lab.snapshot()).toMatchObject({ outputReads: 1, outputDelivered: 0 });
+
+    // The hold is one-shot: the fresh (reopen) read displays a newer ordinal
+    // while the old read is still parked.
+    const newest = read();
+    expect(newest).not.toBeInstanceOf(Promise);
+    expect(backgroundTaskOutputSchema.parse(newest).output).toContain("read 2");
+    expect(lab.snapshot()).toMatchObject({ outputReads: 2, outputDelivered: 1 });
+
+    // Release only after the newest has been served, so the stale reply is
+    // guaranteed to arrive strictly last.
+    expect((await scenarioAction(harness, { type: "background-task-output-release" })).status).toBe(
+      200,
+    );
+    const staleResult = await stale;
+    expect(backgroundTaskOutputSchema.parse(staleResult).output).toContain("read 1");
+    expect(lab.snapshot()).toMatchObject({ outputReads: 2, outputDelivered: 2 });
+    expect(readOrdinal(newest)).toBeGreaterThan(readOrdinal(staleResult));
+  });
+
+  it("keeps a parked read unique across repeated holds and disarms an unused hold on release", async () => {
+    harness = await startLab();
+    const lab = harness.lab.backgroundTasks;
+    const read = () => lab.invoke(invokePayload(fixture.actions.output, monitorAction("output")));
+
+    // Park exactly one read.
+    expect((await scenarioAction(harness, { type: "background-task-output-hold" })).status).toBe(
+      200,
+    );
+    const parked = read();
+    expect(parked).toBeInstanceOf(Promise);
+
+    // A second hold while that read is parked is a no-op: the next read is
+    // served normally and the first parked promise is not overwritten/stranded.
+    expect((await scenarioAction(harness, { type: "background-task-output-hold" })).status).toBe(
+      200,
+    );
+    const following = read();
+    expect(following).not.toBeInstanceOf(Promise);
+    expect(lab.snapshot()).toMatchObject({ outputReads: 2, outputDelivered: 1 });
+
+    // Release delivers the one parked read and leaves no hold armed.
+    expect((await scenarioAction(harness, { type: "background-task-output-release" })).status).toBe(
+      200,
+    );
+    expect(backgroundTaskOutputSchema.parse(await parked).output).toContain("read 1");
+    expect(lab.snapshot()).toMatchObject({ outputReads: 2, outputDelivered: 2 });
+
+    // A hold armed but never consumed by a read is disarmed by release and
+    // records no delivery, so a later read is never parked unexpectedly.
+    expect((await scenarioAction(harness, { type: "background-task-output-hold" })).status).toBe(
+      200,
+    );
+    expect((await scenarioAction(harness, { type: "background-task-output-release" })).status).toBe(
+      200,
+    );
+    expect(lab.snapshot()).toMatchObject({ outputReads: 2, outputDelivered: 2 });
+    const fresh = read();
+    expect(fresh).not.toBeInstanceOf(Promise);
+    expect(lab.snapshot()).toMatchObject({ outputReads: 3, outputDelivered: 3 });
+  });
+
+  it("settles and drops a pending hold across reset without recording it in a new generation", async () => {
+    harness = await startLab();
+    const lab = harness.lab.backgroundTasks;
+    const read = () => lab.invoke(invokePayload(fixture.actions.output, monitorAction("output")));
+
+    expect((await scenarioAction(harness, { type: "background-task-output-hold" })).status).toBe(
+      200,
+    );
+    const held = read();
+    expect(held).toBeInstanceOf(Promise);
+    expect(lab.snapshot()).toMatchObject({ outputReads: 1, outputDelivered: 0 });
+
+    // Reset settles the parked read (no dangling promise) and starts clean.
+    expect((await scenarioAction(harness, { type: "reset" })).status).toBe(200);
+    const settled = await held;
+    expect(backgroundTaskOutputSchema.parse(settled).output).toContain("read 1");
+    expect(lab.snapshot()).toMatchObject({ outputReads: 0, outputDelivered: 0 });
+
+    // A stale release records nothing in the new generation.
+    expect((await scenarioAction(harness, { type: "background-task-output-release" })).status).toBe(
+      200,
+    );
+    expect(lab.snapshot()).toMatchObject({ outputReads: 0, outputDelivered: 0 });
+
+    // The hold did not leak: the first read of the new generation serves at once.
+    const fresh = read();
+    expect(fresh).not.toBeInstanceOf(Promise);
+    expect(backgroundTaskOutputSchema.parse(fresh).output).toContain("read 1");
+    expect(lab.snapshot()).toMatchObject({ outputReads: 1, outputDelivered: 1 });
+  });
+
+  it("settles a pending hold on harness stop", async () => {
+    harness = await startLab();
+    const lab = harness.lab.backgroundTasks;
+    expect((await scenarioAction(harness, { type: "background-task-output-hold" })).status).toBe(
+      200,
+    );
+    const held = lab.invoke(invokePayload(fixture.actions.output, monitorAction("output")));
+    expect(held).toBeInstanceOf(Promise);
+    expect(lab.snapshot()).toMatchObject({ outputReads: 1, outputDelivered: 0 });
+
+    // stop() settles the parked read so shutdown cannot hang on its promise.
+    await harness.stop();
+    harness = undefined;
+    const settled = await held;
+    expect(backgroundTaskOutputSchema.parse(settled).output).toContain("read 1");
   });
 
   it("treats an unadvertised opaque action as a no-op without starting a model", async () => {

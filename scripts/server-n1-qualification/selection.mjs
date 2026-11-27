@@ -8,8 +8,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { NoPublishedServerN1Error } from "./typed-failures.mjs";
 
 const PLAIN_SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const FIRST_STABLE_SERVER_VERSION = "2.0.0";
+const BOOTSTRAP_NIGHTLY_TAG = /^v(2\.0\.0-nightly\.\d{12})$/u;
 
-/** Plain X.Y.Z only — the repo's only published version shape. Null otherwise. */
+/** Stable X.Y.Z versions. Null otherwise. */
 export function parsePlainSemver(value) {
   if (typeof value !== "string") return null;
   const raw = value.startsWith("v") ? value.slice(1) : value;
@@ -43,9 +45,9 @@ export function n1TarballAssetName(version, target) {
 /**
  * Pick the N-1 release: the newest stable (non-draft, non-prerelease, plain
  * X.Y.Z tag) published release STRICTLY below the candidate version whose
- * asset list carries the target's `server-artifact-<target>.json`. Releases
- * that fail any requirement are recorded in the evidence with the reason, so
- * a `NO_PUBLISHED_SERVER_N1` verdict is auditable rather than a shrug.
+ * asset list carries the target's `server-artifact-<target>.json`. The first
+ * stable server release can bootstrap from the newest published nightly on
+ * its own release train. Both choices undergo the same upgrade qualification.
  */
 export function selectN1Release({ releases, candidateVersion, target }) {
   const candidate = parsePlainSemver(candidateVersion);
@@ -53,7 +55,8 @@ export function selectN1Release({ releases, candidateVersion, target }) {
   const wantedMetadata = serverArtifactAssetName(target);
 
   const evidence = [];
-  let best = null;
+  let stable = null;
+  let bootstrap = null;
   for (const release of releases ?? []) {
     const tag =
       typeof release?.tag_name === "string" ? release.tag_name : String(release?.tag_name);
@@ -68,7 +71,24 @@ export function selectN1Release({ releases, candidateVersion, target }) {
       continue;
     }
     if (release?.prerelease === true) {
-      ignore("prerelease");
+      const nightly =
+        candidate.raw === FIRST_STABLE_SERVER_VERSION ? BOOTSTRAP_NIGHTLY_TAG.exec(tag)?.[1] : null;
+      if (!nightly) {
+        ignore("prerelease");
+        continue;
+      }
+      const assetNames = (release.assets ?? []).map((asset) => asset?.name);
+      if (
+        !assetNames.includes(wantedMetadata) ||
+        !assetNames.includes(n1TarballAssetName(nightly, target))
+      ) {
+        ignore(`bootstrap nightly is missing metadata or the tarball for ${target}`);
+        continue;
+      }
+      entry.version = nightly;
+      entry.decision = "candidate";
+      evidence.push(entry);
+      if (bootstrap === null || nightly > bootstrap.version) bootstrap = entry;
       continue;
     }
     const version = parsePlainSemver(tag);
@@ -88,12 +108,17 @@ export function selectN1Release({ releases, candidateVersion, target }) {
     }
     entry.decision = "candidate";
     evidence.push(entry);
-    if (best === null || compareSemver(version, best) > 0) best = { ...version, release };
+    if (stable === null || compareSemver(version, stable.version) > 0) stable = { version, entry };
   }
 
-  if (best === null) {
+  const chosen = stable?.entry ?? bootstrap;
+  if (chosen === null) {
+    const bootstrapDetail =
+      candidate.raw === FIRST_STABLE_SERVER_VERSION
+        ? " or matching published bootstrap nightly"
+        : "";
     throw new NoPublishedServerN1Error(
-      `No published stable release strictly below ${candidate.raw} publishes ` +
+      `No published stable release strictly below ${candidate.raw}${bootstrapDetail} publishes ` +
         `${wantedMetadata} — there is no compatible server N-1 to upgrade from.`,
       {
         candidateVersion: candidate.raw,
@@ -104,11 +129,10 @@ export function selectN1Release({ releases, candidateVersion, target }) {
       },
     );
   }
-  const chosen = evidence.find((entry) => entry.version === best.raw);
   chosen.decision = "selected";
   return {
-    tag: best.release.tag_name,
-    version: best.raw,
+    tag: chosen.tag,
+    version: chosen.version,
     metadataAssetName: wantedMetadata,
     evidence,
   };

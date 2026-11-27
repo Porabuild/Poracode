@@ -1,3 +1,4 @@
+import type { TerminalColumnChange } from "@/shared/terminalColumnHistory";
 import { getSqlite } from "./connection";
 import { withRuntimeBusyTimeout } from "./runtimeBusyTimeout";
 import { terminalScrollbackStore } from "./terminalScrollbackStore";
@@ -10,11 +11,13 @@ export function dbGetThreadTerminalScrollback(threadId: string): string {
 /**
  * Transcript plus absolute **JS string code-unit** output length for
  * cursor-sync snapshots (UTF-16 units = `String.length`, not code points).
+ * `columnChanges` carries validated terminal-width markers for the retained
+ * window when known; absent means every retained unit has unknown geometry.
  * Returns null when no row exists (distinct from empty transcript).
  */
 export function dbGetThreadTerminalScrollbackRecord(
   threadId: string,
-): { transcript: string; outputLength: number } | null {
+): { transcript: string; outputLength: number; columnChanges?: TerminalColumnChange[] } | null {
   return terminalScrollbackStore(getSqlite()).read(threadId);
 }
 
@@ -22,16 +25,19 @@ export function dbGetThreadTerminalScrollbackRecord(
  * Appends one coalesced supervisor output batch. `outputLength` is the
  * supervisor's absolute JS code-unit offset, so an offset mismatch means a new
  * terminal generation and **replaces** stale scrollback instead of joining two
- * unrelated PTY sessions (restart / generation change).
+ * unrelated PTY sessions (restart / generation change). `columnChanges` marks
+ * absolute UTF-16 cursors where the observed terminal width changed inside this
+ * batch; omitting it keeps the legacy raw-only append.
  */
 export function dbAppendThreadTerminalOutput(
   threadId: string,
   data: string,
   outputLength: number,
+  columnChanges?: TerminalColumnChange[],
 ): void {
   if (!data) return;
   withRuntimeBusyTimeout(() =>
-    terminalScrollbackStore(getSqlite()).append(threadId, data, outputLength),
+    terminalScrollbackStore(getSqlite()).append(threadId, data, outputLength, columnChanges),
   );
 }
 

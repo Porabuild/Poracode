@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
@@ -218,10 +220,29 @@ class Android37WireLabFamilyInstrumentedTest {
             waitForOperation("ws-server:terminal-watch-result")
         }
         waitForEnabledTag("terminal_input")
-        compose.onNodeWithTag("terminal_input").performTextInput("echo family-pty")
+        // The real peer asserts rendered row order, so it types a
+        // split-format printf whose echoed command row stays distinct from
+        // the separately materialized result row; the mock peer keeps the
+        // plain echo and its journal assertion.
+        val command = if (isRealPeer) "printf '%s%s\\n' fam- ily" else "echo family-pty"
+        compose.onNodeWithTag("terminal_input").performTextInput(command)
         waitForEnabledTag("terminal_send")
         compose.onNodeWithTag("terminal_send").performClick()
-        if (isRealPeer) pollRealPeerState() else {
+        if (isRealPeer) {
+            val resultMarker = "fam-ily"
+            pollRealPeerState()
+            compose.waitUntil(15_000) {
+                val rows = terminalOutputRows()
+                rows.any { it.contains(command) } && rows.any { it.trim() == resultMarker }
+            }
+            val rows = terminalOutputRows()
+            val commandIndex = rows.indexOfFirst { it.contains(command) }
+            val resultIndex = rows.indexOfFirst { it.trim() == resultMarker }
+            org.junit.Assert.assertTrue(
+                "echoed command row must precede the result row: $rows",
+                commandIndex >= 0 && resultIndex > commandIndex,
+            )
+        } else {
             waitForOperation("route:terminal-write")
         }
     }
@@ -463,4 +484,17 @@ class Android37WireLabFamilyInstrumentedTest {
     private fun hasText(text: String): Boolean = runCatching {
         compose.onAllNodesWithText(text).fetchSemanticsNodes()
     }.getOrDefault(emptyList()).isNotEmpty()
+
+    /** Rendered text rows in semantics order — one entry per terminal line,
+     * so soft-wrapped output stays a single contiguous row. */
+    private fun terminalOutputRows(): List<String> {
+        val rows = mutableListOf<String>()
+        fun walk(node: androidx.compose.ui.semantics.SemanticsNode) {
+            node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)
+                ?.forEach { rows += it.text }
+            node.children.forEach(::walk)
+        }
+        walk(compose.onRoot().fetchSemanticsNode())
+        return rows
+    }
 }

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import {
+  assertIosHidTarget,
   collectForwardPorts,
   hasInstalledAndroidPackage,
+  IOS_HID_ENV,
   IOS_UI_MAX_RUN_DIRS,
   IOS_UI_SIMULATOR_NAME,
   rewriteLoopbackUrlHost,
@@ -12,7 +16,45 @@ import {
   selectPrunableIosRunDirs,
   startLoopbackForwarders,
   waitForAndroidFrameworkServices,
+  watchIosHarnessExit,
 } from "./native-e2e.mjs";
+import {
+  parseIosUiShard,
+  parseCompiledTestIdentifiers,
+  planIosUiShard,
+} from "./ios-ui-test-shards.mjs";
+
+// Small inline fixtures shaped exactly like `xcodebuild -enumerate-tests`
+// flat JSON. They are intentionally unsorted, mix identifiers with and without
+// a trailing `()`, and carry one disabled entry that must be ignored. No tracked
+// test reads a local (gitignored) inventory file, so these pass on a fresh CI
+// checkout; the real 149-case inventory is checked by a separate local command.
+const COMPILED_FIXTURE = {
+  errors: [],
+  values: [
+    {
+      enabledTests: [
+        { identifier: "NativeE2ETests/NativeFamilyJourneyUITests/testZulu()" },
+        { identifier: "NativeE2ETests/NativeFamilyJourneyUITests/testAlpha" },
+        {
+          identifier:
+            "NativeE2ETests/NativeBackgroundTaskUITests/testBackgroundTaskDetailsJourney()",
+        },
+        { identifier: "NativeE2ETests/NativeFamilyJourneyUITests/testMike()" },
+        { identifier: "NativeE2ETests/NativeJourneyUITests/testRealNativeRemoteJourney" },
+        { identifier: "NativeE2ETests/NativeFamilyJourneyUITests/testBravo" },
+        { identifier: "NativeE2ETests/NativeFamilyJourneyUITests/testEcho()" },
+      ],
+      disabledTests: [
+        {
+          identifier:
+            "NativeE2ETests/NativeCapableHistoryJourneyUITests/testCapableHistoryVisibleRecovery()",
+        },
+      ],
+      testPlan: "App",
+    },
+  ],
+};
 
 function simctlList(entries) {
   const devices = {};
@@ -275,4 +317,479 @@ void test("forwarder startup fails closed when a port cannot bind", async () => 
   } finally {
     await new Promise((resolve) => blocker.close(resolve));
   }
+});
+
+void test("watchIosHarnessExit rejects startup fast when the harness exits early", () => {
+  const harness = new EventEmitter();
+  const rejected = [];
+  const killed = [];
+  const state = watchIosHarnessExit({
+    harness,
+    isReady: () => false,
+    isDone: () => false,
+    rejectReady: (error) => rejected.push(error),
+    killChildren: (signal) => killed.push(signal),
+  });
+  // Synchronous reaction to the process `exit` event: no polling, sleep, or
+  // retry; a startup failure never touches the (not yet started) XCTest child.
+  harness.emit("exit", 7, null);
+  assert.equal(state.harnessDied, false);
+  assert.equal(rejected.length, 1);
+  assert.match(rejected[0].message, /harness exited early \(7\)/);
+  assert.deepEqual(killed, []);
+});
+
+void test("watchIosHarnessExit rejects readiness on a child spawn error", () => {
+  const harness = new EventEmitter();
+  const rejected = [];
+  const killed = [];
+  const state = watchIosHarnessExit({
+    harness,
+    isReady: () => false,
+    isDone: () => false,
+    rejectReady: (error) => rejected.push(error),
+    killChildren: (signal) => killed.push(signal),
+  });
+  // A failed spawn emits `error` and never `exit`. EventEmitter throws an
+  // unhandled `error` when no listener exists, so this also proves one is
+  // installed; readiness must reject without stopping any XCTest child.
+  assert.ok(harness.listenerCount("error") > 0);
+  assert.doesNotThrow(() => harness.emit("error", new Error("spawn ENOENT")));
+  assert.equal(state.harnessDied, false);
+  assert.equal(rejected.length, 1);
+  assert.match(rejected[0].message, /failed to spawn: spawn ENOENT/);
+  assert.deepEqual(killed, []);
+});
+
+void test("watchIosHarnessExit stops the owned XCTest when the harness dies mid-suite", () => {
+  const harness = new EventEmitter();
+  const rejected = [];
+  const killed = [];
+  const state = watchIosHarnessExit({
+    harness,
+    isReady: () => true,
+    isDone: () => false,
+    rejectReady: (error) => rejected.push(error),
+    killChildren: (signal) => killed.push(signal),
+  });
+  harness.emit("exit", 1, "SIGTERM");
+  assert.equal(state.harnessDied, true);
+  assert.deepEqual(killed, ["SIGTERM"], "the owned XCTest child must be stopped promptly");
+  assert.deepEqual(rejected, [], "readiness already resolved; do not reject it");
+});
+
+void test("watchIosHarnessExit ignores exits once XCTest has finished", () => {
+  const harness = new EventEmitter();
+  const rejected = [];
+  const killed = [];
+  const state = watchIosHarnessExit({
+    harness,
+    isReady: () => true,
+    isDone: () => true,
+    rejectReady: (error) => rejected.push(error),
+    killChildren: (signal) => killed.push(signal),
+  });
+  // The journey's own finally kills the detached harness on success; that
+  // expected exit must not look like a mid-suite failure or kill cleanup.
+  harness.emit("exit", 0, "SIGTERM");
+  assert.equal(state.harnessDied, false);
+  assert.deepEqual(rejected, []);
+  assert.deepEqual(killed, []);
+});
+
+void test("ios-ui builds for testing before spawning the wire-lab harness", async () => {
+  const source = await readFile(new URL("./native-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function runIosUIJourney(");
+  const end = source.indexOf("async function pruneIosUIRunDirs(", start);
+  assert.ok(start >= 0 && end > start, "the ios-ui journey source must be locatable");
+  const journey = source.slice(start, end);
+  const buildIndex = journey.indexOf('"build-for-testing"');
+  const harnessIndex = journey.indexOf("harness = spawn(");
+  // The enumeration leg also ends in test-without-building (before the harness);
+  // the last one is the actual XCTest run that must start with a live harness.
+  const xctestIndex = journey.lastIndexOf('"test-without-building"');
+  assert.ok(buildIndex >= 0 && harnessIndex >= 0 && xctestIndex >= 0);
+  assert.ok(
+    buildIndex < harnessIndex,
+    "build-for-testing must finish before the harness is spawned, so its bounded test budget is not consumed by a cold compile",
+  );
+  assert.ok(harnessIndex < xctestIndex, "the harness must still be alive before XCTest starts");
+});
+
+void test("ios mock runner names the primary fixture host for NativeFamily journeys", async () => {
+  const [runner, cli] = await Promise.all([
+    readFile(new URL("./native-e2e.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../tests/native-e2e/harness/cli.ts", import.meta.url), "utf8"),
+  ]);
+  // The CLI accepts an optional primary label and forwards it to the mock
+  // WireLab's `label` only when present, leaving the default name unchanged.
+  assert.match(cli, /args\.get\("lab-label"\)/u);
+  // No env fallback: ios-ui sends an explicit --lab-label; CLI default stays.
+  assert.doesNotMatch(cli, /NATIVE_E2E_LAB_LABEL/u);
+  assert.match(cli, /options\.labLabel \? \{ label: options\.labLabel \} : \{\}/u);
+  // Only the built-in iOS mock runner passes the override, gated on mock mode.
+  assert.match(runner, /harnessMode === "mock"[\s\S]{0,120}"--lab-label",\s*"Navigation Host A"/u);
+  // The generic mock/real supervisor in main() never labels the lab.
+  const supervisorEnd = runner.indexOf("export function selectFixedIosSimulator");
+  assert.doesNotMatch(runner.slice(0, supervisorEnd), /--lab-label/u);
+});
+
+void test("ios-ui shard env parses strictly as one-based index/count (null when omitted)", () => {
+  assert.equal(parseIosUiShard(undefined), null);
+  assert.equal(parseIosUiShard(""), null);
+  assert.equal(parseIosUiShard("   "), null);
+  assert.deepEqual(parseIosUiShard("1/4"), { index: 1, count: 4 });
+  assert.deepEqual(parseIosUiShard("4/4"), { index: 4, count: 4 });
+  assert.deepEqual(parseIosUiShard(" 2/4 "), { index: 2, count: 4 });
+  for (const bad of [
+    "0/4",
+    "5/4",
+    "1/0",
+    "1",
+    "1/",
+    "/4",
+    "1/4/5",
+    "-1/4",
+    "1.5/4",
+    "abc",
+    "one/two",
+    "1/4x",
+  ]) {
+    assert.throws(
+      () => parseIosUiShard(bad),
+      /index\/count|1 <= index <= count/u,
+      `must reject ${bad}`,
+    );
+  }
+});
+
+void test("compiled iOS inventory normalizes and sorts enabled leaf IDs and ignores disabledTests", () => {
+  const ids = parseCompiledTestIdentifiers(COMPILED_FIXTURE);
+  assert.equal(ids.length, 7);
+  assert.equal(new Set(ids).size, 7);
+  for (const id of ids) {
+    assert.ok(id.startsWith("NativeE2ETests/"));
+    assert.ok(!id.endsWith("()"), `trailing () must be stripped from ${id}`);
+    assert.equal(id.split("/").length, 3, `must be target/class/method: ${id}`);
+  }
+  // disabledTests are ignored entirely.
+  assert.ok(
+    !ids.includes(
+      "NativeE2ETests/NativeCapableHistoryJourneyUITests/testCapableHistoryVisibleRecovery",
+    ),
+  );
+  // Unsorted input (with and without a trailing `()`) becomes a deterministic,
+  // sorted, normalized list of leaf method selectors.
+  assert.deepEqual(ids, [...ids].sort());
+  assert.deepEqual(ids, [
+    "NativeE2ETests/NativeBackgroundTaskUITests/testBackgroundTaskDetailsJourney",
+    "NativeE2ETests/NativeFamilyJourneyUITests/testAlpha",
+    "NativeE2ETests/NativeFamilyJourneyUITests/testBravo",
+    "NativeE2ETests/NativeFamilyJourneyUITests/testEcho",
+    "NativeE2ETests/NativeFamilyJourneyUITests/testMike",
+    "NativeE2ETests/NativeFamilyJourneyUITests/testZulu",
+    "NativeE2ETests/NativeJourneyUITests/testRealNativeRemoteJourney",
+  ]);
+});
+
+void test("six shards are disjoint and exhaustive over the compiled inventory", () => {
+  const all = parseCompiledTestIdentifiers(COMPILED_FIXTURE);
+  const shards = [1, 2, 3, 4, 5, 6].map((index) =>
+    planIosUiShard(COMPILED_FIXTURE, { index, count: 6 }),
+  );
+  for (const shard of shards) {
+    assert.equal(shard.totalIdentifiers, all.length);
+    assert.ok(shard.assignedIdentifiers.length > 0);
+  }
+  const union = shards.flatMap((shard) => shard.assignedIdentifiers);
+  assert.equal(union.length, all.length, "every compiled case is assigned exactly once");
+  assert.equal(new Set(union).size, all.length, "no case is assigned to two shards");
+  assert.deepEqual(new Set(union), new Set(all));
+  // Round-robin by sorted position: (i % count) === index - 1.
+  for (let index = 1; index <= 6; index += 1) {
+    const expected = all.filter((_id, position) => position % 6 === index - 1);
+    assert.deepEqual(shards[index - 1].assignedIdentifiers, expected);
+  }
+});
+
+void test("shard discovery rejects absent, malformed, error-bearing, and empty inventories", () => {
+  const goodValue = {
+    enabledTests: [{ identifier: "NativeE2ETests/Class/testA()" }],
+    disabledTests: [],
+    testPlan: "App",
+  };
+  assert.throws(() => parseCompiledTestIdentifiers("not json"), /not valid JSON/u);
+  assert.throws(() => parseCompiledTestIdentifiers(undefined), /missing or is not/u);
+  assert.throws(
+    () => parseCompiledTestIdentifiers({ values: [goodValue] }),
+    /missing its errors array/u,
+  );
+  assert.throws(
+    () => parseCompiledTestIdentifiers({ errors: ["boom"], values: [goodValue] }),
+    /enumeration error/u,
+  );
+  assert.throws(
+    () => parseCompiledTestIdentifiers({ errors: [], values: [] }),
+    /missing its values array/u,
+  );
+  assert.throws(
+    () => parseCompiledTestIdentifiers({ errors: [], values: [{}] }),
+    /missing its enabledTests array/u,
+  );
+  assert.throws(
+    () => parseCompiledTestIdentifiers({ errors: [], values: [{ enabledTests: [] }] }),
+    /no enabled tests/u,
+  );
+  assert.throws(
+    () =>
+      parseCompiledTestIdentifiers({
+        errors: [],
+        values: [{ enabledTests: [{ identifier: "" }] }],
+      }),
+    /non-string or empty/u,
+  );
+  assert.throws(
+    () =>
+      parseCompiledTestIdentifiers({
+        errors: [],
+        values: [{ enabledTests: [{ identifier: "()" }] }],
+      }),
+    /empty normalized/u,
+  );
+  // A disabled-only inventory still rejects (disabledTests are never counted).
+  assert.throws(
+    () =>
+      parseCompiledTestIdentifiers({
+        errors: [],
+        values: [{ enabledTests: [], disabledTests: [{ identifier: "X/Y/z()" }] }],
+      }),
+    /no enabled tests/u,
+  );
+});
+
+void test("shard discovery rejects duplicate normalized identifiers", () => {
+  const base = { errors: [], values: [{ enabledTests: [] }] };
+  base.values[0].enabledTests = [
+    { identifier: "NativeE2ETests/Class/testA()" },
+    { identifier: "NativeE2ETests/Class/testA()" },
+  ];
+  assert.throws(() => parseCompiledTestIdentifiers(base), /duplicate normalized identifier/u);
+  // Two raw identifiers that normalize to the same selector also collide.
+  base.values[0].enabledTests = [
+    { identifier: "NativeE2ETests/Class/testB()" },
+    { identifier: "NativeE2ETests/Class/testB" },
+  ];
+  assert.throws(() => parseCompiledTestIdentifiers(base), /duplicate normalized identifier/u);
+});
+
+void test("shard planning rejects a zero selection and an invalid config", () => {
+  // A valid config whose slice matches no test (count > total) is rejected.
+  assert.throws(
+    () => planIosUiShard(COMPILED_FIXTURE, { index: 8, count: 8 }),
+    /selected no tests/u,
+  );
+  for (const bad of [
+    null,
+    { index: 0, count: 4 },
+    { index: 5, count: 4 },
+    { index: 1, count: 0 },
+  ]) {
+    assert.throws(() => planIosUiShard(COMPILED_FIXTURE, bad), /one-based/u);
+  }
+});
+
+void test("shard discovery rejects class-only and malformed selectors that would widen a shard", () => {
+  const inventory = (identifier) => ({
+    errors: [],
+    values: [{ enabledTests: [{ identifier }], disabledTests: [], testPlan: "App" }],
+  });
+  for (const bad of [
+    "NativeE2ETests/NativeFamilyJourneyUITests", // class-only: would widen a shard
+    "NativeE2ETests/NativeFamilyJourneyUITests/testMethod/extra", // four components
+    "NativeE2ETests/NativeFamilyJourneyUITests/", // empty method
+    "NativeE2ETests//testMethod", // empty class
+    "NativeE2ETests/NativeFamilyJourneyUITests/test Method", // whitespace
+    "NativeE2ETests/NativeFamilyJourneyUITests/test(M)ethod", // parentheses
+  ]) {
+    assert.throws(
+      () => parseCompiledTestIdentifiers(inventory(bad)),
+      /malformed test identifier/u,
+      `must reject ${bad}`,
+    );
+  }
+});
+
+void test("ios-ui enumerates the compiled inventory and runs shard flags around the harness", async () => {
+  const source = await readFile(new URL("./native-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function runIosUIJourney(");
+  const end = source.indexOf("async function pruneIosUIRunDirs(", start);
+  const journey = source.slice(start, end);
+  // The shard selector is parsed before any simctl/xcodebuild tool is spawned.
+  const parseIndex = journey.indexOf("parseIosUiShard(process.env[IOS_UI_SHARD_ENV])");
+  assert.ok(parseIndex >= 0);
+  assert.ok(parseIndex < journey.indexOf('"xcrun"'), "shard parse precedes the first tool");
+  // Enumeration of the ORIGINAL xctestrun finishes before the wire-lab starts.
+  const enumerateIndex = journey.indexOf('"-enumerate-tests"');
+  const harnessIndex = journey.indexOf("harness = spawn(");
+  assert.ok(enumerateIndex >= 0 && enumerateIndex < harnessIndex);
+  assert.ok(journey.indexOf('"test-without-building"') < harnessIndex);
+  assert.match(journey, /-test-enumeration-format/u);
+  assert.match(journey, /-test-enumeration-output-path/u);
+  assert.match(journey, /compiled-tests\.json/u);
+  assert.match(
+    journey,
+    /join\(products, generatedName\)/u,
+    "enumeration uses the original xctestrun",
+  );
+  assert.match(
+    journey,
+    /name !== IOS_UI_READINESS_XCTESTRUN/u,
+    "the generated-xctestrun lookup excludes a stale injected readiness runner",
+  );
+  assert.match(journey, /planIosUiShard\(/u);
+  assert.match(journey, /shard-selection\.json/u);
+  assert.match(journey, /shardTestingFlags = shardPlan\.assignedIdentifiers\.map/u);
+  // The actual XCTest step uses only the shard flags (no union with broad selectors).
+  assert.match(journey, /const onlyTestingFlags = shardTestingFlags \?\? iosOnlyTestingFlags\(\)/u);
+  const finalTest = journey.slice(
+    journey.lastIndexOf('"test-without-building"') - 400,
+    journey.lastIndexOf('"test-without-building"'),
+  );
+  assert.match(finalTest, /\.\.\.onlyTestingFlags/u);
+  assert.doesNotMatch(finalTest, /\.\.\.iosOnlyTestingFlags\(\)/u);
+  // Build and enumeration still use the broad selector override (unsharded path).
+  assert.match(journey, /iosOnlyTestingFlags\(\),\s*"build-for-testing"/u);
+});
+
+void test("iOS HID opt-in is mock-simulator-only and rejects physical/real combos", () => {
+  // Off by default: an unset flag changes nothing, even for a physical or
+  // real-peer journey (CI never sets it).
+  assert.doesNotThrow(() => assertIosHidTarget({ hid: false, physicalUdid: "", peerMode: "mock" }));
+  assert.doesNotThrow(() =>
+    assertIosHidTarget({
+      hid: false,
+      physicalUdid: "00000000-0000-0000-0000-000000000000",
+      peerMode: "real",
+    }),
+  );
+  // The one valid opt-in: mock peer + fixed simulator (no physical UDID).
+  assert.doesNotThrow(() => assertIosHidTarget({ hid: true, physicalUdid: "", peerMode: "mock" }));
+  // A physical CoreDevice target has no simulator HID channel.
+  assert.throws(
+    () =>
+      assertIosHidTarget({
+        hid: true,
+        physicalUdid: "00000000-0000-0000-0000-000000000000",
+        peerMode: "mock",
+      }),
+    /requires the mock simulator journey/u,
+  );
+  // The real-peer production host has no simulator at all.
+  assert.throws(
+    () => assertIosHidTarget({ hid: true, physicalUdid: "", peerMode: "real" }),
+    /requires the mock harness/u,
+  );
+  assert.equal(IOS_HID_ENV, "NATIVE_E2E_IOS_HID");
+});
+
+void test("ios-ui HID opt-in is gated early, passed to the mock harness, and injected into XCTest", async () => {
+  const source = await readFile(new URL("./native-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function runIosUIJourney(");
+  const end = source.indexOf("async function pruneIosUIRunDirs(", start);
+  const journey = source.slice(start, end);
+  // The flag is read from the dedicated env constant, not a default value.
+  assert.match(journey, /process\.env\[IOS_HID_ENV\] === "1"/u);
+  // Validation runs before every simctl/xcodebuild/harness process.
+  const validateIndex = journey.indexOf("assertIosHidTarget({");
+  assert.ok(validateIndex >= 0, "the HID target assertion must be present in the journey");
+  assert.ok(validateIndex < journey.indexOf('"xcrun"'), "validation precedes simctl");
+  assert.ok(validateIndex < journey.indexOf("harness = spawn("), "validation precedes the harness");
+  // Only the dedicated mock harness child receives the actual fixed simulator UDID.
+  assert.match(
+    journey,
+    /\.\.\.\(iosHid && harnessMode === "mock" \? \["--ios-hid-udid", simulatorId\] : \[\]\)/u,
+  );
+  // The generic mock/real supervisor never carries the HID flag.
+  assert.doesNotMatch(source.slice(0, start), /--ios-hid-udid/u);
+  // XCTest runners see the flag only when the operator opted in; no default key.
+  assert.match(journey, /\.\.\.\(iosHid \? \{ NATIVE_E2E_IOS_HID: "1" \} : \{\}\)/u);
+});
+
+void test("ios-ui HID opt-in owns one private socket root after build/enumeration, passed only to the harness", async () => {
+  const source = await readFile(new URL("./native-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function runIosUIJourney(");
+  const end = source.indexOf("async function pruneIosUIRunDirs(", start);
+  const journey = source.slice(start, end);
+
+  // Exactly one owned mkdtemp, created after build + enumeration, before the
+  // harness spawn, and only for the opt-in (the default journey is unchanged).
+  assert.equal((journey.match(/mkdtemp\(/gu) ?? []).length, 1);
+  const mkdtempIndex = journey.indexOf('mkdtemp(join(tmpdir(), "pora-hid-"))');
+  assert.ok(mkdtempIndex >= 0);
+  assert.ok(mkdtempIndex > journey.indexOf('"build-for-testing"'));
+  assert.ok(mkdtempIndex > journey.indexOf('"-enumerate-tests"'));
+  assert.ok(mkdtempIndex < journey.indexOf("harness = spawn("));
+  assert.match(journey, /if \(iosHid\) \{\s*hidSocketRoot = await mkdtemp/u);
+
+  // The exact socket-root env name is set in the harness spawn env only, via a
+  // conditional spread, and never in the XCTest app environment.
+  const spawnIndex = journey.indexOf("harness = spawn(");
+  const spawnEnd = journey.indexOf("let controlUrl;", spawnIndex);
+  const harnessSpawn = journey.slice(spawnIndex, spawnEnd);
+  assert.match(harnessSpawn, /NATIVE_E2E_IOS_HID_SOCKET_ROOT/u);
+  assert.match(
+    harnessSpawn,
+    /\.\.\.\(iosHid \? \{ NATIVE_E2E_IOS_HID_SOCKET_ROOT: hidSocketRoot \} : \{\}\)/u,
+  );
+  const injectIndex = journey.indexOf("injectXCTestEnvironment(generated");
+  const injectEnd = journey.indexOf("await chmod(readinessPath", injectIndex);
+  const xctestEnv = journey.slice(injectIndex, injectEnd);
+  assert.doesNotMatch(xctestEnv, /NATIVE_E2E_IOS_HID_SOCKET_ROOT/u);
+  // The test app still sees only the boolean opt-in flag (unchanged).
+  assert.match(xctestEnv, /\.\.\.\(iosHid \? \{ NATIVE_E2E_IOS_HID: "1" \} : \{\}\)/u);
+  // No module-global socket/simulator state: the owner is local to the journey.
+  assert.doesNotMatch(source.slice(0, start), /hidSocketRoot|pora-hid-/u);
+});
+
+void test("ios-ui HID socket root has one idempotent owner cleaned on the finally and both signal finishes", async () => {
+  const source = await readFile(new URL("./native-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function runIosUIJourney(");
+  const end = source.indexOf("async function pruneIosUIRunDirs(", start);
+  const journey = source.slice(start, end);
+
+  // One data owner: a single shared helper with an idempotency guard, a bounded
+  // synchronous removal, and best-effort semantics (never throws, never awaits).
+  assert.equal((journey.match(/const cleanupHidSocketRoot = /gu) ?? []).length, 1);
+  assert.match(
+    journey,
+    /const cleanupHidSocketRoot = \(\) => \{\s*if \(!hidSocketRoot\) return;\s*const root = hidSocketRoot;\s*hidSocketRoot = null;/u,
+  );
+  assert.match(
+    journey,
+    /try \{\s*rmSync\(root, \{ recursive: true, force: true \}\);\s*\} catch \{/u,
+  );
+  assert.doesNotMatch(journey, /await cleanupHidSocketRoot/u);
+
+  // Shared by the normal finally and BOTH signal finish paths: three calls.
+  assert.equal((journey.match(/cleanupHidSocketRoot\(\)/gu) ?? []).length, 3);
+  const finallyIndex = journey.lastIndexOf("} finally {");
+  assert.ok(finallyIndex > 0);
+  assert.match(journey.slice(finallyIndex), /cleanupHidSocketRoot\(\);/u);
+
+  // Both signal finish paths attempt the owned cleanup immediately before exit;
+  // the harness group still gets SIGTERM then SIGKILL, bounded by the timer.
+  const shutdownStart = journey.indexOf("registerShutdown(");
+  const shutdownEnd = journey.indexOf("try {", shutdownStart);
+  const shutdown = journey.slice(shutdownStart, shutdownEnd);
+  assert.equal(
+    (shutdown.match(/cleanupHidSocketRoot\(\);\s*process\.exit\(code\)/gu) ?? []).length,
+    2,
+  );
+  assert.match(shutdown, /killHarnessGroup\("SIGTERM"\)/u);
+  assert.match(shutdown, /killHarnessGroup\("SIGKILL"\)/u);
+  assert.match(
+    shutdown,
+    /harness\.once\("exit", \(\) => \{\s*clearTimeout\(killer\);\s*killTrackedChildren\("SIGKILL"\);/u,
+  );
+  assert.match(shutdown, /setTimeout\([\s\S]*?SHUTDOWN_WAIT_MS\)/u);
 });

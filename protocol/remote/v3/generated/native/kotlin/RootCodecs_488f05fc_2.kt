@@ -353,8 +353,8 @@ val RemoteRootCodecs.procedureU2EReadTerminalSizeU2EResult: RemoteRootCodec<Proc
 val RemoteRootCodecs.procedureU2EReadTerminalSnapshotU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("procedure.readTerminalSnapshot.request", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.procedureU2EReadTerminalSnapshotU2EResult: RemoteRootCodec<ProcedurereadTerminalSnapshotResult_b67f4828f0>
-    get() = RemoteRootCodec("procedure.readTerminalSnapshot.result", serializer<ProcedurereadTerminalSnapshotResult_b67f4828f0>(), schema_b67f4828f001c119)
+val RemoteRootCodecs.procedureU2EReadTerminalSnapshotU2EResult: RemoteRootCodec<ProcedurereadTerminalSnapshotResult_575ba25e2b>
+    get() = RemoteRootCodec("procedure.readTerminalSnapshot.result", serializer<ProcedurereadTerminalSnapshotResult_575ba25e2b>(), schema_575ba25e2be532de)
 
 val RemoteRootCodecs.procedureU2EReadThreadBackgroundTasksU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("procedure.readThreadBackgroundTasks.request", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)

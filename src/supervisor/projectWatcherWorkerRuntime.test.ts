@@ -14,7 +14,16 @@ const fs = vi.hoisted(() => ({
       ) => EventEmitter & { close: ReturnType<typeof vi.fn<() => void>> }
     >(),
   readFileSync: vi.fn<(path: string, encoding: string) => string>(),
-  statSync: vi.fn<(path: string) => { isDirectory: () => boolean; isFile: () => boolean }>(),
+  statSync:
+    vi.fn<
+      (
+        path: string,
+        options?: unknown,
+      ) =>
+        | { isDirectory: () => boolean; isFile: () => boolean }
+        | { ino: bigint; size: bigint; mtimeNs: bigint; ctimeNs: bigint }
+        | undefined
+    >(),
 }));
 vi.mock("node:fs", () => fs);
 
@@ -30,6 +39,7 @@ const subscriptions: ProjectWatchSubscription[] = [];
 
 beforeEach(() => {
   vi.useFakeTimers();
+  headStampValue = 0n;
   callbacks = new Map();
   handles = new Map();
   files = new Map();
@@ -60,6 +70,9 @@ beforeEach(() => {
 afterEach(() => {
   for (const subscription of subscriptions.splice(0)) subscription.close();
   vi.useRealTimers();
+  if (platformDescriptor) {
+    Object.defineProperty(process, "platform", platformDescriptor);
+  }
 });
 
 function start() {
@@ -73,9 +86,50 @@ function change(path: string, name: string | null) {
   callbacks.get(path)!("change", name);
 }
 
+const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+const headPath = join(metadata, "HEAD");
+let headStampValue = 0n;
+
+function setPlatform(value: string): void {
+  Object.defineProperty(process, "platform", { configurable: true, value });
+}
+
+/** Model a known BigInt HEAD stamp for the new Darwin cases only. */
+function modelBigIntHeadStamps(headFilePath: string): void {
+  fs.statSync.mockImplementation((path: string, options?: unknown) => {
+    const wantsBigInt =
+      typeof options === "object" &&
+      options !== null &&
+      (options as { bigint?: unknown }).bigint === true;
+    if (wantsBigInt && path === headFilePath) {
+      return {
+        ino: 1n,
+        size: headStampValue,
+        mtimeNs: headStampValue,
+        ctimeNs: headStampValue,
+      };
+    }
+    // Preserve the older fake-map semantics for every other stat call.
+    if (!directories.has(path) && !files.has(path)) throw new Error("ENOENT");
+    return { isDirectory: () => directories.has(path), isFile: () => files.has(path) };
+  });
+}
+
+/** Linked worktree with an external primary gitDir whose HEAD is a known BigInt stamp. */
+function startLinked() {
+  files.set(gitDir, `gitdir: ${metadata}\n`);
+  files.set(join(metadata, "commondir"), "../..\n");
+  modelBigIntHeadStamps(headPath);
+  setPlatform("darwin");
+  return start();
+}
+
 describe("worker filesystem callback ownership", () => {
   it("filters noise callbacks before creating bounded scope timers", async () => {
     const { emit } = start();
+    // Drain the one-shot Darwin startup revalidation: on its own it emits nothing.
+    await vi.advanceTimersByTimeAsync(500);
+    expect(emit).not.toHaveBeenCalled();
     for (let i = 0; i < 1000; i++) {
       for (const name of [
         "node_modules/react/index.js",
@@ -220,5 +274,128 @@ describe("worker filesystem callback ownership", () => {
     });
     expect(vi.getTimerCount()).toBe(0);
     expect(handles.get(root)?.close).toHaveBeenCalledOnce();
+  });
+});
+
+describe("bounded macOS attach recovery", () => {
+  it("emits one git change when a linked HEAD changes with no raw event", async () => {
+    const { emit } = startLinked();
+    headStampValue = 1n; // HEAD written in the registration window; no fs.watch event
+    await vi.advanceTimersByTimeAsync(500); // attach probe -> schedule('git')
+    await vi.advanceTimersByTimeAsync(300); // debounced emit
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("emits nothing when a linked HEAD is unchanged", async () => {
+    const { emit } = startLinked();
+    await vi.advanceTimersByTimeAsync(800);
+    expect(emit).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("coalesces a real HEAD event emitted before the probe into one change", async () => {
+    const { emit } = startLinked();
+    headStampValue = 1n;
+    change(metadata, "HEAD"); // real event delivers a git debounce
+    await vi.advanceTimersByTimeAsync(300); // git emit refreshes the attach stamp
+    await vi.advanceTimersByTimeAsync(200); // attach probe sees the refreshed stamp
+    await vi.advanceTimersByTimeAsync(500); // drain
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+  });
+
+  it("defers to a pending git debounce at probe time", async () => {
+    const { emit } = startLinked();
+    headStampValue = 1n;
+    await vi.advanceTimersByTimeAsync(400);
+    change(metadata, "HEAD"); // real event at 400ms -> git debounce pending at 500ms probe
+    await vi.advanceTimersByTimeAsync(100); // probe sees the pending git debounce and skips
+    await vi.advanceTimersByTimeAsync(200); // the single git emit
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cancels the attach probe on close", async () => {
+    const { emit, subscription } = startLinked();
+    headStampValue = 1n;
+    subscription.close();
+    await vi.advanceTimersByTimeAsync(800);
+    expect(emit).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("retains existing behavior off Darwin (a missed HEAD edit is not reconciled)", async () => {
+    files.set(gitDir, `gitdir: ${metadata}\n`);
+    files.set(join(metadata, "commondir"), "../..\n");
+    modelBigIntHeadStamps(headPath);
+    setPlatform("linux");
+    const { emit } = start();
+    headStampValue = 1n; // HEAD written with no raw event
+    await vi.advanceTimersByTimeAsync(800);
+    expect(emit).not.toHaveBeenCalled();
+    change(metadata, "HEAD"); // a delivered raw event still notifies
+    await vi.advanceTimersByTimeAsync(300);
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+  });
+
+  it("recovers a .git/HEAD created right after ready with no raw event", async () => {
+    setPlatform("darwin");
+    const { emit } = start(); // no .git yet -> one discovery check
+    directories.add(gitDir);
+    files.set(join(gitDir, "HEAD"), "ref: refs/heads/main\n");
+    await vi.advanceTimersByTimeAsync(500); // discovery check -> schedule('git')
+    await vi.advanceTimersByTimeAsync(300); // debounced git emit
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+    emit.mockClear();
+    change(root, "src/app.ts"); // normal watch behavior still works
+    await vi.advanceTimersByTimeAsync(300);
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "worktree" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not emit a false git change when .git stays absent", async () => {
+    setPlatform("darwin");
+    const { emit } = start();
+    await vi.advanceTimersByTimeAsync(800);
+    expect(emit).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not double-notify when a real event discovers Git before the probe", async () => {
+    setPlatform("darwin");
+    const { emit } = start();
+    directories.add(gitDir);
+    files.set(join(gitDir, "HEAD"), "ref: refs/heads/main\n");
+    change(root, ".git"); // real event discovers Git and clears the discovery check
+    await vi.advanceTimersByTimeAsync(300); // one debounced git emit
+    await vi.advanceTimersByTimeAsync(500); // the discovery check must be gone
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("notifies when .git/index.lock is the only raw event after late creation", async () => {
+    setPlatform("darwin");
+    const { emit } = start(); // startup discovery check pending
+    directories.add(gitDir);
+    files.set(join(gitDir, "HEAD"), "ref: refs/heads/main\n");
+    change(root, ".git/index.lock"); // noise path, yet it triggers metadata discovery
+    await vi.advanceTimersByTimeAsync(300);
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+    await vi.advanceTimersByTimeAsync(500); // discovery check was cleared, no second emit
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("recovers a missed HEAD write in an ordinary existing .git directory", async () => {
+    directories.add(gitDir); // normal repo: internal .git dir present at start
+    files.set(join(gitDir, "HEAD"), "ref: refs/heads/main\n");
+    modelBigIntHeadStamps(join(gitDir, "HEAD"));
+    setPlatform("darwin");
+    const { emit } = start();
+    headStampValue = 1n; // HEAD written in the registration window; no raw event
+    await vi.advanceTimersByTimeAsync(500); // attach probe -> schedule('git')
+    await vi.advanceTimersByTimeAsync(300); // debounced emit
+    expect(emit).toHaveBeenCalledExactlyOnceWith({ id: 7, kind: "changed", scope: "git" });
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

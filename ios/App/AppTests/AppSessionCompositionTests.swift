@@ -1985,7 +1985,7 @@ final class AppSessionCompositionTests: XCTestCase {
   }
 
   func testReviewedStoredBindingsUpgradeOnlyAfterVerifiedRead() async throws {
-    for version in [9, 10, 11, 12] {
+    for version in [9, 10, 11, 12, 13, 14] {
       let gate = AsyncGate()
       let (session, repo, _) = try await makeSession { e, t in
         let api = FakeRemoteAPI(endpoint: e, accessToken: t)
@@ -2683,7 +2683,9 @@ final class AppSessionCompositionTests: XCTestCase {
       endpoints: .init(httpBaseUrl: "https://a.test", wsBaseUrl: "wss://a.test")
     )
     XCTAssertTrue(PreservedPairingUpgrade.verify(stored: stored9, environment: live10))
-    for version in [9, 10, 11, 12] {
+    // Only the current live protocol admits an upgrade; older live servers,
+    // including the reviewed 13/14 generations, stay refused.
+    for version in [9, 10, 11, 12, 13, 14] {
       var oldEnvironment = live10
       oldEnvironment.protocolVersion = version
       XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored9, environment: oldEnvironment))
@@ -2700,10 +2702,12 @@ final class AppSessionCompositionTests: XCTestCase {
     var stored10 = stored9
     stored10.protocolVersion = ProtocolConstants.remoteProtocolVersion
     XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored10, environment: live10))
-    // Reviewed previous v12 verifies only against the live current host.
-    var stored12 = stored9
-    stored12.protocolVersion = 12
-    XCTAssertTrue(PreservedPairingUpgrade.verify(stored: stored12, environment: live10))
+    // Reviewed previous v12/v13/v14 verify only against the live current host.
+    for version in [12, 13, 14] {
+      var stored = stored9
+      stored.protocolVersion = version
+      XCTAssertTrue(PreservedPairingUpgrade.verify(stored: stored, environment: live10))
+    }
     // Unreviewed future stored bindings never verify.
     var storedFuture = stored9
     storedFuture.protocolVersion = ProtocolConstants.remoteProtocolVersion + 1

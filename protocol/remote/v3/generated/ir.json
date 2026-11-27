@@ -34674,11 +34674,51 @@
       "result": {
         "kind": "json",
         "schema": {
+          "$defs": {
+            "__schema0": {
+              "maximum": 400,
+              "minimum": 20,
+              "type": "integer"
+            },
+            "__schema1": {
+              "additionalProperties": true,
+              "properties": {
+                "columns": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fromCursor": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "fromCursor",
+                "columns"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [
             {
               "additionalProperties": true,
               "properties": {
+                "columnChanges": {
+                  "items": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "maxItems": 2049,
+                  "type": "array"
+                },
                 "data": {
                   "type": "string"
                 },
@@ -34710,9 +34750,7 @@
                       "additionalProperties": true,
                       "properties": {
                         "cols": {
-                          "maximum": 400,
-                          "minimum": 20,
-                          "type": "integer"
+                          "$ref": "#/$defs/__schema0"
                         },
                         "rows": {
                           "maximum": 200,
@@ -95901,7 +95939,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:52cb317cf1f13735396c17f15f9302f38c512da8e1a3a0f6518e1e5734d3b100",
+  "sourceHash": "sha256:026fa981d58fee99cceddc28247ff4c49140fc2c6baa8e2e4aecb1cf3f199ab2",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [
@@ -96479,32 +96517,45 @@
           "type": "string"
         },
         "__schema10": {
+          "const": "ready",
           "type": "string"
         },
         "__schema11": {
-          "enum": [
-            "running",
-            "exited"
-          ],
-          "type": "string"
-        },
-        "__schema12": {
           "anyOf": [
             {
-              "$ref": "#/$defs/__schema13"
+              "minLength": 1,
+              "type": "string"
             },
             {
               "type": "null"
             }
           ]
         },
+        "__schema12": {
+          "type": "string"
+        },
         "__schema13": {
+          "enum": [
+            "running",
+            "exited"
+          ],
+          "type": "string"
+        },
+        "__schema14": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema15"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "__schema15": {
           "additionalProperties": true,
           "properties": {
             "cols": {
-              "maximum": 400,
-              "minimum": 20,
-              "type": "integer"
+              "$ref": "#/$defs/__schema9"
             },
             "rows": {
               "maximum": 200,
@@ -96519,15 +96570,51 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema14": {
+        "__schema16": {
+          "items": {
+            "$ref": "#/$defs/__schema17"
+          },
+          "maxItems": 2049,
+          "type": "array"
+        },
+        "__schema17": {
+          "additionalProperties": true,
+          "properties": {
+            "columns": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema9"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fromCursor": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "fromCursor",
+            "columns"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema18": {
           "const": 2,
           "type": "number"
         },
-        "__schema15": {
+        "__schema19": {
           "minLength": 1,
           "type": "string"
         },
-        "__schema16": {
+        "__schema2": {
+          "type": "string"
+        },
+        "__schema20": {
           "anyOf": [
             {
               "minLength": 1,
@@ -96538,41 +96625,41 @@
             }
           ]
         },
-        "__schema17": {
+        "__schema21": {
           "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
-        "__schema18": {
+        "__schema22": {
           "exclusiveMinimum": 0,
           "maximum": 9007199254740991,
           "type": "integer"
         },
-        "__schema19": {
+        "__schema23": {
           "type": "string"
         },
-        "__schema2": {
-          "type": "string"
-        },
-        "__schema20": {
+        "__schema24": {
           "enum": [
             "running",
             "exited"
           ],
           "type": "string"
         },
-        "__schema21": {
+        "__schema25": {
           "anyOf": [
             {
-              "$ref": "#/$defs/__schema13"
+              "$ref": "#/$defs/__schema15"
             },
             {
               "type": "null"
             }
           ]
         },
-        "__schema22": {
+        "__schema26": {
           "type": "boolean"
+        },
+        "__schema27": {
+          "$ref": "#/$defs/__schema9"
         },
         "__schema3": {
           "additionalProperties": true,
@@ -96582,6 +96669,9 @@
             },
             "generation": {
               "$ref": "#/$defs/__schema6"
+            },
+            "terminalColumns": {
+              "$ref": "#/$defs/__schema8"
             },
             "toCursor": {
               "$ref": "#/$defs/__schema7"
@@ -96624,19 +96714,12 @@
           "type": "integer"
         },
         "__schema8": {
-          "const": "ready",
-          "type": "string"
+          "$ref": "#/$defs/__schema9"
         },
         "__schema9": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "maximum": 400,
+          "minimum": 20,
+          "type": "integer"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -97061,23 +97144,26 @@
                     {
                       "additionalProperties": true,
                       "properties": {
+                        "columnChanges": {
+                          "$ref": "#/$defs/__schema16"
+                        },
                         "data": {
-                          "$ref": "#/$defs/__schema10"
+                          "$ref": "#/$defs/__schema12"
                         },
                         "fromCursor": {
                           "$ref": "#/$defs/__schema7"
                         },
                         "generation": {
-                          "$ref": "#/$defs/__schema9"
-                        },
-                        "processState": {
                           "$ref": "#/$defs/__schema11"
                         },
+                        "processState": {
+                          "$ref": "#/$defs/__schema13"
+                        },
                         "status": {
-                          "$ref": "#/$defs/__schema8"
+                          "$ref": "#/$defs/__schema10"
                         },
                         "terminalSize": {
-                          "$ref": "#/$defs/__schema12"
+                          "$ref": "#/$defs/__schema14"
                         },
                         "toCursor": {
                           "$ref": "#/$defs/__schema7"
@@ -97172,37 +97258,40 @@
               "additionalProperties": true,
               "properties": {
                 "chunkCount": {
-                  "$ref": "#/$defs/__schema18"
+                  "$ref": "#/$defs/__schema22"
                 },
                 "chunkIndex": {
-                  "$ref": "#/$defs/__schema17"
+                  "$ref": "#/$defs/__schema21"
                 },
                 "data": {
-                  "$ref": "#/$defs/__schema19"
+                  "$ref": "#/$defs/__schema23"
                 },
                 "fromCursor": {
                   "$ref": "#/$defs/__schema7"
                 },
                 "generation": {
-                  "$ref": "#/$defs/__schema16"
-                },
-                "processState": {
                   "$ref": "#/$defs/__schema20"
                 },
+                "processState": {
+                  "$ref": "#/$defs/__schema24"
+                },
                 "resumeServed": {
-                  "$ref": "#/$defs/__schema22"
+                  "$ref": "#/$defs/__schema26"
+                },
+                "terminalColumns": {
+                  "$ref": "#/$defs/__schema27"
                 },
                 "terminalSize": {
-                  "$ref": "#/$defs/__schema21"
+                  "$ref": "#/$defs/__schema25"
                 },
                 "toCursor": {
                   "$ref": "#/$defs/__schema7"
                 },
                 "version": {
-                  "$ref": "#/$defs/__schema14"
+                  "$ref": "#/$defs/__schema18"
                 },
                 "watchId": {
-                  "$ref": "#/$defs/__schema15"
+                  "$ref": "#/$defs/__schema19"
                 }
               },
               "required": [

@@ -16,6 +16,7 @@ export function trackRealHostPaths(profileNamespace: string, cleanup?: ProcessCl
     paths.electronUserDataRoot,
     paths.leasePath,
     paths.ownerRecordPath,
+    paths.dataFencePath,
   ])
     cleanup?.trackTempDir(path);
 }

@@ -209,6 +209,8 @@ object TerminalRemoteV3Codec {
             resumeServed = (sync["resumeServed"] as? JsonPrimitive)
                 ?.takeUnless(JsonPrimitive::isString)?.content?.toBooleanStrictOrNull()
                 ?: throw invalid("baseline chunk resumeServed"),
+            terminalColumns = (sync["terminalColumns"] as? JsonPrimitive)
+                ?.takeUnless(JsonPrimitive::isString)?.intOrNull,
         )
         return TerminalServerFrame.BaselineChunk(chunk)
     }

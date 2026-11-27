@@ -1450,6 +1450,16 @@ export const DATABASE_MIGRATIONS = [
       }
     },
   },
+  {
+    version: 80,
+    name: "terminal scrollback column history",
+    // Additive nullable width markers beside the raw scrollback bytes:
+    // existing rows keep NULL (unknown widths), and every raw read stays
+    // byte-identical whether or not geometry was ever recorded.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) =>
+      addColumnIfMissing(sqlite, "thread_terminal_scrollback", "column_changes", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 // Worktree link reconciliation refreshes existing path/branch columns from Git;
@@ -1626,6 +1636,9 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     if (Number(schema?.value) >= 74) {
       addColumnIfMissing(sqlite, "threads", "error_message", "TEXT");
     }
+    if (Number(schema?.value) >= 80) {
+      addColumnIfMissing(sqlite, "thread_terminal_scrollback", "column_changes", "TEXT");
+    }
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );
@@ -1748,6 +1761,7 @@ const REQUIRED_COLUMNS = {
     "chunked",
     "stored_chars",
     "next_seq",
+    "column_changes",
   ],
   thread_terminal_scrollback_chunks: ["thread_id", "seq", "chars", "data"],
   main_created_threads: ["thread_id"],

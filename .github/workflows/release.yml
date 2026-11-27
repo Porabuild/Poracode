@@ -292,8 +292,8 @@ jobs:
         shell: bash
 
       # Persisted-state qualification uses the exact downloaded Linux artifact
-      # on this native runner. No predecessor is a failure, including the first
-      # v2 stable release; the product's bootstrap policy requires one.
+      # on this native runner. The first stable server release can qualify
+      # against a real published nightly predecessor from its own train.
       - name: Require the published N-1 persisted upgrade
         env:
           ASSETS: ${{ runner.temp }}/release-assets
@@ -392,23 +392,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Remove failed release and tag
+      - name: Remove this run's staging release and tag
         env:
           DRAFT_TAG: release-draft-${{ github.run_id }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           gh release delete "$DRAFT_TAG" \
             --repo "${{ github.repository }}" \
             --cleanup-tag --yes 2>/dev/null || true
-          gh release delete "$RELEASE_TAG" \
-            --repo "${{ github.repository }}" \
-            --cleanup-tag --yes 2>/dev/null || true
+          # A publish request can succeed even if the runner loses its response.
+          # Only the staging tag belongs to the cleanup job.
           if gh api "repos/${{ github.repository }}/git/ref/tags/$DRAFT_TAG" >/dev/null 2>&1; then
             gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$DRAFT_TAG"
-          fi
-          if gh api "repos/${{ github.repository }}/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG"
           fi
 
   # ── Step 4: Publish the qualified launcher to npm ────────────────

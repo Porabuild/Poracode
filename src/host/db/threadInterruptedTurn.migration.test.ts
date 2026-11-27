@@ -39,7 +39,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
       DATABASE_MIGRATIONS.filter((migration) => migration.version > 68).map(
         (migration) => migration.version,
       ),
-    ).toEqual([69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]);
+    ).toEqual([69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]);
     old.close();
     initDatabase(path);
     return before;

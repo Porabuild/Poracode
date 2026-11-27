@@ -98,6 +98,21 @@ describe("terminal cursor helpers", () => {
     expect(frame.data.length).toBe(toCursor - frame.cursorSync!.fromCursor);
   });
 
+  it("tags reliable output with the observed terminal width only when provided", () => {
+    const tagged = buildCursorTaggedTerminalOutput("t1", "hi", "w1", "gen-a", 12, 100);
+    expect(tagged.cursorSync).toEqual({
+      version: 1,
+      watchId: "w1",
+      generation: "gen-a",
+      fromCursor: 10,
+      toCursor: 12,
+      terminalColumns: 100,
+    });
+    const untagged = buildCursorTaggedTerminalOutput("t1", "hi", "w1", "gen-a", 12);
+    expect(untagged.cursorSync).not.toHaveProperty("terminalColumns");
+    expect(remoteWebSocketServerMessageSchema.parse(tagged)).toEqual(tagged);
+  });
+
   it("rejects append across generation resets and any null generation", () => {
     expect(
       canAppendTerminalCursorRange(
@@ -153,6 +168,22 @@ describe("terminal cursor helpers", () => {
       }),
     ).toMatchObject({ status: "ready", generation: "gen", processState: "running" });
 
+    const columnChanges = [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 3, columns: null },
+    ];
+    const annotated = readyResultFromSnapshot({
+      generation: "gen",
+      fromCursor: 0,
+      toCursor: 5,
+      data: "hello",
+      processState: "running",
+      terminalSize: { cols: 80, rows: 24 },
+      columnChanges,
+    });
+    expect(annotated.columnChanges).toEqual(columnChanges);
+    expect(remoteTerminalWatchResultReadySchema.parse(annotated)).toEqual(annotated);
+
     dbGetRecordMock.mockReturnValueOnce({ transcript: "tail", outputLength: 14 });
     expect(composeTerminalWatchReadyResult(null, "thread-1")).toEqual({
       status: "ready",
@@ -178,6 +209,32 @@ describe("terminal cursor helpers", () => {
     expect(composeTerminalWatchReadyResult(null, "missing")).toBeNull();
   });
 
+  it("includes only the recorded widths within the persisted output window", () => {
+    dbGetRecordMock.mockReturnValueOnce({
+      transcript: "🌐ok",
+      outputLength: 100,
+      columnChanges: [
+        { fromCursor: 92, columns: 48 },
+        { fromCursor: 98, columns: 100 },
+      ],
+    });
+    const fallback = composeTerminalWatchReadyResult(null, "thread-1");
+    expect(fallback).toEqual({
+      status: "ready",
+      generation: null,
+      fromCursor: 96,
+      toCursor: 100,
+      data: "🌐ok",
+      processState: "exited",
+      terminalSize: null,
+      columnChanges: [
+        { fromCursor: 96, columns: 48 },
+        { fromCursor: 98, columns: 100 },
+      ],
+    });
+    expect(remoteTerminalWatchResultReadySchema.parse(fallback)).toEqual(fallback);
+  });
+
   it("enforces toCursor - fromCursor === data.length for malformed persisted rows", () => {
     // outputLength shorter than transcript: trim data so the range stays exact.
     dbGetRecordMock.mockReturnValueOnce({
@@ -193,7 +250,11 @@ describe("terminal cursor helpers", () => {
     expect(malformed!.generation).toBeNull();
 
     // Empty transcript with positive outputLength still yields a valid empty range.
-    dbGetRecordMock.mockReturnValueOnce({ transcript: "", outputLength: 42 });
+    dbGetRecordMock.mockReturnValueOnce({
+      transcript: "",
+      outputLength: 42,
+      columnChanges: [{ fromCursor: 40, columns: 48 }],
+    });
     const emptyTail = composeTerminalWatchReadyResult(null, "thread-empty");
     expect(emptyTail).toEqual({
       status: "ready",

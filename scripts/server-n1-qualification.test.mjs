@@ -1,18 +1,31 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { test } from "node:test";
 import {
   NoPublishedServerN1Error,
   assertTarballChecksum,
   classifyDowngradeRefusalPlan,
   compareSemver,
+  fingerprintPayloads,
   pairingCredentialFromCliOutput,
   n1TarballAssetName,
   parsePlainSemver,
   parseTarget,
+  prepareN1FixtureProvider,
+  readRunningStatus,
   redactSecrets,
   selectN1Release,
   serverArtifactAssetName,
@@ -113,6 +126,46 @@ void test("prefers the highest qualifier and records every ignored release", () 
   assert.equal(byTag.get("nightly-2026-09-01").reason, "tag is not plain X.Y.Z");
   assert.match(byTag.get("v1.7.9").reason, /no server-artifact-darwin-arm64\.json asset/u);
   assert.equal(byTag.get("v1.5.0").decision, "selected");
+});
+
+void test("the first stable server release can qualify from the latest eligible published nightly", () => {
+  const candidateVersion = "2.0.0";
+  const nightly = "2.0.0-nightly.202611261547";
+  const assetNames = (version) => [META, n1TarballAssetName(version, TARGET)];
+  const releases = [
+    release("v1.8.2", { assets: ["Poracode-1.8.2-arm64.dmg"] }),
+    release(`v${nightly}`, { prerelease: true, assets: assetNames(nightly) }),
+    release("v2.0.0-nightly.202611270000", { prerelease: true, assets: [META] }),
+    release("v2.0.0-nightly.202611280000", {
+      draft: true,
+      prerelease: true,
+      assets: assetNames("2.0.0-nightly.202611280000"),
+    }),
+    release("v2.0.0-nightly.202611250745", {
+      prerelease: true,
+      assets: assetNames("2.0.0-nightly.202611250745"),
+    }),
+    release("v2.0.1-nightly.202611300000", {
+      prerelease: true,
+      assets: assetNames("2.0.1-nightly.202611300000"),
+    }),
+  ];
+
+  const selected = selectN1Release({ releases, candidateVersion, target: TARGET });
+  assert.equal(selected.tag, `v${nightly}`);
+  assert.equal(selected.version, nightly);
+  assert.equal(selected.evidence.find((entry) => entry.tag === selected.tag).decision, "selected");
+  assert.throws(
+    () => selectN1Release({ releases, candidateVersion: "2.0.1", target: TARGET }),
+    NoPublishedServerN1Error,
+  );
+  assert.throws(
+    () => selectN1Release({ releases, candidateVersion, target: "win32-x64" }),
+    NoPublishedServerN1Error,
+  );
+
+  releases.push(release("v1.9.0", { assets: assetNames("1.9.0") }));
+  assert.equal(selectN1Release({ releases, candidateVersion, target: TARGET }).tag, "v1.9.0");
 });
 
 void test("fails closed with typed NO_PUBLISHED_SERVER_N1 and per-release evidence", () => {
@@ -255,4 +308,264 @@ void test("every typed failure exits nonzero and NO_PUBLISHED_SERVER_N1 is its o
     TYPED_EXIT_CODES.RELEASE_LIST_UNAVAILABLE,
     "infrastructure unavailability must not be mistakable for the no-predecessor verdict",
   );
+  assert.ok(TYPED_EXIT_CODES.STATUS_DETAILS_UNAVAILABLE > 0);
+  assert.ok(TYPED_EXIT_CODES.STATUS_CONTRACT_INVALID > 0);
 });
+
+// ── Authenticated running-owner status (versioned detailed view) ──────────
+
+void test("readRunningStatus reads formatVersion 1 running-owner .status.build", () => {
+  let capturedArgs = null;
+  const reply = {
+    formatVersion: 1,
+    view: "running-owner",
+    status: {
+      build: {
+        version: "2.0.0-nightly.1",
+        entrypointSha256: "a".repeat(64),
+        root: "/p",
+        layoutKind: "prefix",
+      },
+      dataRoot: "/p/data",
+    },
+  };
+  const runCli = (_entry, args) => {
+    capturedArgs = args;
+    return { stdout: `${JSON.stringify(reply)}\n` };
+  };
+  const status = readRunningStatus(runCli, "entry", {});
+  assert.deepEqual(capturedArgs, ["status", "--details", "--json"]);
+  assert.equal(status.build.version, "2.0.0-nightly.1");
+  assert.equal(status.dataRoot, "/p/data");
+});
+
+void test("readRunningStatus fails closed on any basic, legacy or malformed status", () => {
+  const withReply = (reply) => () =>
+    readRunningStatus(() => ({ stdout: `${JSON.stringify(reply)}\n` }), "e", {});
+  const contractInvalid = (reply) =>
+    assert.throws(withReply(reply), { code: "STATUS_CONTRACT_INVALID" });
+  // Plain `status --json` describe reply: no build identity at all.
+  contractInvalid({ requestId: "r", ownerGeneration: "g", description: { state: "ready" } });
+  // The raw host-control `.result.build` shape the CLI never emits: no fallback.
+  contractInvalid({ result: { build: { version: "1.0.0" }, dataRoot: "/d" } });
+  contractInvalid({
+    formatVersion: 2,
+    view: "running-owner",
+    status: { build: { version: "x" }, dataRoot: "/d" },
+  });
+  contractInvalid({
+    formatVersion: 1,
+    view: "other",
+    status: { build: { version: "x" }, dataRoot: "/d" },
+  });
+  contractInvalid({
+    formatVersion: 1,
+    view: "running-owner",
+    status: { build: {}, dataRoot: "/d" },
+  });
+  contractInvalid({ formatVersion: 1, view: "running-owner", status: { build: { version: "x" } } });
+  // CLI failure and non-JSON output.
+  assert.throws(
+    () =>
+      readRunningStatus(
+        () => {
+          throw new Error("status not supported");
+        },
+        "e",
+        {},
+      ),
+    { code: "STATUS_DETAILS_UNAVAILABLE" },
+  );
+  assert.throws(() => readRunningStatus(() => ({ stdout: "not json" }), "e", {}), {
+    code: "STATUS_CONTRACT_INVALID",
+  });
+});
+
+// ── Persisted terminal scrollback fingerprint (real layout, chunked bytes) ─
+
+void test("fingerprintPayloads finds the marker in legacy and chunked scrollback", () => {
+  const require = createRequire(import.meta.url);
+  const Database = require("better-sqlite3");
+  const db = new Database(":memory:");
+  const MARKER = "n1q-86-turn";
+  const THREAD = "n1-qual-shell";
+  try {
+    db.exec(`
+      CREATE TABLE app_state (key TEXT, value TEXT);
+      CREATE TABLE projects (id TEXT, name TEXT, location_path TEXT);
+      CREATE TABLE threads (id TEXT, agent_kind TEXT, status TEXT);
+      CREATE TABLE thread_terminal_scrollback
+        (thread_id TEXT, transcript TEXT, output_length INTEGER, chunked INTEGER,
+         stored_chars INTEGER, next_seq INTEGER);
+      CREATE TABLE thread_terminal_scrollback_chunks
+        (thread_id TEXT, seq INTEGER, chars INTEGER, data BLOB);
+      CREATE TABLE remote_command_receipts
+        (command_id TEXT, route TEXT, state TEXT, response TEXT, created_at INTEGER, updated_at INTEGER);
+      CREATE TABLE thread_runtime_items
+        (item_id TEXT, type TEXT, state TEXT, thread_id TEXT, payload TEXT);
+    `);
+    db.prepare("INSERT INTO threads (id, agent_kind, status) VALUES (?, ?, ?)").run(
+      THREAD,
+      "claude",
+      "inactive",
+    );
+    const insertChunk = (seq, text) =>
+      db
+        .prepare(
+          "INSERT INTO thread_terminal_scrollback_chunks (thread_id, seq, chars, data) VALUES (?, ?, ?, ?)",
+        )
+        .run(THREAD, seq, text.length, Buffer.from(text, "utf16le"));
+    const insertRow = (transcript, chunked) =>
+      db
+        .prepare(
+          "INSERT INTO thread_terminal_scrollback (thread_id, transcript, chunked) VALUES (?, ?, ?)",
+        )
+        .run(THREAD, transcript, chunked);
+    const reset = () => {
+      db.prepare("DELETE FROM thread_terminal_scrollback").run();
+      db.prepare("DELETE FROM thread_terminal_scrollback_chunks").run();
+    };
+    const fingerprint = (marker) =>
+      fingerprintPayloads({
+        database: db,
+        shellId: THREAD,
+        projectPath: "/p",
+        receiptId: "r",
+        goalMarker: null,
+        scrollbackMarker: marker,
+      }).scrollbackMarker;
+
+    // (a) Legacy layout: marker in the plain transcript column.
+    insertRow(`# echo ${MARKER}\r\n`, 0);
+    assert.ok(fingerprint(MARKER), "legacy transcript marker must be found");
+
+    // (b) Chunked, single chunk (the published N-1 run shape).
+    reset();
+    insertRow("", 1);
+    insertChunk(0, `# sh -c 'echo n1q-$((84+2))-turn'\r\nn1q-86-turn\r\n# `);
+    assert.ok(fingerprint(MARKER), "single-chunk marker must be found");
+
+    // (c) Chunked with the marker deliberately SPLIT across two UTF-16LE chunks.
+    reset();
+    insertRow("", 1);
+    insertChunk(0, "# n1q-"); // ends mid-marker
+    insertChunk(1, "86-turn\r\n# "); // resumes mid-marker
+    assert.ok(fingerprint(MARKER), "marker split across chunks must be found by joining first");
+
+    // (d) Fail-closed: chunked bytes without the marker.
+    reset();
+    insertRow("", 1);
+    insertChunk(0, "no marker here");
+    assert.equal(fingerprint(MARKER), null, "an absent marker must fail closed");
+
+    // (e) Fail-closed: chunked row with no chunks at all.
+    reset();
+    insertRow("", 1);
+    assert.equal(fingerprint(MARKER), null, "a chunked row with no bytes must fail closed");
+
+    // (f) Fail-closed: a chunked header with a STALE marker in the legacy
+    // transcript column and empty/absent chunk storage must NOT fall back to
+    // that column (production reads only chunks).
+    reset();
+    insertRow(`# echo ${MARKER}\r\n`, 1); // stale legacy transcript, no chunks
+    assert.equal(fingerprint(MARKER), null, "stale legacy marker must never satisfy a chunked row");
+  } finally {
+    db.close();
+  }
+});
+
+// ── Fixture provider isolation ───────────────────────────────────────────
+
+void test(
+  "prepareN1FixtureProvider resolves the fixture ahead of inherited PATH and login init",
+  { skip: process.platform === "win32" },
+  () => {
+    const root = mkdtempSync(join(tmpdir(), "n1-fixture-"));
+    try {
+      const fixtureHome = join(root, "fixture-home");
+      const sentinelBin = join(root, "sentinel-bin");
+      mkdirSync(sentinelBin, { recursive: true });
+      mkdirSync(fixtureHome, { recursive: true });
+
+      // Inert stand-in for a real provider earlier on the inherited PATH: any
+      // resolution that reaches it records the run in SENTINEL_MARKER.
+      const sentinel = join(sentinelBin, "claude");
+      writeFileSync(
+        sentinel,
+        '#!/bin/sh\n[ -n "${SENTINEL_MARKER:-}" ] && echo ran >> "$SENTINEL_MARKER"\n' +
+          'echo "9.9.9-sentinel-provider"\n',
+      );
+      chmodSync(sentinel, 0o755);
+
+      // Startup files a login shell would read, plus the $ENV/$BASH_ENV hooks
+      // non-interactive shells honor: all prepend the sentinel dir and record
+      // that they ran, so a leaked login flag or unset guard fails loudly.
+      const pathTrap =
+        `PATH="${sentinelBin}:$PATH"\nexport PATH\n` +
+        '[ -n "${PROFILE_MARKER:-}" ] && echo ran >> "$PROFILE_MARKER"\n';
+      for (const name of [".profile", ".bash_profile", ".bash_login"]) {
+        writeFileSync(join(fixtureHome, name), pathTrap);
+      }
+      const envTrap = join(root, "env-trap.sh");
+      writeFileSync(envTrap, pathTrap);
+
+      const inheritedPath = [sentinelBin, process.env.PATH].filter(Boolean).join(delimiter);
+      const overlay = prepareN1FixtureProvider(fixtureHome, inheritedPath);
+      const binDir = join(fixtureHome, ".local", "bin");
+      const fixtureClaude = join(binDir, "claude");
+      const sentinelMarker = join(root, "sentinel-ran");
+      const profileMarker = join(root, "profile-ran");
+
+      assert.equal(overlay.HOME, fixtureHome);
+      assert.equal(overlay.PATH, `${binDir}${delimiter}${inheritedPath}`);
+      assert.ok(overlay.SHELL.startsWith(fixtureHome));
+      assert.ok(existsSync(fixtureClaude));
+      assert.ok(existsSync(overlay.SHELL));
+      assert.ok(statSync(fixtureClaude).mode & 0o111, "fixture provider must be executable");
+      assert.ok(statSync(overlay.SHELL).mode & 0o111, "fixture shell must be executable");
+
+      const probeEnv = {
+        ...overlay,
+        SENTINEL_MARKER: sentinelMarker,
+        PROFILE_MARKER: profileMarker,
+        ENV: envTrap,
+        BASH_ENV: envTrap,
+      };
+      const probe = (args, options = {}) =>
+        spawnSync(overlay.SHELL, args, { encoding: "utf8", env: probeEnv, ...options });
+
+      // Released login-arg forms: `-l -c` (Linux), `-l -i -c` (macOS), and the
+      // native Node probe's combined `-lic`.
+      for (const loginArgs of [["-l", "-c"], ["-l", "-i", "-c"], ["-lic"]]) {
+        const which = probe([...loginArgs, "command -v claude"]);
+        assert.equal(which.status, 0, which.stderr);
+        assert.equal(which.stdout.trim(), fixtureClaude);
+
+        const version = probe([...loginArgs, "claude --version"]);
+        assert.equal(version.status, 0, version.stderr);
+        assert.equal(version.stdout.trim(), "2.0.0 (poracode-n1-fixture)");
+      }
+
+      // The probe environment reports the fixture HOME, and no login startup
+      // file or shell-init hook ran while resolving the fixture.
+      const home = probe(["-l", "-c", 'echo "$HOME"']);
+      assert.equal(home.stdout.trim(), fixtureHome);
+      assert.equal(existsSync(sentinelMarker), false, "an inherited provider must never run");
+      assert.equal(existsSync(profileMarker), false, "login init must not run for command probes");
+
+      // A bare -l drops the login flag too: the shim still accepts commands on
+      // stdin, but no login profile or host startup file ever runs — nothing
+      // in the qualification needs login startup.
+      const interactive = probe(["-l"], { input: "echo n1-bare-ok\nexit\n" });
+      assert.equal(interactive.status, 0, interactive.stderr);
+      assert.match(interactive.stdout, /n1-bare-ok/u);
+      assert.equal(
+        existsSync(profileMarker),
+        false,
+        "bare -l must not source login profiles or host startup files",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);

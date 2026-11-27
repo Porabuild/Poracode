@@ -276,6 +276,8 @@ export type SupervisorEvent =
       outputLength: number;
       /** Terminal instance/generation id; batching must not coalesce across this. */
       terminalInstanceId: string;
+      /** Observed PTY width for this span. Omitted when unavailable. */
+      terminalColumns?: number;
     }
   | {
       type: "thread-runtime-event";

@@ -23,6 +23,7 @@ export class ProcessCleanup {
   }
 
   trackChild(child: ChildProcess): void {
+    if (child.pid === undefined) return;
     this.children.add(child);
     child.once("exit", () => this.children.delete(child));
   }
@@ -67,7 +68,11 @@ export class ProcessCleanup {
 
   private killChildren(signal: NodeJS.Signals): void {
     for (const child of this.children) {
-      if (child.killed || child.exitCode !== null) continue;
+      // A sent signal is not an observed exit: child.killed only records that
+      // kill() was called, while exitCode/signalCode record a real exit. Skip
+      // only a child that has actually exited (by code or by signal), so the
+      // SIGTERM -> forced SIGKILL escalation still reaches stubborn children.
+      if (child.exitCode !== null || child.signalCode !== null) continue;
       try {
         if (child.pid && (process.platform === "darwin" || process.platform === "linux")) {
           try {

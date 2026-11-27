@@ -20,6 +20,8 @@ data class TerminalBaselineChunk(
     val dimensions: TerminalDimensions?,
     /** True = delta from the client's resume cursor; false = full window. */
     val resumeServed: Boolean,
+    /** Observed PTY width for this chunk's homogeneous span; null = unknown. */
+    val terminalColumns: Int? = null,
 ) {
     init {
         require(terminalId.isNotEmpty()) { "terminalId must not be empty" }

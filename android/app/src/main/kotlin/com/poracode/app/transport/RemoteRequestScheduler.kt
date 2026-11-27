@@ -5,7 +5,6 @@ import java.util.ArrayDeque
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -104,7 +103,11 @@ class RemoteRequestScheduler(
             val waiter = QueuedWaiter(
                 priority = priority,
                 onGrant = { lease ->
-                    if (cont.isActive) cont.resume(lease) else lease.release()
+                    if (cont.isActive) {
+                        cont.resume(lease) { _, grantedLease, _ -> grantedLease.release() }
+                    } else {
+                        lease.release()
+                    }
                 },
                 onCancel = {
                     if (cont.isActive) {
@@ -125,7 +128,7 @@ class RemoteRequestScheduler(
                 }
             }
             immediate?.let { lease ->
-                cont.resume(lease)
+                waiter.onGrant(lease)
                 return@suspendCancellableCoroutine
             }
             cont.invokeOnCancellation {

@@ -83,6 +83,19 @@ class WireLabControl(controlBaseUrl: String, private val capability: String) {
     fun delayNextBackgroundTaskOutput(delayMs: Long): JSONObject =
         action(JSONObject().put("type", "background-task-output-delay").put("delayMs", delayMs))
 
+    /**
+     * Parks exactly the next fixture output read until an explicit release. The
+     * hold is deterministic (no device timer): a fresh read after close/reopen
+     * is served while the old read is still held, so the stale reply can only
+     * arrive after the newest ordinal has displayed.
+     */
+    fun holdNextBackgroundTaskOutput(): JSONObject =
+        action(JSONObject().put("type", "background-task-output-hold"))
+
+    /** Delivers the parked old read; its reply arrives strictly after the newest. */
+    fun releaseBackgroundTaskOutput(): JSONObject =
+        action(JSONObject().put("type", "background-task-output-release"))
+
     /** Primary host's background-task fixture counters/roster from scenario state. */
     fun backgroundTaskState(): JSONObject = state().optJSONObject("backgroundTasks") ?: JSONObject()
 

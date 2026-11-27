@@ -241,6 +241,9 @@ extension GeneratedRemoteV3Contract {
     } else {
       return nil
     }
+    // Optional observed width for this chunk's homogeneous span; the
+    // assembler applies the usable-range check and ignores empty chunks.
+    let terminalColumns = sync["terminalColumns"]?.exactInt64Value.map { Int($0) }
     return TerminalBaselineChunk(
       terminalID: terminalID,
       watchID: watchID,
@@ -250,7 +253,8 @@ extension GeneratedRemoteV3Contract {
       fromCursor: from,
       toCursor: to,
       data: data,
-      resumeServed: resumeServed
+      resumeServed: resumeServed,
+      terminalColumns: terminalColumns
     )
   }
 }

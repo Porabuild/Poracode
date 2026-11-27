@@ -11,6 +11,7 @@
  */
 import { spawn, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { once } from "node:events";
 import { createServer } from "node:net";
 import {
   existsSync,
@@ -364,19 +365,123 @@ function requestServerStop({ entry, profile, pid }) {
   }
 }
 
-async function stopChild(child, { entry, profile }) {
+const STOP_JOIN_TIMEOUT_MS = 20_000;
+const FORCE_TASKKILL_TIMEOUT_MS = 10_000;
+const FORCE_CLEANUP_JOIN_TIMEOUT_MS = 5_000;
+
+/** A bounded wait for the exact owned child's `exit` event. */
+async function waitForChildExit(child, timeoutMs, label) {
   if (child.exitCode !== null || child.signalCode !== null) return;
-  requestServerStop({ entry, profile, pid: child.pid });
-  await new Promise((resolveExit) => {
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      resolveExit();
-    }, 20_000);
-    child.once("exit", () => {
-      clearTimeout(timer);
-      resolveExit();
+  try {
+    await once(child, "exit", { signal: AbortSignal.timeout(timeoutMs) });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`${label} did not exit within ${timeoutMs}ms`, { cause: error });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Force-reap only the exact still-running owned ChildProcess. On Windows the
+ * daemon owns a process tree, so use the fully-qualified system taskkill.exe
+ * with /PID /T /F and a short bounded timeout (the recipe from
+ * scripts/profile-startup.mjs); never select processes by name. POSIX signals
+ * the exact child handle with SIGKILL.
+ */
+export function forceStopChild(
+  child,
+  { platform = process.platform, env = process.env, run = execFileSync } = {},
+) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (platform === "win32" && Number.isSafeInteger(child.pid) && child.pid > 0) {
+    const systemRoot = env.SystemRoot ?? env.windir ?? "C:\\Windows";
+    run(join(systemRoot, "System32", "taskkill.exe"), ["/PID", String(child.pid), "/T", "/F"], {
+      windowsHide: true,
+      timeout: FORCE_TASKKILL_TIMEOUT_MS,
     });
-  });
+    return;
+  }
+  child.kill("SIGKILL");
+}
+
+/**
+ * Stop the owned daemon without leaking its ChildProcess on a failed graceful
+ * stop, and without letting a forced stop masquerade as a clean shutdown.
+ * requestStop/forceStop are small callbacks so the control flow is assertable
+ * without spawning a real daemon. A failed graceful request or an expired
+ * child-exit join force-reaps the exact child, then rethrows the original
+ * error (aggregated with any cleanup failure).
+ */
+export async function stopQualificationChild(
+  child,
+  requestStop,
+  forceStop,
+  { joinTimeoutMs = STOP_JOIN_TIMEOUT_MS, cleanupTimeoutMs = FORCE_CLEANUP_JOIN_TIMEOUT_MS } = {},
+) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  try {
+    await requestStop();
+    await waitForChildExit(child, joinTimeoutMs, "qualification daemon");
+  } catch (primary) {
+    try {
+      if (child.exitCode === null && child.signalCode === null) {
+        await forceStop();
+        await waitForChildExit(child, cleanupTimeoutMs, "force-stopped qualification daemon");
+      }
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [primary, cleanupError],
+        "qualification daemon stop failed and forced cleanup failed",
+        { cause: cleanupError },
+      );
+    }
+    throw primary;
+  }
+}
+
+async function stopChild(child, { entry, profile }) {
+  await stopQualificationChild(
+    child,
+    () => requestServerStop({ entry, profile, pid: child.pid }),
+    () => forceStopChild(child),
+  );
+}
+
+/**
+ * Preserve the probe failure as the primary error and keep a daemon-cleanup
+ * failure alongside it instead of letting a `finally` stop mask the probe.
+ */
+export function combineQualificationFailures(primaryError, cleanupError) {
+  if (primaryError && cleanupError) {
+    return new AggregateError(
+      [primaryError, cleanupError],
+      "qualification probe failed and daemon cleanup failed",
+    );
+  }
+  return primaryError ?? cleanupError ?? null;
+}
+
+/**
+ * Format a thrown error for CLI stderr, including nested AggregateError member
+ * details (an AggregateError.stack alone omits its members), then redact every
+ * printed byte so raw app credentials cannot leak. Members keep their order,
+ * so the original probe error is reported before a cleanup error.
+ */
+export function formatQualificationError(error) {
+  const lines = [];
+  const seen = new Set();
+  const visit = (value) => {
+    if (value == null || seen.has(value)) return;
+    seen.add(value);
+    if (value instanceof AggregateError && Array.isArray(value.errors)) {
+      for (const member of value.errors) visit(member);
+    } else {
+      lines.push(value instanceof Error ? (value.stack ?? value.message) : String(value));
+    }
+  };
+  visit(error);
+  return redactSecrets(lines.join("\n"));
 }
 
 /**
@@ -468,6 +573,8 @@ export async function qualifyServerInstall(options) {
   let writerAdmission;
   child.stdout.on("data", (chunk) => logs.push(chunk.toString("utf8")));
   child.stderr.on("data", (chunk) => logs.push(chunk.toString("utf8")));
+  let primaryError;
+  let cleanupError;
   try {
     await waitForText(child.stdout, "listening at:", 60_000);
     const { token, protocolVersion, descriptor, capabilities } = await pairAndAuthenticate(
@@ -544,9 +651,17 @@ export async function qualifyServerInstall(options) {
       ticket: ticket.body.ticket,
       descriptor,
     });
+  } catch (error) {
+    primaryError = error;
   } finally {
-    await stopChild(child, { entry, profile });
+    try {
+      await stopChild(child, { entry, profile });
+    } catch (error) {
+      cleanupError = error;
+    }
   }
+  const failure = combineQualificationFailures(primaryError, cleanupError);
+  if (failure) throw failure;
 
   // Throws with the observed record when the lease is not cleanly released.
   await waitForOwnerPhase(profile, "stopped", 20_000);
@@ -628,9 +743,7 @@ const invokedDirectly =
   process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
   main().catch((error) => {
-    process.stderr.write(
-      `${redactSecrets(error instanceof Error ? (error.stack ?? error.message) : String(error))}\n`,
-    );
+    process.stderr.write(`${formatQualificationError(error)}\n`);
     process.exit(1);
   });
 }

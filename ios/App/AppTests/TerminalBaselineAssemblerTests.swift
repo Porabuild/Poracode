@@ -110,6 +110,77 @@ final class TerminalBaselineAssemblerTests: XCTestCase {
     XCTAssertEqual(throughCursor, 108)
   }
 
+  func testAcceptedChunkWidthsAssembleIntoCoalescedColumnChanges() {
+    var assembler = TerminalBaselineAssembler()
+    _ = assembler.offer(chunk(index: 0, from: 100, to: 103, data: "abc", columns: 48))
+    _ = assembler.offer(chunk(index: 1, from: 103, to: 106, data: "def", columns: 48))
+    guard case .complete(let frame, _) = assembler.offer(
+      chunk(index: 2, from: 106, to: 110, data: "ghij", columns: 100)
+    )
+    else { return XCTFail("Expected completion") }
+    // Equal contiguous widths coalesce across chunk boundaries.
+    XCTAssertEqual(
+      frame.columnChanges,
+      [
+        TerminalCursorColumnChange(fromCursor: 100, columns: 48),
+        TerminalCursorColumnChange(fromCursor: 106, columns: 100),
+      ]
+    )
+  }
+
+  func testUnknownChunkWidthsEmitNullGapsAndUnusableWidthsStayUnknown() {
+    var assembler = TerminalBaselineAssembler()
+    _ = assembler.offer(chunk(index: 0, from: 100, to: 103, data: "abc", count: 4, columns: 48))
+    _ = assembler.offer(chunk(index: 1, from: 103, to: 106, data: "def", count: 4))
+    _ = assembler.offer(chunk(index: 2, from: 106, to: 110, data: "ghij", count: 4, columns: 10))
+    guard case .complete(let frame, _) = assembler.offer(
+      chunk(index: 3, from: 110, to: 112, data: "kl", count: 4, columns: 100)
+    )
+    else { return XCTFail("Expected completion") }
+    XCTAssertEqual(
+      frame.columnChanges,
+      [
+        TerminalCursorColumnChange(fromCursor: 100, columns: 48),
+        TerminalCursorColumnChange(fromCursor: 103, columns: nil),
+        TerminalCursorColumnChange(fromCursor: 110, columns: 100),
+      ]
+    )
+  }
+
+  func testEmptyChunksAndDroppedChunksRecordNoWidth() {
+    var assembler = TerminalBaselineAssembler()
+    // An empty chunk's width marker is ignored even when usable.
+    _ = assembler.offer(chunk(index: 0, from: 100, to: 100, data: "", columns: 48))
+    // A duplicate index is dropped without recording its width.
+    _ = assembler.offer(chunk(index: 0, from: 100, to: 100, data: "", columns: 48))
+    XCTAssertEqual(
+      assembler.offer(chunk(index: 0, from: 100, to: 100, data: "", columns: 48)),
+      .duplicate
+    )
+    guard case .complete(let frame, _) = assembler.offer(
+      chunk(index: 1, from: 100, to: 102, data: "ab", count: 2, columns: 100)
+    )
+    else { return XCTFail("Expected completion") }
+    XCTAssertEqual(
+      frame.columnChanges, [TerminalCursorColumnChange(fromCursor: 100, columns: 100)]
+    )
+
+    // A discarded assembly drops every recorded width with it.
+    var discarded = TerminalBaselineAssembler()
+    _ = discarded.offer(chunk(index: 0, from: 0, to: 3, data: "abc", columns: 48))
+    XCTAssertEqual(
+      discarded.offer(chunk(index: 1, from: 4, to: 6, data: "ef", columns: 100)),
+      .discard
+    )
+    guard case .complete(let fresh, _) = discarded.offer(
+      chunk(index: 0, from: 6, to: 8, data: "gh", count: 1, columns: 100)
+    )
+    else { return XCTFail("Expected completion") }
+    XCTAssertEqual(
+      fresh.columnChanges, [TerminalCursorColumnChange(fromCursor: 6, columns: 100)]
+    )
+  }
+
   private func chunk(
     index: Int,
     from: Int64,
@@ -117,7 +188,8 @@ final class TerminalBaselineAssemblerTests: XCTestCase {
     data: String,
     count: Int = 3,
     generation: String = "generation-1",
-    resume: Bool = false
+    resume: Bool = false,
+    columns: Int? = nil
   ) -> TerminalBaselineChunk {
     TerminalBaselineChunk(
       terminalID: "terminal-1",
@@ -128,7 +200,8 @@ final class TerminalBaselineAssemblerTests: XCTestCase {
       fromCursor: from,
       toCursor: to,
       data: data,
-      resumeServed: resume
+      resumeServed: resume,
+      terminalColumns: columns
     )
   }
 }

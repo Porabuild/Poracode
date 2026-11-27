@@ -2,6 +2,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
   existsSync,
@@ -32,7 +33,7 @@ afterEach(() => {
 });
 
 function setup() {
-  const root = mkdtempSync(join(tmpdir(), "poracode-plugin-catalog-"));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "poracode-plugin-catalog-"));
   roots.push(root);
   const user = join(root, "user");
   const marketplace = join(root, "marketplace");

@@ -1,4 +1,9 @@
 import type { SupervisorEvent } from "@/shared/ipc";
+import {
+  knownTerminalColumns,
+  TerminalColumnHistory,
+  type TerminalColumnChange,
+} from "@/shared/terminalColumnHistory";
 import { dbAppendThreadTerminalOutput, dbClearThreadTerminalScrollback } from "@/host/db";
 import { runRuntimeControlWrite } from "@/host/db/runtimePersistenceRuntime";
 
@@ -14,10 +19,29 @@ interface PendingOutput {
   outputLength: number;
   /** Terminal instance/generation id; never coalesce across this. */
   terminalInstanceId: string;
+  /** Absolute UTF-16 cursor where `data` begins (first coalesced event). */
+  startCursor: number;
+  /**
+   * Known-width spans observed inside this batch. `TerminalColumnHistory`
+   * coalesces adjacent equal widths and bounds retained spans, so the flushed
+   * change list stays small even for width-churn-heavy output.
+   */
+  columnHistory?: TerminalColumnHistory;
+  /**
+   * False once a coalesced event's offset is not contiguous with the batch
+   * end: shifted raw bytes must not inherit earlier known widths, so the whole
+   * batch flushes without geometry (the raw path is unchanged either way).
+   */
+  geometryContiguous: boolean;
 }
 
 export interface TerminalScrollbackPersistenceOptions {
-  append?(threadId: string, data: string, outputLength: number): void;
+  append?(
+    threadId: string,
+    data: string,
+    outputLength: number,
+    columnChanges?: TerminalColumnChange[],
+  ): void;
   clear?(threadId: string): void;
   flushIntervalMs?: number;
   /**
@@ -66,7 +90,13 @@ export class TerminalScrollbackPersistence {
   handle(event: SupervisorEvent): void {
     if (event.type === "thread-output") {
       if (event.threadId.startsWith("shell:")) return;
-      this.appendPending(event.threadId, event.data, event.outputLength, event.terminalInstanceId);
+      this.appendPending(
+        event.threadId,
+        event.data,
+        event.outputLength,
+        event.terminalInstanceId,
+        event.terminalColumns,
+      );
       return;
     }
     if (event.type === "thread-reset") {
@@ -97,7 +127,9 @@ export class TerminalScrollbackPersistence {
     data: string,
     outputLength: number,
     terminalInstanceId: string,
+    terminalColumns: number | undefined,
   ): void {
+    const eventFromCursor = outputLength - data.length;
     const existing = this.pending.get(threadId);
     if (existing) {
       // Never coalesce across terminal generations — a restart must not splice
@@ -107,10 +139,27 @@ export class TerminalScrollbackPersistence {
         // A failed flush reinserted the old batch. The new generation
         // supersedes it just like a reset; remove its accounting before replace.
         this.dropPending(threadId);
-        const bytes = Buffer.byteLength(data, "utf8");
-        this.pending.set(threadId, { data, bytes, outputLength, terminalInstanceId });
-        this.pendingBytes += bytes;
+        this.insertPending(
+          threadId,
+          data,
+          outputLength,
+          terminalInstanceId,
+          eventFromCursor,
+          terminalColumns,
+        );
       } else {
+        if (eventFromCursor !== existing.outputLength) {
+          existing.geometryContiguous = false;
+        }
+        if (existing.geometryContiguous) {
+          this.recordPendingColumns(
+            existing,
+            eventFromCursor,
+            outputLength,
+            data.length,
+            terminalColumns,
+          );
+        }
         const previousBytes = existing.bytes;
         existing.data += data;
         existing.outputLength = outputLength;
@@ -120,9 +169,14 @@ export class TerminalScrollbackPersistence {
         this.pendingBytes += existing.bytes - previousBytes;
       }
     } else {
-      const bytes = Buffer.byteLength(data, "utf8");
-      this.pending.set(threadId, { data, bytes, outputLength, terminalInstanceId });
-      this.pendingBytes += bytes;
+      this.insertPending(
+        threadId,
+        data,
+        outputLength,
+        terminalInstanceId,
+        eventFromCursor,
+        terminalColumns,
+      );
     }
     const pending = this.pending.get(threadId);
     if (!pending) return;
@@ -141,13 +195,82 @@ export class TerminalScrollbackPersistence {
     if (this.pending.size > 0) this.scheduleFlush();
   }
 
+  private insertPending(
+    threadId: string,
+    data: string,
+    outputLength: number,
+    terminalInstanceId: string,
+    fromCursor: number,
+    terminalColumns: number | undefined,
+  ): void {
+    const bytes = Buffer.byteLength(data, "utf8");
+    const pending: PendingOutput = {
+      data,
+      bytes,
+      outputLength,
+      terminalInstanceId,
+      startCursor: fromCursor,
+      geometryContiguous: true,
+    };
+    this.pending.set(threadId, pending);
+    this.pendingBytes += bytes;
+    this.recordPendingColumns(pending, fromCursor, outputLength, data.length, terminalColumns);
+  }
+
+  /**
+   * Record one event's observed width over its absolute cursor span. Events
+   * without a usable width leave a gap that snapshots report as unknown, which
+   * also keeps an earlier known width from leaking across the unknown range.
+   */
+  private recordPendingColumns(
+    pending: PendingOutput,
+    fromCursor: number,
+    toCursor: number,
+    length: number,
+    terminalColumns: number | undefined,
+  ): void {
+    const columns = knownTerminalColumns(terminalColumns);
+    if (
+      columns === null ||
+      length <= 0 ||
+      toCursor <= fromCursor ||
+      !Number.isSafeInteger(fromCursor) ||
+      fromCursor < 0 ||
+      !Number.isSafeInteger(toCursor)
+    ) {
+      return;
+    }
+    pending.columnHistory ??= new TerminalColumnHistory();
+    pending.columnHistory.record(fromCursor, toCursor, columns);
+  }
+
+  /** Width markers for this batch, or undefined to keep the legacy 3-arg append. */
+  private pendingColumnChanges(output: PendingOutput): TerminalColumnChange[] | undefined {
+    if (
+      !output.geometryContiguous ||
+      !output.columnHistory ||
+      !Number.isSafeInteger(output.startCursor) ||
+      !Number.isSafeInteger(output.outputLength) ||
+      output.startCursor < 0 ||
+      output.startCursor > output.outputLength
+    ) {
+      return undefined;
+    }
+    const changes = output.columnHistory.snapshot(output.startCursor, output.outputLength);
+    return changes.some((change) => change.columns !== null) ? changes : undefined;
+  }
+
   private flushThread(threadId: string): void {
     const output = this.pending.get(threadId);
     if (!output) return;
     this.pending.delete(threadId);
     this.pendingBytes -= output.bytes;
+    const columnChanges = this.pendingColumnChanges(output);
     const result = runRuntimeControlWrite(
-      () => this.append(threadId, output.data, output.outputLength),
+      () =>
+        columnChanges === undefined
+          ? this.append(threadId, output.data, output.outputLength)
+          : this.append(threadId, output.data, output.outputLength, columnChanges),
       threadId,
     );
     if (result.ok) {

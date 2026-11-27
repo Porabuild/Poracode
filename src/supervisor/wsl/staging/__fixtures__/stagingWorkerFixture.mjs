@@ -10,17 +10,23 @@ if (process.env.FIXTURE_PID_FILE) {
 
 if (mode === "close-input") closeSync(0);
 
-process.stdout.write(`${JSON.stringify({ type: "ready", protocolVersion })}\n`);
+const emitReady = () => {
+  process.stdout.write(`${JSON.stringify({ type: "ready", protocolVersion })}\n`);
+};
 
 if (mode === "exit") {
+  emitReady();
   process.exit(0);
-}
-
-if (mode === "close-input") {
+} else if (mode === "close-input") {
+  emitReady();
   setTimeout(() => process.exit(3), 200);
 } else if (mode === "stall") {
+  emitReady();
   setInterval(() => {}, 1_000);
 } else {
+  // One readline handler, one JSON parser and one close handler for every
+  // mode that stays alive; only the split-utf8 write is special-cased.
+  let readyEmitted = false;
   const reader = createInterface({ input: process.stdin });
   reader.on("line", (line) => {
     let envelope;
@@ -29,9 +35,39 @@ if (mode === "close-input") {
     } catch {
       return;
     }
-    process.stdout.write(
-      `${JSON.stringify({ type: "result", id: envelope.id, ok: true, result: { mode } })}\n`,
+    let result;
+    if (mode === "split-utf8") {
+      result = { exists: true, entries: [{ name: "évidence", directory: false }] };
+    } else if (mode === "delayed-ready") {
+      result = { mode, requestBeforeReady: !readyEmitted };
+    } else {
+      result = { mode };
+    }
+    const message = Buffer.from(
+      `${JSON.stringify({ type: "result", id: envelope.id, ok: true, result })}\n`,
+      "utf8",
     );
+    if (mode === "split-utf8") {
+      // Split the two UTF-8 bytes of "é" (0xC3 0xA9) across two writes so a
+      // byte-wise reader decodes two replacement characters instead of "é".
+      const splitAt = message.indexOf(Buffer.from("é", "utf8")) + 1;
+      process.stdout.write(message.subarray(0, splitAt), () => {
+        setTimeout(() => process.stdout.write(message.subarray(splitAt)), 150);
+      });
+    } else {
+      process.stdout.write(message);
+    }
   });
   reader.on("close", () => process.exit(0));
+
+  if (mode === "delayed-ready") {
+    // Readline already listens; defer ready so an early request can be echoed
+    // before the (possibly incompatible) handshake lands.
+    setTimeout(() => {
+      readyEmitted = true;
+      emitReady();
+    }, 200);
+  } else if (mode !== "no-ready") {
+    emitReady();
+  }
 }

@@ -98,6 +98,17 @@ async function readWorkflow(name) {
   return parse(await readFile(workflowUrl(name), "utf8"));
 }
 
+void test("cleanup for a failed publication only removes the run's staging release and tag", async () => {
+  for (const name of ["release.yml", "release-nightly.yml"]) {
+    const workflow = await readWorkflow(name);
+    const [cleanup] = workflow.jobs["cleanup-failed-release"].steps;
+    assert.equal(cleanup.env.DRAFT_TAG, "release-draft-${{ github.run_id }}");
+    assert.match(cleanup.run, /gh release delete "\$DRAFT_TAG"/u);
+    assert.match(cleanup.run, /gh api --method DELETE "[^"]+\/tags\/\$DRAFT_TAG"/u);
+    assert.doesNotMatch(JSON.stringify(cleanup), /RELEASE_TAG|needs\.prepare\.outputs\.tag/u);
+  }
+});
+
 void test("release preparation does not install an unused Bun toolchain", async () => {
   for (const releaseName of ["release.yml", "release-nightly.yml"]) {
     const workflow = await readWorkflow(releaseName);

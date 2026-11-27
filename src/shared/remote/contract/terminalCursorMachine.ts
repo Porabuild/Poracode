@@ -24,6 +24,12 @@ import {
   type TerminalCursorResultReason,
   type TerminalCursorRule,
 } from "./terminalCursorMachineSpec";
+import {
+  MAX_TERMINAL_COLUMN_CHANGES,
+  TerminalColumnHistory,
+  knownTerminalColumns,
+  type TerminalColumnChange,
+} from "../../terminalColumnHistory";
 
 export interface TerminalCursorFrame {
   readonly kind: TerminalCursorFrameKind;
@@ -33,6 +39,14 @@ export interface TerminalCursorFrame {
   readonly fromCursor: number;
   readonly toCursor: number;
   readonly data: string;
+  /**
+   * Optional observed-width markers in absolute UTF-16 cursor space: each
+   * entry's width applies from its `fromCursor` until the next entry, with
+   * `columns: null` an unknown span. Only nonempty spans carry width; absent
+   * or all-unknown geometry stays widthless. Stale, duplicate, and
+   * generation-mismatched frames never apply it.
+   */
+  readonly columnChanges?: readonly TerminalColumnChange[];
 }
 
 export interface TerminalCursorPosition {
@@ -47,6 +61,12 @@ export interface TerminalCursorState {
   readonly toCursor: number;
   /** Bounded display tail; cursor positions remain absolute after trimming. */
   readonly transcript: string;
+  /**
+   * Bounded width history over the retained transcript window, in the same
+   * marker form as `TerminalSnapshot.columnChanges`. Absent when every
+   * retained span is widthless.
+   */
+  readonly columnChanges?: readonly TerminalColumnChange[];
   readonly bufferedOutput: readonly TerminalCursorFrame[];
   readonly bufferedUtf16Units: number;
   readonly needsResync: boolean;
@@ -77,13 +97,17 @@ export function terminalCursorEstablished(
   generation: string | null,
   toCursor: number,
   transcript = "",
+  columnChanges?: readonly TerminalColumnChange[],
 ): TerminalCursorState {
+  const tail = boundedTerminalCursorTail(transcript);
+  const normalized = normalizeColumnChanges(toCursor, tail.length, columnChanges);
   return {
     watchId,
     baselineReceived: true,
     generation,
     toCursor,
-    transcript: boundedTerminalCursorTail(transcript),
+    transcript: tail,
+    ...(normalized === undefined ? {} : { columnChanges: normalized }),
     bufferedOutput: [],
     bufferedUtf16Units: 0,
     needsResync: false,
@@ -232,6 +256,98 @@ function resync(
   );
 }
 
+/**
+ * Absolute UTF-16 start of the window a retained tail covers
+ * (`[toCursor - transcriptLength, toCursor)`), or null when the position
+ * cannot be expressed — synthetic seeds whose tail outruns `toCursor`, or
+ * unsafe cursor arithmetic. Width geometry is dropped, never guessed.
+ */
+function tailWindowStart(toCursor: number, transcriptLength: number): number | null {
+  if (!Number.isSafeInteger(toCursor) || toCursor < 0) return null;
+  const from = toCursor - transcriptLength;
+  return Number.isSafeInteger(from) && from >= 0 ? from : null;
+}
+
+/** Marker lists keep explicit null gaps only while some span is known. */
+function knownColumnChanges(
+  changes: readonly TerminalColumnChange[],
+): readonly TerminalColumnChange[] | undefined {
+  return changes.some((change) => change.columns !== null) ? changes : undefined;
+}
+
+/** Records markers only over a provably valid absolute range. */
+function recordGeometryWindow(
+  history: TerminalColumnHistory,
+  fromCursor: number,
+  toCursor: number,
+  changes: readonly TerminalColumnChange[] | undefined,
+): void {
+  if (
+    Number.isSafeInteger(fromCursor) &&
+    Number.isSafeInteger(toCursor) &&
+    fromCursor >= 0 &&
+    toCursor >= fromCursor
+  ) {
+    history.recordChanges(fromCursor, toCursor, changes);
+  }
+}
+
+/**
+ * Normalizes caller-supplied markers to the actual bounded raw tail: the
+ * window clips out-of-range prefixes, malformed or all-unknown geometry
+ * collapses to absent, and an unpositionable window drops the layout.
+ */
+function normalizeColumnChanges(
+  toCursor: number,
+  transcriptLength: number,
+  changes: readonly TerminalColumnChange[] | undefined,
+): readonly TerminalColumnChange[] | undefined {
+  if (changes === undefined) return undefined;
+  const from = tailWindowStart(toCursor, transcriptLength);
+  if (from === null) return undefined;
+  const history = new TerminalColumnHistory();
+  history.recordChanges(from, toCursor, changes);
+  return knownColumnChanges(history.snapshot(from, toCursor));
+}
+
+/**
+ * Fold accepted width geometry into `next`'s retained window.
+ *
+ * The previous state's markers are re-recorded over its own retained window
+ * `[toCursor - transcript.length, toCursor)` — skipped when that synthetic
+ * window cannot be positioned — so trimming keeps the width at the new left
+ * edge; the frame's markers then apply only over the accepted unseen suffix
+ * `[previous.toCursor, frame.toCursor)` (or are normalized into the bounded
+ * tail on replace), with the last marker at or before the left edge supplying
+ * the width there. `TerminalColumnHistory.recordChanges` validates ordering
+ * and column bounds up front — malformed optional metadata leaves that range
+ * widthless instead of partially applied — records known spans only,
+ * coalesces contiguous equal widths, and keeps at most the shared
+ * 1024-span retention. The snapshot is clipped to the actual bounded UTF-16
+ * tail and emits explicit null gaps only when some width is known;
+ * all-unknown geometry removes the property entirely.
+ */
+function applyGeometry(
+  next: TerminalCursorState,
+  frame: TerminalCursorFrame,
+  previous: TerminalCursorState,
+): TerminalCursorState {
+  if (frame.columnChanges === undefined && previous.columnChanges === undefined) {
+    return next;
+  }
+  const { columnChanges: _prior, ...withoutColumns } = next;
+  const from = tailWindowStart(next.toCursor, next.transcript.length);
+  if (from === null) return withoutColumns;
+  const history = new TerminalColumnHistory();
+  const previousFrom = tailWindowStart(previous.toCursor, previous.transcript.length);
+  if (previousFrom !== null) {
+    recordGeometryWindow(history, previousFrom, previous.toCursor, previous.columnChanges);
+  }
+  recordGeometryWindow(history, previous.toCursor, frame.toCursor, frame.columnChanges);
+  const changes = knownColumnChanges(history.snapshot(from, next.toCursor));
+  return changes === undefined ? withoutColumns : { ...withoutColumns, columnChanges: changes };
+}
+
 /** Append `frame`'s unseen suffix under an established, matching generation.
  * Shared by the output path, the baseline replay, and the v2 resume suffix. */
 function appendOutput(
@@ -251,14 +367,25 @@ function appendOutput(
     toCursor: frame.toCursor,
     transcript: boundedTerminalCursorTail(state.transcript + suffix),
   };
-  return result(next, overlap === 0 ? "append" : "append-unseen-suffix", suffix);
+  return result(
+    applyGeometry(next, frame, state),
+    overlap === 0 ? "append" : "append-unseen-suffix",
+    suffix,
+  );
 }
 
 function replaceBaseline(
   state: TerminalCursorState,
   frame: TerminalCursorFrame,
 ): TerminalCursorResult {
-  let next = terminalCursorEstablished(state.watchId, frame.generation, frame.toCursor, frame.data);
+  // `established` normalizes the frame's markers onto the bounded tail.
+  let next = terminalCursorEstablished(
+    state.watchId,
+    frame.generation,
+    frame.toCursor,
+    frame.data,
+    frame.columnChanges,
+  );
   // Buffered pre-baseline frames replay only under a durable generation; the
   // first resync aborts the replay.
   if (frame.generation !== null) {
@@ -337,6 +464,39 @@ function exactInt(value: unknown): number | null {
   return value;
 }
 
+/**
+ * Validates an optional `columnChanges` marker list against the same rules
+ * `TerminalColumnHistory.recordChanges` enforces: nonnegative safe-integer
+ * cursors in non-decreasing order, and `columns` either null or a known width
+ * within the shared bounds. Any violation degrades the whole list to absent —
+ * widthless — rather than partially applied.
+ */
+function decodeColumnChanges(value: unknown): readonly TerminalColumnChange[] | undefined {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_TERMINAL_COLUMN_CHANGES) {
+    return undefined;
+  }
+  const changes: TerminalColumnChange[] = [];
+  let previousCursor = -1;
+  for (const item of value) {
+    if (typeof item !== "object" || item === null) return undefined;
+    const marker = item as Record<string, unknown>;
+    const fromCursor = exactInt(marker.fromCursor);
+    if (fromCursor === null || fromCursor < 0 || fromCursor < previousCursor) {
+      return undefined;
+    }
+    let columns: number | null = null;
+    if (marker.columns !== null) {
+      if (typeof marker.columns !== "number") return undefined;
+      const known = knownTerminalColumns(marker.columns);
+      if (known === null) return undefined;
+      columns = known;
+    }
+    previousCursor = fromCursor;
+    changes.push({ fromCursor, columns });
+  }
+  return changes;
+}
+
 /** Decodes a `terminal-output` cursor frame or a ready `terminal-watch-result`
  * baseline from a parsed server-message object. Returns null for anything else
  * — the hand-written decoders map that to their platform error convention. */
@@ -360,6 +520,12 @@ export function decodeTerminalCursorFrameMessage(value: unknown): TerminalCursor
     const fromCursor = exactInt(syncObject.fromCursor);
     const toCursor = exactInt(syncObject.toCursor);
     if (fromCursor === null || toCursor === null) return null;
+    // A usable live width becomes one marker at the frame's left edge; an
+    // absent, empty-range, or out-of-bounds scalar stays widthless.
+    const columns =
+      data.length > 0 && typeof syncObject.terminalColumns === "number"
+        ? knownTerminalColumns(syncObject.terminalColumns)
+        : null;
     const frame: TerminalCursorFrame = {
       kind: "output",
       terminalId,
@@ -368,6 +534,7 @@ export function decodeTerminalCursorFrameMessage(value: unknown): TerminalCursor
       fromCursor,
       toCursor,
       data,
+      ...(columns === null ? {} : { columnChanges: [{ fromCursor, columns }] }),
     };
     return isValidTerminalCursorFrame(frame) ? frame : null;
   }
@@ -388,6 +555,8 @@ export function decodeTerminalCursorFrameMessage(value: unknown): TerminalCursor
       if (typeof rawGeneration !== "string" || rawGeneration.length === 0) return null;
       generation = rawGeneration;
     }
+    const columnChanges =
+      data.length > 0 ? decodeColumnChanges(resultObject.columnChanges) : undefined;
     const frame: TerminalCursorFrame = {
       kind: "baseline",
       terminalId,
@@ -396,6 +565,7 @@ export function decodeTerminalCursorFrameMessage(value: unknown): TerminalCursor
       fromCursor,
       toCursor,
       data,
+      ...(columnChanges === undefined ? {} : { columnChanges }),
     };
     return isValidTerminalCursorFrame(frame) ? frame : null;
   }

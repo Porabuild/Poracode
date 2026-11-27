@@ -179,6 +179,125 @@ final class RichChatTerminalCursorFixtureTests: XCTestCase {
     XCTAssertEqual(current.state.transcript, "keptijk")
   }
 
+  func testV1LiveOutputReadsAnOptionalObservedWidth() throws {
+    func outputMessage(columns: RichJSON?) -> RichJSON {
+      var sync: [String: RichJSON] = [
+        "version": .number(1),
+        "watchId": .string("watch-1"),
+        "generation": .string("generation-1"),
+        "fromCursor": .number(0),
+        "toCursor": .number(5),
+      ]
+      if let columns { sync["terminalColumns"] = columns }
+      return .object([
+        "type": .string("terminal-output"),
+        "id": .string("terminal-1"),
+        "data": .string("hello"),
+        "cursorSync": .object(sync),
+      ])
+    }
+
+    let measured = try TerminalCursorFrameDecoder.decode(outputMessage(columns: .number(48)))
+    XCTAssertEqual(
+      measured.columnChanges, [TerminalCursorColumnChange(fromCursor: 0, columns: 48)])
+
+    // Unusable widths and absent fields stay widthless; the frame is intact.
+    for unusable in [RichJSON.number(10), .number(401), .string("wide"), .null] {
+      let frame = try TerminalCursorFrameDecoder.decode(outputMessage(columns: unusable))
+      XCTAssertEqual(frame.data, "hello")
+      XCTAssertEqual(frame.columnChanges, [])
+    }
+    let absent = try TerminalCursorFrameDecoder.decode(outputMessage(columns: nil))
+    XCTAssertEqual(absent.columnChanges, [])
+  }
+
+  func testV1LiveOutputIgnoresWidthOnEmptyData() throws {
+    let frame = try TerminalCursorFrameDecoder.decode(.object([
+      "type": .string("terminal-output"),
+      "id": .string("terminal-1"),
+      "data": .string(""),
+      "cursorSync": .object([
+        "version": .number(1),
+        "watchId": .string("watch-1"),
+        "generation": .string("generation-1"),
+        "fromCursor": .number(7),
+        "toCursor": .number(7),
+        "terminalColumns": .number(100),
+      ]),
+    ]))
+    XCTAssertEqual(frame.columnChanges, [])
+  }
+
+  func testV1ReadyResultReadsColumnChangesAndDropsMalformedOnes() throws {
+    func resultMessage(
+      changes: RichJSON?, data: String = "hello world", from: Int64 = 0, to: Int64 = 11
+    ) -> RichJSON {
+      var result: [String: RichJSON] = [
+        "status": .string("ready"),
+        "generation": .string("generation-1"),
+        "fromCursor": .number(Decimal(from)),
+        "toCursor": .number(Decimal(to)),
+        "data": .string(data),
+      ]
+      if let changes { result["columnChanges"] = changes }
+      return .object([
+        "type": .string("terminal-watch-result"),
+        "id": .string("terminal-1"),
+        "cursorSync": .object([
+          "version": .number(1),
+          "watchId": .string("watch-1"),
+          "result": .object(result),
+        ]),
+      ])
+    }
+
+    let accepted = try TerminalCursorFrameDecoder.decode(
+      resultMessage(
+        changes: .array([
+          .object(["fromCursor": .number(0), "columns": .number(48)]),
+          .object(["fromCursor": .number(5), "columns": .null]),
+          .object(["fromCursor": .number(8), "columns": .number(100)]),
+        ])
+      )
+    )
+    XCTAssertEqual(
+      accepted.columnChanges,
+      [
+        TerminalCursorColumnChange(fromCursor: 0, columns: 48),
+        TerminalCursorColumnChange(fromCursor: 5, columns: nil),
+        TerminalCursorColumnChange(fromCursor: 8, columns: 100),
+      ]
+    )
+
+    // Malformed optional chronology becomes empty while the raw frame stays.
+    let malformed: [RichJSON] = [
+      .array([.object(["fromCursor": .number(9), "columns": .number(48)]),
+              .object(["fromCursor": .number(2), "columns": .number(100)])]),
+      .array([.object(["fromCursor": .number(0), "columns": .number(10)])]),
+      .array([.object(["fromCursor": .number(0)])]),
+      .array([.string("bogus")]),
+      .string("bogus"),
+      .number(48),
+    ]
+    for changes in malformed {
+      let frame = try TerminalCursorFrameDecoder.decode(resultMessage(changes: changes))
+      XCTAssertEqual(frame.data, "hello world")
+      XCTAssertEqual(frame.toCursor, 11)
+      XCTAssertEqual(frame.columnChanges, [])
+    }
+    let absent = try TerminalCursorFrameDecoder.decode(resultMessage(changes: nil))
+    XCTAssertEqual(absent.columnChanges, [])
+
+    // An empty ready payload carries no width history, mirroring the scalar path.
+    let emptyReady = try TerminalCursorFrameDecoder.decode(
+      resultMessage(
+        changes: .array([.object(["fromCursor": .number(0), "columns": .number(48)])]),
+        data: "", from: 0, to: 0
+      )
+    )
+    XCTAssertEqual(emptyReady.columnChanges, [])
+  }
+
   private func decodePrevious(_ value: RichJSON?) throws -> TerminalCursorPosition? {
     guard let value, value != .null else { return nil }
     let object = try richFixtureObject(value)

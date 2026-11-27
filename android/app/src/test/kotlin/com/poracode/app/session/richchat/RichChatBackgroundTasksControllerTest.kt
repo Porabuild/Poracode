@@ -226,6 +226,35 @@ class RichChatBackgroundTasksControllerTest {
     }
 
     @Test
+    fun cancelingTheClosedSheetReadUnblocksTheReopenedSheet() = runTest {
+        val fixture = Fixture()
+        val oldReply = CompletableDeferred<JsonObject>()
+        var calls = 0
+        fixture.gateway.sessionActionInvokeHandler = { _, _ ->
+            if (++calls == 1) oldReply.await() else outputJson("fresh tail")
+        }
+        fixture.advertise()
+
+        val closingRead = async { fixture.controller.readOutput(task()) }
+        testScheduler.advanceUntilIdle()
+        val reopenedRead = async { fixture.controller.readOutput(task()) }
+        testScheduler.advanceUntilIdle()
+        assertEquals(1, calls)
+
+        closingRead.cancel()
+        testScheduler.advanceUntilIdle()
+
+        assertFalse("the old host reply remains held", oldReply.isCompleted)
+        assertTrue("the reopened reader must finish before the old reply", reopenedRead.isCompleted)
+        assertTrue(reopenedRead.await() is RichChatOperationResult.Success)
+        assertEquals(2, calls)
+        assertEquals(
+            RichChatBackgroundTaskOutput.Ready("fresh tail", 42.0, false),
+            fixture.controller.output.value.output,
+        )
+    }
+
+    @Test
     fun staleSelectionResponseNeverPublishes() = runTest {
         val fixture = Fixture()
         val gate = CompletableDeferred<JsonObject>()

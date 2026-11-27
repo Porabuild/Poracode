@@ -28,6 +28,7 @@ import {
   type SlotPorts,
 } from "./runDirectory.ts";
 import { startMockHarness } from "./startMockHarness.ts";
+import { isExactUuid, startIosSimulatorKeyboard } from "./iosSimulatorKeyboard.ts";
 import type { HarnessBlocker, HarnessMode, LabState } from "./types.ts";
 import {
   SCENARIO_ACTION_PATH,
@@ -53,6 +54,13 @@ export interface CliOptions {
   readonly testTimeoutMs: number;
   readonly shutdownTimeoutMs: number;
   readonly keep: boolean;
+  // Primary WireLab label override (iOS mock runner only); default unchanged.
+  readonly labLabel?: string;
+  // Opt-in authentic iOS simulator keyboard qualification (mock only).
+  readonly iosHidUdid?: string;
+  // Supervisor-owned companion socket directory (trusted same-run env); only
+  // set when qualification is enabled. The supervisor creates and removes it.
+  readonly iosHidSocketRoot?: string;
 }
 
 export function parseCliOptions(argv: readonly string[], env: NodeJS.ProcessEnv): CliOptions {
@@ -93,6 +101,24 @@ export function parseCliOptions(argv: readonly string[], env: NodeJS.ProcessEnv)
     );
   }
 
+  const labLabel = args.get("lab-label");
+
+  const rawIosHidUdid = args.get("ios-hid-udid");
+  if (rawIosHidUdid !== undefined) {
+    if (mode === "real") {
+      throw new Error("--ios-hid-udid is only valid for the iOS mock simulator (mock mode).");
+    }
+    if (!isExactUuid(rawIosHidUdid)) {
+      throw new Error("--ios-hid-udid must be an exact simulator UUID (8-4-4-4-12 hex).");
+    }
+  }
+  const iosHidUdid = rawIosHidUdid;
+  // The supervisor may provide a socket root it owns (and removes). Honor it
+  // only when qualification is actually enabled; no target comes from the
+  // network. A non-empty string is required, empty is treated as absent.
+  const rawSocketRoot = iosHidUdid !== undefined ? env.NATIVE_E2E_IOS_HID_SOCKET_ROOT : undefined;
+  const iosHidSocketRoot = rawSocketRoot ? rawSocketRoot : undefined;
+
   return {
     mode,
     slot,
@@ -102,6 +128,9 @@ export function parseCliOptions(argv: readonly string[], env: NodeJS.ProcessEnv)
     testTimeoutMs: readTimeout(env.NATIVE_E2E_TEST_TIMEOUT_MS, TEST_TIMEOUT_MS),
     shutdownTimeoutMs: readTimeout(env.NATIVE_E2E_SHUTDOWN_TIMEOUT_MS, SHUTDOWN_TIMEOUT_MS),
     keep: env[NATIVE_E2E_KEEP_ENV] === "1",
+    ...(labLabel ? { labLabel } : {}),
+    ...(iosHidUdid !== undefined ? { iosHidUdid } : {}),
+    ...(iosHidSocketRoot !== undefined ? { iosHidSocketRoot } : {}),
   };
 }
 
@@ -132,6 +161,15 @@ export async function runHarnessCli(options: CliOptions): Promise<void> {
   testTimer.unref?.();
 
   if (options.mode === "mock") {
+    const simulatorKeyboard = options.iosHidUdid
+      ? await startIosSimulatorKeyboard({
+          udid: options.iosHidUdid,
+          cleanup,
+          ...(options.iosHidSocketRoot !== undefined
+            ? { socketRoot: options.iosHidSocketRoot }
+            : {}),
+        })
+      : undefined;
     const started = await startMockHarness({
       lab: {
         host: LOOPBACK_HOST,
@@ -140,8 +178,14 @@ export async function runHarnessCli(options: CliOptions): Promise<void> {
         secretsDir: runDir.secretsDir,
         journalPath: runDir.journalPath,
         ...(options.basePath ? { basePath: options.basePath } : {}),
+        ...(options.labLabel ? { label: options.labLabel } : {}),
       },
-      control: { host: LOOPBACK_HOST, port: options.slot.control, capability: options.capability },
+      control: {
+        host: LOOPBACK_HOST,
+        port: options.slot.control,
+        capability: options.capability,
+        ...(simulatorKeyboard ? { pressSimulatorKey: simulatorKeyboard.pressSimulatorKey } : {}),
+      },
       capability: options.capability,
       cleanup,
     });

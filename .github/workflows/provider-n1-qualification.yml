@@ -12,9 +12,9 @@ name: Provider & published N-1 server qualification
 # - server_n1: the fail-closed published N-1 upgrade gate
 #   (scripts/server-n1-qualification.mjs) against a supplied candidate
 #   server tarball. The gate exits nonzero with a typed
-#   NO_PUBLISHED_SERVER_N1 result until a first stable published server
-#   release exists. PR/push gates remain independent of that prerequisite;
-#   stable release runs the same script directly and must fail without it.
+#   NO_PUBLISHED_SERVER_N1 result if no eligible release exists. The first
+#   stable server release can use a published nightly from its own train.
+#   PR/push gates remain independent of that prerequisite.
 #
 # Deliberately workflow_dispatch-only — no push, pull_request, schedule, or
 # release trigger. Evidence uploads on success and failure but not on

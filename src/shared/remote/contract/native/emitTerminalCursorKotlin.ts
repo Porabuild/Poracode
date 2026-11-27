@@ -4,6 +4,11 @@ import {
   type TerminalCursorGuard,
   type TerminalCursorRule,
 } from "../terminalCursorMachineSpec";
+import {
+  MAX_TERMINAL_COLS,
+  MAX_TERMINAL_COLUMN_CHANGES,
+  MIN_TERMINAL_COLS,
+} from "../../../terminalColumnHistory";
 
 const HEADER = [
   "// GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
@@ -67,9 +72,19 @@ export function emitKotlinTerminalCursorMachine(): string {
   const bounds = spec.bounds;
   const rules = spec.rules.map(ruleLiteral).join("\n");
   const frameKindEntries = spec.frameKinds.map((kind) => `${kind.toUpperCase()},`).join(" ");
+  // The retained known-span cap mirrors TerminalColumnHistory's private
+  // MAX_RETAINED_SPANS, derived from the exported changes bound.
+  const maximumColumnSpans = (MAX_TERMINAL_COLUMN_CHANGES - 1) / 2;
 
   return `${HEADER.join("\n")}
 enum class TerminalCursorFrameKind { ${frameKindEntries} }
+
+/** One observed-width marker in absolute UTF-16 cursor space; \`columns\` null
+ * marks an unknown span. Mirrors \`TerminalColumnChange\`. */
+data class TerminalCursorColumnChange(
+    val fromCursor: Long,
+    val columns: Int?,
+)
 
 /** One terminal-cursor frame: an assembled baseline or an output increment.
  * \`fromCursor\`/\`toCursor\` and every bound count UTF-16 code units. */
@@ -81,6 +96,8 @@ data class TerminalCursorFrame(
     val fromCursor: Long,
     val toCursor: Long,
     val data: String,
+    /** Optional width markers; only nonempty spans carry width. */
+    val columnChanges: List<TerminalCursorColumnChange> = emptyList(),
 )
 
 data class TerminalCursorPosition(
@@ -98,6 +115,8 @@ data class TerminalCursorState(
     val bufferedOutput: List<TerminalCursorFrame> = emptyList(),
     val bufferedUtf16Units: Int = 0,
     val needsResync: Boolean = false,
+    /** Bounded width history over the retained tail; empty = all widthless. */
+    val columnChanges: List<TerminalCursorColumnChange> = emptyList(),
 ) {
     init {
         require(watchId.isNotEmpty()) { "watchId must not be empty" }
@@ -113,13 +132,15 @@ data class TerminalCursorState(
             generation: String?,
             toCursor: Long,
             transcript: String = "",
-        ): TerminalCursorState = TerminalCursorState(
-            watchId = watchId,
-            baselineReceived = true,
-            generation = generation,
-            toCursor = toCursor,
-            transcript = transcript.takeLast(TerminalCursorReconciler.MAX_TRANSCRIPT_UTF16_UNITS),
-        )
+            columnChanges: List<TerminalCursorColumnChange> = emptyList(),
+        ): TerminalCursorState {
+            val tail = TerminalCursorReconciler.boundedTail(transcript)
+            return TerminalCursorState(
+                watchId = watchId, baselineReceived = true, generation = generation, toCursor = toCursor,
+                transcript = tail,
+                columnChanges = TerminalCursorReconciler.normalizedColumnChanges(toCursor, tail.length, columnChanges),
+            )
+        }
     }
 }
 
@@ -330,9 +351,13 @@ ${rules}
         } else {
             TerminalCursorAction.APPEND_UNSEEN_SUFFIX
         }
-        val next = state.copy(
-            toCursor = frame.toCursor,
-            transcript = boundedTail(state.transcript + suffix),
+        val next = applyGeometry(
+            state.copy(
+                toCursor = frame.toCursor,
+                transcript = boundedTail(state.transcript + suffix),
+            ),
+            frame,
+            state,
         )
         return TerminalCursorResult(next, action, suffix)
     }
@@ -346,6 +371,7 @@ ${rules}
             generation = frame.generation,
             toCursor = frame.toCursor,
             transcript = frame.data,
+            columnChanges = frame.columnChanges,
         )
         // Buffered pre-baseline frames replay only under a durable generation;
         // the first resync aborts the replay.
@@ -357,6 +383,112 @@ ${rules}
             }
         }
         return TerminalCursorResult(next, TerminalCursorAction.REPLACE)
+    }
+
+    // ---- Width geometry (mirrors TerminalColumnHistory + applyGeometry) ----
+
+    /** One known-width span in absolute UTF-16 cursor space. */
+    private data class ColumnSpan(val fromCursor: Long, val toCursor: Long, val columns: Int)
+
+    private const val MIN_TERMINAL_COLUMNS: Int = ${MIN_TERMINAL_COLS}
+    private const val MAX_TERMINAL_COLUMNS: Int = ${MAX_TERMINAL_COLS}
+    /** Safe-integer cursor bound; retained known spans = (MAX_TERMINAL_COLUMN_CHANGES - 1) / 2. */
+    private const val MAX_CURSOR: Long = 9_007_199_254_740_991L
+    private const val MAX_COLUMN_SPANS: Int = ${maximumColumnSpans}
+
+    private fun recordColumnSpan(spans: MutableList<ColumnSpan>, from: Long, to: Long, columns: Int) {
+        val last = spans.lastOrNull()
+        if (last != null && last.toCursor == from && last.columns == columns) {
+            spans[spans.lastIndex] = last.copy(toCursor = to)
+            return
+        }
+        spans.add(ColumnSpan(from, to, columns))
+        if (spans.size > MAX_COLUMN_SPANS) spans.removeAt(0)
+    }
+
+    /** Absolute window start of a retained tail; null when it cannot be positioned. */
+    private fun tailWindowStart(toCursor: Long, transcriptLength: Int): Long? {
+        if (toCursor < 0L || toCursor > MAX_CURSOR) return null
+        return (toCursor - transcriptLength).takeIf { it >= 0L }
+    }
+
+    /** Snapshots spans onto the tail window; empty when unpositioned or all-unknown. */
+    private fun snapshotKnown(spans: List<ColumnSpan>, toCursor: Long, transcriptLength: Int): List<TerminalCursorColumnChange> {
+        val from = tailWindowStart(toCursor, transcriptLength) ?: return emptyList()
+        val changes = snapshotColumnChanges(spans, from, toCursor)
+        return if (changes.any { it.columns != null }) changes else emptyList()
+    }
+
+    /** Clips caller markers onto the bounded tail window for established states. */
+    fun normalizedColumnChanges(toCursor: Long, transcriptLength: Int, changes: List<TerminalCursorColumnChange>): List<TerminalCursorColumnChange> {
+        val spans = mutableListOf<ColumnSpan>()
+        tailWindowStart(toCursor, transcriptLength)?.let { from -> recordColumnChanges(spans, from, toCursor, changes) }
+        return snapshotKnown(spans, toCursor, transcriptLength)
+    }
+
+    /** Mirrors TerminalColumnHistory.recordChanges: malformed markers or an
+     * unpositionable range leave the span widthless; only known spans record. */
+    private fun recordColumnChanges(spans: MutableList<ColumnSpan>, fromCursor: Long, toCursor: Long, changes: List<TerminalCursorColumnChange>) {
+        if (fromCursor < 0L || toCursor > MAX_CURSOR || toCursor <= fromCursor || changes.isEmpty()) return
+        var ordered = true
+        var previousMarker = -1L
+        for (change in changes) {
+            val width = change.columns
+            val known = width == null || (width >= MIN_TERMINAL_COLUMNS && width <= MAX_TERMINAL_COLUMNS)
+            if (change.fromCursor < 0L || change.fromCursor > MAX_CURSOR ||
+                change.fromCursor < previousMarker || !known
+            ) {
+                ordered = false
+                break
+            }
+            previousMarker = change.fromCursor
+        }
+        if (!ordered) return
+        var index = 0
+        var columns: Int? = null
+        while (index < changes.size && changes[index].fromCursor <= fromCursor) {
+            columns = changes[index].columns
+            index += 1
+        }
+        var spanStart = fromCursor
+        fun recordSpan(end: Long) { val width = columns; if (width != null && end > spanStart) recordColumnSpan(spans, spanStart, end, width) }
+        while (index < changes.size) {
+            val marker = changes[index]
+            if (marker.fromCursor >= toCursor) break
+            recordSpan(marker.fromCursor)
+            spanStart = marker.fromCursor
+            columns = marker.columns
+            index += 1
+        }
+        recordSpan(toCursor)
+    }
+
+    /** Mirrors TerminalColumnHistory.snapshot: clips, emits null gaps, coalesces equal widths. */
+    private fun snapshotColumnChanges(spans: List<ColumnSpan>, fromCursor: Long, toCursor: Long): List<TerminalCursorColumnChange> {
+        if (toCursor <= fromCursor) return emptyList()
+        val changes = mutableListOf<TerminalCursorColumnChange>()
+        var coveredThrough = fromCursor
+        fun push(cursor: Long, columns: Int?) { if (changes.lastOrNull()?.columns != columns) changes.add(TerminalCursorColumnChange(cursor, columns)) }
+        for (span in spans) {
+            if (span.toCursor <= fromCursor) continue
+            if (span.fromCursor >= toCursor) break
+            val start = maxOf(fromCursor, span.fromCursor)
+            if (start > coveredThrough) push(coveredThrough, null)
+            push(start, span.columns)
+            coveredThrough = minOf(toCursor, span.toCursor)
+        }
+        if (coveredThrough < toCursor) push(coveredThrough, null)
+        return changes
+    }
+
+    /** Folds accepted geometry into the retained window; unpositionable or
+     * all-unknown geometry empties the list. */
+    private fun applyGeometry(next: TerminalCursorState, frame: TerminalCursorFrame, previous: TerminalCursorState): TerminalCursorState {
+        if (frame.columnChanges.isEmpty() && previous.columnChanges.isEmpty()) return next
+        val spans = mutableListOf<ColumnSpan>()
+        tailWindowStart(previous.toCursor, previous.transcript.length)?.let { from -> recordColumnChanges(spans, from, previous.toCursor, previous.columnChanges) }
+        recordColumnChanges(spans, previous.toCursor, frame.toCursor, frame.columnChanges)
+        return next.copy(columnChanges = snapshotKnown(spans, next.toCursor, next.transcript.length))
     }
 }
 `;

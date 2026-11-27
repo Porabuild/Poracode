@@ -1,4 +1,5 @@
 import type { RemoteTerminalWatchBaselineChunk, RemoteTerminalWatchResultReady } from "./protocol";
+import { TerminalColumnHistory, knownTerminalColumns } from "../terminalColumnHistory";
 import {
   CLIENT_UNAVAILABLE_RETRYABLE,
   TerminalWatchSession,
@@ -41,6 +42,8 @@ interface BaselineAssembly {
   toCursor: number;
   parts: string[];
   units: number;
+  /** Bounded per-chunk widths over the assembled range; empty markers add none. */
+  readonly history: TerminalColumnHistory;
 }
 
 export const TERMINAL_FEED_V2_CHUNK_BYTES = 4096;
@@ -97,6 +100,7 @@ export class TerminalWatchSessionV2 extends TerminalWatchSession {
         toCursor: chunk.toCursor,
         parts: chunk.data === "" ? [] : [chunk.data],
         units: chunk.data.length,
+        history: new TerminalColumnHistory(),
       };
     } else if (
       chunk.chunkIndex !== assembly.expectedIndex ||
@@ -115,6 +119,17 @@ export class TerminalWatchSessionV2 extends TerminalWatchSession {
       assembly.toCursor = chunk.toCursor;
       if (chunk.data !== "") assembly.parts.push(chunk.data);
       assembly.units += chunk.data.length;
+    }
+
+    // Every chunk reaching this point was accepted; wire chunks never mix
+    // widths, so each non-empty known-width one records its homogeneous span.
+    // Widthless chunks and empty markers leave natural gaps instead of
+    // consuming the bounded span cap.
+    if (chunk.data !== "") {
+      const columns = knownTerminalColumns(chunk.terminalColumns);
+      if (columns !== null) {
+        this.assembly?.history.record(chunk.fromCursor, chunk.toCursor, columns);
+      }
     }
 
     this.sendAck(watchId, chunk.toCursor);
@@ -145,14 +160,31 @@ export class TerminalWatchSessionV2 extends TerminalWatchSession {
     // v2 resumes carry only the suffix; listeners still consume a full snapshot.
     const data = (retained?.data ?? "") + done.parts.join("");
     const cut = Math.max(0, data.length - this.limits.cacheUnits);
+    const fromCursor = (retained?.fromCursor ?? done.fromCursor) + cut;
+    // Merge retained and accepted-suffix geometry as two chronological ranges
+    // through one bounded history — never a raw concatenation of two
+    // independently bounded marker lists, which could exceed the wire cap —
+    // then emit the single canonical in-range list the installed cache will
+    // reproduce, clipped to the real assembled start after the front-trim.
+    const geometry = new TerminalColumnHistory();
+    if (retained) {
+      geometry.recordChanges(retained.fromCursor, retained.toCursor, retained.columnChanges);
+    }
+    geometry.recordChanges(
+      done.fromCursor,
+      done.toCursor,
+      done.history.snapshot(done.fromCursor, done.toCursor),
+    );
+    const columnChanges = geometry.snapshot(fromCursor, done.toCursor);
     const ready: RemoteTerminalWatchResultReady = {
       status: "ready",
       generation: done.generation,
-      fromCursor: (retained?.fromCursor ?? done.fromCursor) + cut,
+      fromCursor,
       toCursor: done.toCursor,
       data: data.slice(cut),
       processState: chunk.processState,
       terminalSize: chunk.terminalSize,
+      ...(columnChanges.some((change) => change.columns !== null) ? { columnChanges } : {}),
     };
     this.handleResult(watchId, ready);
   }

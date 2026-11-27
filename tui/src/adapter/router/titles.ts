@@ -10,16 +10,19 @@ import type { RouterContext } from "./context";
 
 /** Follow-up delivery mode and host/AI title generation. */
 export function createTitles(ctx: RouterContext) {
-  let followUpBehavior: "steer" | "queue" | undefined;
-  const followUpDelivery = async () => {
-    if (followUpBehavior) return followUpBehavior;
+  // Read the connected host's setting on every implicit mid-turn send: the
+  // preference can change while the TUI stays attached, and a failed read must
+  // not stick. Explicit body delivery is resolved by the caller and never calls
+  // this, so it keeps precedence over the host setting.
+  const followUpDelivery = async (): Promise<"steer" | "queue"> => {
     try {
       const settings = await ctx.input.client.settings();
-      followUpBehavior = settings.followUpBehavior === "queue" ? "queue" : "steer";
+      return settings.followUpBehavior === "queue" ? "queue" : "steer";
     } catch {
-      followUpBehavior = "steer";
+      // Steer for this request only; the next implicit send reads the host
+      // again instead of reusing this failure.
+      return "steer";
     }
-    return followUpBehavior;
   };
 
   // AI titles: desktop owners title forwarded starts themselves, so the TUI

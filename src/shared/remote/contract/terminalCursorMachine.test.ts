@@ -14,7 +14,9 @@ import {
   terminalCursorEstablished,
   terminalCursorWatching,
   type TerminalCursorFrame,
+  type TerminalCursorState,
 } from "./terminalCursorMachine";
+import { MAX_TERMINAL_COLUMN_CHANGES } from "../../terminalColumnHistory";
 import {
   TERMINAL_CURSOR_MACHINE_SPEC,
   validateTerminalCursorMachineSpec,
@@ -287,6 +289,436 @@ describe("terminal-cursor decision edges", () => {
         cursorSync: { version: 2, watchId: "w" },
       }),
     ).toBeNull();
+  });
+});
+
+describe("terminal-cursor width geometry", () => {
+  const heads = [
+    { fromCursor: 0, columns: 48 },
+    { fromCursor: 6, columns: 100 },
+  ];
+  const wide = "abcdef";
+  const narrow = "ghijkl";
+
+  it("replays buffered pre-baseline output with its own width markers", () => {
+    let state = terminalCursorWatching("watch");
+    const early = frame("output", {
+      fromCursor: 6,
+      toCursor: 12,
+      data: narrow,
+      columnChanges: [{ fromCursor: 6, columns: 100 }],
+    });
+    state = reconcileTerminalCursor(state, early).state;
+    expect(state.bufferedOutput).toHaveLength(1);
+    const baseline = frame("baseline", {
+      fromCursor: 0,
+      toCursor: 6,
+      data: wide,
+      columnChanges: [{ fromCursor: 0, columns: 48 }],
+    });
+    const replaced = reconcileTerminalCursor(state, baseline);
+    expect(replaced.action).toBe("replace");
+    expect(replaced.state.transcript).toBe(wide + narrow);
+    expect(replaced.state.columnChanges).toEqual(heads);
+  });
+
+  it("keeps retained history through an empty rewatch resume and a suffix", () => {
+    const installed = reconcileTerminalCursor(
+      terminalCursorWatching("watch"),
+      frame("baseline", {
+        fromCursor: 0,
+        toCursor: 6,
+        data: wide,
+        columnChanges: heads.slice(0, 1),
+      }),
+    ).state;
+    // An up-to-date empty continuation ignores without touching geometry.
+    const current = reconcileTerminalCursor(
+      installed,
+      frame("baseline", { fromCursor: 6, toCursor: 6, data: "", columnChanges: heads.slice(1) }),
+    );
+    expect(current.action).toBe("ignore");
+    expect(current.state.columnChanges).toEqual([{ fromCursor: 0, columns: 48 }]);
+    // A resume suffix appends only the unseen range's geometry.
+    const suffix = reconcileTerminalCursor(
+      current.state,
+      frame("baseline", {
+        fromCursor: 6,
+        toCursor: 12,
+        data: narrow,
+        columnChanges: heads.slice(1),
+      }),
+    );
+    expect(suffix.action).toBe("append");
+    expect(suffix.state.columnChanges).toEqual(heads);
+  });
+
+  it("accepts only unseen geometry from an overlapping output", () => {
+    const installed = reconcileTerminalCursor(
+      terminalCursorWatching("watch"),
+      frame("baseline", {
+        fromCursor: 0,
+        toCursor: 6,
+        data: wide,
+        columnChanges: heads.slice(0, 1),
+      }),
+    ).state;
+    const overlap = frame("output", {
+      fromCursor: 4,
+      toCursor: 8,
+      data: wide.slice(4) + narrow.slice(0, 2),
+      columnChanges: [{ fromCursor: 4, columns: 100 }],
+    });
+    const result = reconcileTerminalCursor(installed, overlap);
+    expect(result.action).toBe("append-unseen-suffix");
+    expect(result.state.transcript).toBe(wide + narrow.slice(0, 2));
+    // The marker inside the accepted overlap does not rewrite history; the
+    // unseen suffix picks up the width at its left edge.
+    expect(result.state.columnChanges).toEqual([
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 6, columns: 100 },
+    ]);
+  });
+
+  it("marks a widthless suffix as an explicit unknown gap", () => {
+    const installed = reconcileTerminalCursor(
+      terminalCursorWatching("watch"),
+      frame("baseline", {
+        fromCursor: 0,
+        toCursor: 6,
+        data: wide,
+        columnChanges: heads.slice(0, 1),
+      }),
+    ).state;
+    const legacy = reconcileTerminalCursor(
+      installed,
+      frame("output", { fromCursor: 6, toCursor: 12, data: narrow }),
+    );
+    expect(legacy.action).toBe("append");
+    expect(legacy.state.columnChanges).toEqual([
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 6, columns: null },
+    ]);
+  });
+
+  it("drops malformed or out-of-order markers to widthless", () => {
+    const installed = reconcileTerminalCursor(
+      terminalCursorWatching("watch"),
+      frame("baseline", {
+        fromCursor: 0,
+        toCursor: 6,
+        data: wide,
+        columnChanges: heads.slice(0, 1),
+      }),
+    ).state;
+    for (const bad of [
+      [
+        { fromCursor: 8, columns: 100 },
+        { fromCursor: 7, columns: 48 },
+      ],
+      [{ fromCursor: 6, columns: 5 }],
+      [{ fromCursor: 6, columns: 401 }],
+    ]) {
+      const result = reconcileTerminalCursor(
+        installed,
+        frame("output", {
+          fromCursor: 6,
+          toCursor: 12,
+          data: narrow,
+          columnChanges: bad,
+        }),
+      );
+      expect(result.state.columnChanges).toEqual([
+        { fromCursor: 0, columns: 48 },
+        { fromCursor: 6, columns: null },
+      ]);
+    }
+  });
+
+  it("clips geometry to the bounded UTF-16 tail without splitting a pair", () => {
+    const bound = TERMINAL_CURSOR_MACHINE_SPEC.bounds.maximumTranscriptUtf16Units;
+    // 200_000 units of 'a' plus a surrogate pair straddling the trim point.
+    const data = "a".repeat(bound - 1) + "😀" + "b".repeat(10);
+    const result = reconcileTerminalCursor(
+      terminalCursorWatching("watch"),
+      frame("baseline", {
+        fromCursor: 0,
+        toCursor: data.length,
+        data,
+        columnChanges: [
+          { fromCursor: 0, columns: 48 },
+          { fromCursor: bound - 1, columns: 100 },
+        ],
+      }),
+    );
+    expect(result.state.transcript.length).toBeLessThanOrEqual(bound);
+    expect(result.state.transcript.charCodeAt(0)).not.toBe(0xde00);
+    const windowStart = result.state.toCursor - result.state.transcript.length;
+    const changes = result.state.columnChanges ?? [];
+    expect(changes.length).toBeGreaterThan(0);
+    expect(changes[0]!.fromCursor).toBe(windowStart);
+    for (const marker of changes) {
+      expect(marker.fromCursor).toBeGreaterThanOrEqual(windowStart);
+      expect(marker.fromCursor).toBeLessThan(result.state.toCursor);
+    }
+  });
+
+  it("never applies geometry on generation replacement, stale watch, or gaps", () => {
+    const installed = reconcileTerminalCursor(
+      terminalCursorWatching("watch"),
+      frame("baseline", {
+        fromCursor: 0,
+        toCursor: 12,
+        data: wide + narrow,
+        columnChanges: heads,
+      }),
+    ).state;
+    const replaced = reconcileTerminalCursor(
+      installed,
+      frame("baseline", {
+        generation: "generation-b",
+        fromCursor: 20,
+        toCursor: 23,
+        data: "new",
+        columnChanges: [{ fromCursor: 20, columns: 100 }],
+      }),
+    );
+    expect(replaced.action).toBe("replace");
+    expect(replaced.state.columnChanges).toEqual([{ fromCursor: 20, columns: 100 }]);
+
+    const stale = reconcileTerminalCursor(
+      installed,
+      frame("output", {
+        watchId: "other",
+        fromCursor: 12,
+        toCursor: 15,
+        data: "stl",
+        columnChanges: [{ fromCursor: 12, columns: 100 }],
+      }),
+    );
+    expect(stale.action).toBe("ignore");
+    expect(stale.state.columnChanges).toEqual(heads);
+
+    const gap = reconcileTerminalCursor(
+      installed,
+      frame("output", {
+        fromCursor: 14,
+        toCursor: 17,
+        data: "gap",
+        columnChanges: [{ fromCursor: 14, columns: 100 }],
+      }),
+    );
+    expect(gap.action).toBe("resync");
+    expect(gap.state.columnChanges).toEqual(heads);
+  });
+
+  it("bounds retained geometry under width churn", () => {
+    // Alternating widths every unit: 3000 known spans exceed the 1024 retention.
+    const data = "x".repeat(3000);
+    const changes = Array.from({ length: 3000 }, (_, i) => ({
+      fromCursor: i,
+      columns: i % 2 === 0 ? 48 : 100,
+    }));
+    const result = reconcileTerminalCursor(
+      terminalCursorWatching("watch"),
+      frame("baseline", { fromCursor: 0, toCursor: 3000, data, columnChanges: changes }),
+    );
+    const retained = result.state.columnChanges ?? [];
+    expect(retained.length).toBeLessThanOrEqual(MAX_TERMINAL_COLUMN_CHANGES);
+    // The snapshot stays ordered inside the retained window.
+    for (let i = 1; i < retained.length; i += 1) {
+      expect(retained[i]!.fromCursor).toBeGreaterThan(retained[i - 1]!.fromCursor);
+    }
+    // Oldest known spans were evicted: the first known marker sits well inside.
+    const firstKnown = retained.find((change) => change.columns !== null);
+    expect(firstKnown!.fromCursor).toBeGreaterThan(0);
+  });
+
+  it("survives a synthetic seed whose tail outruns toCursor", () => {
+    // terminalCursorEstablished('watch','g',1,'seed') is a supported seed, but
+    // its retained window [1-4, 1) cannot be positioned. A tagged append must
+    // preserve the raw result and drop the layout instead of throwing.
+    const seeded = terminalCursorEstablished("watch", "g", 1, "seed");
+    const appended = reconcileTerminalCursor(
+      seeded,
+      frame("output", {
+        generation: "g",
+        fromCursor: 1,
+        toCursor: 2,
+        data: "x",
+        columnChanges: [{ fromCursor: 1, columns: 100 }],
+      }),
+    );
+    expect(appended.action).toBe("append");
+    expect(appended.state.transcript).toBe("seedx");
+    expect(appended.state).not.toHaveProperty("columnChanges");
+
+    // established() normalizes caller markers against the bounded tail:
+    // unpositionable windows and all-unknown lists become absent.
+    const unpositioned = terminalCursorEstablished("watch", "g", 1, "seed", [
+      { fromCursor: 0, columns: 48 },
+    ]);
+    expect(unpositioned).not.toHaveProperty("columnChanges");
+    const unknown = terminalCursorEstablished("watch", "g", 4, "seed", [
+      { fromCursor: 0, columns: null },
+    ]);
+    expect(unknown).not.toHaveProperty("columnChanges");
+  });
+
+  it("clips established markers to the bounded tail's left edge", () => {
+    const state = terminalCursorEstablished("watch", "g", 10, "01234", [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 7, columns: 100 },
+    ]);
+    // Window [5, 10): the marker at 0 supplies the width at the left edge.
+    expect(state.columnChanges).toEqual([
+      { fromCursor: 5, columns: 48 },
+      { fromCursor: 7, columns: 100 },
+    ]);
+    // Markers beyond the window clip away entirely.
+    const trailing = terminalCursorEstablished("watch", "g", 10, "0123456789", [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 12, columns: 100 },
+    ]);
+    expect(trailing.columnChanges).toEqual([{ fromCursor: 0, columns: 48 }]);
+  });
+
+  it("keeps only unseen geometry when the prior window cannot be positioned", () => {
+    const bound = TERMINAL_CURSOR_MACHINE_SPEC.bounds.maximumTranscriptUtf16Units;
+    // A synthetic state holding layout over an unpositionable window
+    // (transcript longer than toCursor), rescued once trimming makes the new
+    // tail positionable: only the unseen suffix's width survives.
+    const seeded: TerminalCursorState = {
+      ...terminalCursorEstablished("watch", "g", bound - 1, "x".repeat(bound)),
+      columnChanges: [{ fromCursor: 0, columns: 48 }],
+    };
+    const appended = reconcileTerminalCursor(
+      seeded,
+      frame("output", {
+        generation: "g",
+        fromCursor: bound - 1,
+        toCursor: bound + 1,
+        data: "yz",
+        columnChanges: [{ fromCursor: bound - 1, columns: 100 }],
+      }),
+    );
+    expect(appended.action).toBe("append");
+    expect(appended.state.transcript.length).toBeLessThanOrEqual(bound);
+    expect(appended.state.columnChanges).toEqual([
+      { fromCursor: 1, columns: null },
+      { fromCursor: bound - 1, columns: 100 },
+    ]);
+  });
+});
+
+describe("terminal-cursor width decoding", () => {
+  const outputMessage = (
+    cursorSync: Record<string, unknown>,
+    topLevel: Record<string, unknown> = {},
+  ) => ({
+    type: "terminal-output",
+    id: "terminal",
+    data: "abc",
+    ...topLevel,
+    cursorSync: {
+      version: 1,
+      watchId: "watch",
+      generation: "generation",
+      fromCursor: 10,
+      toCursor: 13,
+      ...cursorSync,
+    },
+  });
+  const baselineMessage = (result: Record<string, unknown>) => ({
+    type: "terminal-watch-result",
+    id: "terminal",
+    cursorSync: {
+      version: 1,
+      watchId: "watch",
+      result: {
+        status: "ready",
+        generation: "generation",
+        fromCursor: 0,
+        toCursor: 3,
+        data: "abc",
+        ...result,
+      },
+    },
+  });
+
+  it("turns a usable live terminalColumns into one marker at fromCursor", () => {
+    const decoded = decodeTerminalCursorFrameMessage(outputMessage({ terminalColumns: 100 }));
+    expect(decoded?.columnChanges).toEqual([{ fromCursor: 10, columns: 100 }]);
+    for (const bad of [5, 401, 48.5, "wide"]) {
+      const widthless = decodeTerminalCursorFrameMessage(outputMessage({ terminalColumns: bad }));
+      expect(widthless).not.toBeNull();
+      expect(widthless).not.toHaveProperty("columnChanges");
+    }
+    const absent = decodeTerminalCursorFrameMessage(outputMessage({}));
+    expect(absent).not.toHaveProperty("columnChanges");
+  });
+
+  it("reads baseline columnChanges and degrades invalid lists to widthless", () => {
+    const decoded = decodeTerminalCursorFrameMessage(
+      baselineMessage({
+        columnChanges: [
+          { fromCursor: 0, columns: 48 },
+          { fromCursor: 2, columns: null },
+        ],
+      }),
+    );
+    expect(decoded?.columnChanges).toEqual([
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 2, columns: null },
+    ]);
+    for (const bad of [
+      [
+        { fromCursor: 2, columns: 48 },
+        { fromCursor: 1, columns: 100 },
+      ],
+      [{ fromCursor: 0, columns: 5 }],
+      [{ fromCursor: -1, columns: 48 }],
+      [{ fromCursor: 0, columns: "wide" }],
+      "wide",
+    ]) {
+      const widthless = decodeTerminalCursorFrameMessage(baselineMessage({ columnChanges: bad }));
+      expect(widthless).not.toBeNull();
+      expect(widthless).not.toHaveProperty("columnChanges");
+    }
+  });
+
+  it("keeps old raw behavior for empty ranges", () => {
+    // Empty up-to-date resume/baseline carry metadata but no output units;
+    // the decoder rejects empty data before any width metadata matters.
+    expect(
+      decodeTerminalCursorFrameMessage(
+        baselineMessage({
+          data: "",
+          fromCursor: 6,
+          toCursor: 6,
+          columnChanges: [{ fromCursor: 0, columns: 48 }],
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      decodeTerminalCursorFrameMessage(
+        outputMessage({ terminalColumns: 100, fromCursor: 10, toCursor: 10 }, { data: "" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("caps optional columnChanges lists before decoding them", () => {
+    const markers = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({ fromCursor: i, columns: 48 }));
+    const overCap = decodeTerminalCursorFrameMessage(
+      baselineMessage({ columnChanges: markers(MAX_TERMINAL_COLUMN_CHANGES + 1) }),
+    );
+    expect(overCap).not.toBeNull();
+    expect(overCap).not.toHaveProperty("columnChanges");
+    const atCap = decodeTerminalCursorFrameMessage(
+      baselineMessage({ columnChanges: markers(MAX_TERMINAL_COLUMN_CHANGES) }),
+    );
+    expect(atCap?.columnChanges).toHaveLength(MAX_TERMINAL_COLUMN_CHANGES);
   });
 });
 

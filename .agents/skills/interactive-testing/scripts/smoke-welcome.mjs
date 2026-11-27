@@ -3,6 +3,11 @@ import { clickCdpElements } from "./poracode-cdp-actions.mjs";
 const OVERLAY_SELECTOR = ".poracode-welcome-page.fixed";
 const PRIMARY_SELECTOR = "button.poracode-welcome-button";
 const PRIMARY_LABEL = "welcome screen primary action";
+// First-launch agent discovery covers the window above the welcome overlay
+// and marks every sibling inert; both its scanning (Hide) and finished (Done)
+// stages expose this production primary action.
+const DISCOVERY_PRIMARY_SELECTOR = "button[data-discovery-primary-action]";
+const DISCOVERY_PRIMARY_LABEL = "agent discovery primary action";
 // Read-only evidence of the production-owned flag; never use it to dismiss.
 const WELCOME_SEEN_KEY = "poracode-welcome-seen-v16";
 const MAX_SNAPSHOTS = 32;
@@ -10,10 +15,11 @@ const PRIMARY_ELEMENTS = `[...document.querySelectorAll(${JSON.stringify(OVERLAY
   const button = overlay.querySelector(${JSON.stringify(PRIMARY_SELECTOR)});
   return button ? [button] : [];
 })`;
+const DISCOVERY_PRIMARY_ELEMENTS = `[...document.querySelectorAll(${JSON.stringify(DISCOVERY_PRIMARY_SELECTOR)})]`;
 
 // Serialized into the renderer. Keep state bounded and preserve the fixed
 // overlay distinction: WelcomeBackdrop also has poracode-welcome-page.
-function readWelcomeState(overlaySelector, primarySelector, storageKey) {
+function readWelcomeState(overlaySelector, primarySelector, discoverySelector, storageKey) {
   const overlays = document.querySelectorAll(overlaySelector);
   const overlay = overlays[0];
   const button = overlay?.querySelector(primarySelector);
@@ -46,6 +52,37 @@ function readWelcomeState(overlaySelector, primarySelector, storageKey) {
     storageError = String(error).slice(0, 160);
   }
   const rect = button?.getBoundingClientRect();
+  const discoveryButtons = [...document.querySelectorAll(discoverySelector)];
+  const discoveryButton = discoveryButtons[0];
+  let discoveryPrimary = null;
+  if (discoveryButton) {
+    const discoveryRect = discoveryButton.getBoundingClientRect();
+    const discoveryStyle = getComputedStyle(discoveryButton);
+    const hasBounds = discoveryRect.width > 0 && discoveryRect.height > 0;
+    const visible =
+      discoveryStyle.display !== "none" &&
+      discoveryStyle.visibility === "visible" &&
+      Number(discoveryStyle.opacity || "1") !== 0 &&
+      discoveryStyle.pointerEvents !== "none";
+    const inert = Boolean(discoveryButton.closest("[inert]"));
+    const disabled =
+      discoveryButton.matches(":disabled") ||
+      discoveryButton.getAttribute("aria-disabled") === "true";
+    discoveryPrimary = {
+      count: discoveryButtons.length,
+      hasBounds,
+      visible,
+      inert,
+      disabled,
+      actionable: hasBounds && visible && !inert && !disabled,
+      rect: {
+        x: discoveryRect.x,
+        y: discoveryRect.y,
+        width: discoveryRect.width,
+        height: discoveryRect.height,
+      },
+    };
+  }
   return {
     ready: document.readyState === "complete",
     visibility: document.visibilityState,
@@ -55,6 +92,7 @@ function readWelcomeState(overlaySelector, primarySelector, storageKey) {
     welcomeVisible: overlays.length > 0,
     overlayCount: overlays.length,
     exiting: overlay?.classList.contains("opacity-0") ?? false,
+    discoveryPrimary,
     storageValue,
     storageError,
     primaryAction: button
@@ -62,6 +100,7 @@ function readWelcomeState(overlaySelector, primarySelector, storageKey) {
           text: button.textContent?.trim().slice(0, 160) ?? "",
           disabled: button.matches(":disabled"),
           ariaDisabled: button.getAttribute("aria-disabled"),
+          inert: Boolean(button.closest("[inert]")),
           painted: painted && reachedOverlay && document.visibilityState === "visible",
           ancestorScanTruncated: !reachedOverlay,
           rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
@@ -71,7 +110,7 @@ function readWelcomeState(overlaySelector, primarySelector, storageKey) {
   };
 }
 
-const STATE_EXPRESSION = `(${readWelcomeState})(${JSON.stringify(OVERLAY_SELECTOR)}, ${JSON.stringify(PRIMARY_SELECTOR)}, ${JSON.stringify(WELCOME_SEEN_KEY)})`;
+const STATE_EXPRESSION = `(${readWelcomeState})(${JSON.stringify(OVERLAY_SELECTOR)}, ${JSON.stringify(PRIMARY_SELECTOR)}, ${JSON.stringify(DISCOVERY_PRIMARY_SELECTOR)}, ${JSON.stringify(WELCOME_SEEN_KEY)})`;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -89,6 +128,7 @@ export async function runWelcomeDismissalScenario({
     input: "guarded-cdp-pointer",
     actionAttempts: 0,
     dispatchedActions: 0,
+    discoveryDismissals: 0,
     snapshots: [],
     droppedSnapshots: 0,
   };
@@ -133,6 +173,51 @@ export async function runWelcomeDismissalScenario({
         "welcome primary action readiness",
       );
       if (!before.welcomeVisible || before.exiting) break;
+
+      // First launch can cover the welcome CTA with the agent discovery
+      // portal, which marks every sibling inert. Dismiss that portal through
+      // its own production primary action, then let the next pass re-read
+      // welcome state. Inert welcome with no discovery still fails below.
+      if (before.primaryAction?.inert && before.discoveryPrimary) {
+        const discovery = await waitForValue(
+          () => read("discovery-action", attempt),
+          (state) =>
+            !state.welcomeVisible ||
+            state.exiting ||
+            !state.discoveryPrimary ||
+            state.discoveryPrimary.actionable,
+          "agent discovery primary action readiness",
+        );
+        if (discovery.welcomeVisible && !discovery.exiting && discovery.discoveryPrimary) {
+          try {
+            await clickCdpElements({
+              client,
+              evaluate,
+              elementsExpression: DISCOVERY_PRIMARY_ELEMENTS,
+              label: DISCOVERY_PRIMARY_LABEL,
+            });
+            evidence.discoveryDismissals += 1;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const after = await read("discovery-action-error", attempt);
+            if (
+              message !== `cannot click ${DISCOVERY_PRIMARY_LABEL}: missing` ||
+              after.discoveryPrimary
+            ) {
+              throw error;
+            }
+          }
+        }
+        await waitForValue(
+          () => read("welcome-uncover", attempt),
+          (state) =>
+            !state.welcomeVisible ||
+            state.exiting ||
+            Boolean(state.primaryAction && !state.primaryAction.inert),
+          "welcome primary action uncover",
+        );
+        continue;
+      }
 
       evidence.actionAttempts += 1;
       try {

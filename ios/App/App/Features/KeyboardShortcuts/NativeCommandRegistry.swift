@@ -143,7 +143,7 @@ struct NativeCommandFocus: Equatable, Sendable {
   /// surrounding SwiftUI value must not replace that specific input owner.
   static func resolve(probed: Self, declared: Self?) -> Self {
     switch probed.role {
-    case .composer, .terminal, .browser, .shortcutCapture: return probed
+    case .composer, .editor, .terminal, .browser, .shortcutCapture: return probed
     default:
       if probed.isTextInput, declared?.role != .editor, declared?.role != .browser { return probed }
       return declared ?? probed

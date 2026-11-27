@@ -75,6 +75,10 @@ export function parseScenarioAction(value: unknown): ScenarioAction {
         delayMs: boundedDelay(value.delayMs),
         ...(requestId ? { requestId } : {}),
       };
+    case "background-task-output-hold":
+      return { type: value.type, ...(requestId ? { requestId } : {}) };
+    case "background-task-output-release":
+      return { type: value.type, ...(requestId ? { requestId } : {}) };
     case "await": {
       const condition = parseCondition(value.condition);
       const timeoutMs =

@@ -33,7 +33,9 @@ export const controlWorkspaceTerminalPayloadSchema = z.strictObject({
 export type ControlWorkspaceTerminalPayload = z.infer<typeof controlWorkspaceTerminalPayloadSchema>;
 
 export const controlWorkspaceTerminalResultSchema = z.discriminatedUnion("action", [
-  terminalSnapshotSchema.extend({ action: z.literal("read"), truncated: z.boolean() }),
+  terminalSnapshotSchema
+    .omit({ columnChanges: true })
+    .extend({ action: z.literal("read"), truncated: z.boolean() }),
   z.object({ action: z.literal("write") }),
   z.object({ action: z.literal("resize") }),
   z.object({ action: z.literal("close"), confirmed: z.boolean() }),

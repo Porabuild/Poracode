@@ -22,8 +22,9 @@ extension NativeFamilyJourneyUITests {
     let open = app.buttons["native-e2e.settings.models.open"]
     XCTAssertTrue(open.waitForExistence(timeout: 10)); open.tap()
     let search = app.searchFields.firstMatch
+    let actions = app.buttons["native-e2e.settings.models.actions"]
     XCTAssertTrue(search.waitForExistence(timeout: 10))
-    try assertNativePageActionAtLowerEdge(app.buttons["native-e2e.settings.models.actions"],
+    try assertNativePageActionAtLowerEdge(actions,
       pageID: "native-e2e.settings.models.list", name: "models-initial")
     searchModels("pro-fast")
     let keyboard = app.keyboards.firstMatch
@@ -44,8 +45,19 @@ extension NativeFamilyJourneyUITests {
     XCTAssertGreaterThanOrEqual(family.frame.height, 44)
     XCTAssertLessThanOrEqual(family.frame.maxY, keyboard.frame.minY)
     modelVisibilityProof("keyboard-search-results")
-    try assertNativePageActionAtLowerEdge(app.buttons["native-e2e.settings.models.actions"],
+    try assertNativePageActionAtLowerEdge(actions,
       pageID: "native-e2e.settings.models.list", name: "models-keyboard")
+    if UIDevice.current.userInterfaceIdiom == .phone {
+      let visibleCount = app.descendants(matching: .any).matching(identifier: "native-e2e.settings.models.count").firstMatch
+      let total = try XCTUnwrap(modelVisibilityCount(visibleCount).last)
+      actions.tap()
+      let showAll = app.buttons["Show all"].firstMatch
+      XCTAssertTrue(showAll.waitForExistence(timeout: 5))
+      modelVisibilityProof("keyboard-actions-menu")
+      showAll.tap()
+      try await poll { self.modelVisibilityCount(visibleCount) == [total, total] && family.isEnabled }
+      XCTAssertEqual(search.value as? String, "pro-fast")
+    }
     family.tap()
     try await poll { family.value as? String == "Hidden" && family.isEnabled }
     modelVisibilityProof("family-search-hidden")
@@ -58,7 +70,6 @@ extension NativeFamilyJourneyUITests {
     for _ in 0..<4 where !count.exists { list.swipeDown() }
     XCTAssertTrue(count.waitForExistence(timeout: 5))
     let total = try XCTUnwrap(modelVisibilityCount(count).last)
-    let actions = app.buttons["native-e2e.settings.models.actions"]
     try assertNativePageActionAtLowerEdge(actions, pageID: "native-e2e.settings.models.list", name: "models-search-dismissed")
     XCTAssertTrue(actions.isHittable); actions.tap(); app.buttons["Hide all"].tap()
     try await poll { self.modelVisibilityCount(count) == [0, total] && actions.isEnabled }

@@ -69,7 +69,7 @@ class StoredPairingUpgradeTest {
 
     @Test
     fun reviewedBindingsUpgradeOnlyAfterAuthenticatedRead() = runTest {
-        for (version in listOf(10, 11, 12)) {
+        for (version in listOf(10, 11, 12, 13, 14)) {
             val api = FakeApiGateway().apply { snapshotHold = CompletableDeferred() }
             val h = fixture(api = api, version = version)
             h.session.bootstrap()
@@ -91,7 +91,7 @@ class StoredPairingUpgradeTest {
 
     @Test
     fun incompatibleLiveServerCannotRebindOrReadProtectedState() = runTest {
-        for (version in listOf(9, 10, 11, 12)) {
+        for (version in listOf(9, 10, 11, 12, 13, 14)) {
             val api = FakeApiGateway().apply {
                 environmentResponse = environmentResponse.copy(protocolVersion = version)
             }

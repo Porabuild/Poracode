@@ -7,7 +7,7 @@ import { ImageAddon } from "@xterm/addon-image";
 import { ProgramStatusAddon, type IProgramStatusRecord } from "@xterm/addon-program-status";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { resizeTerminalPayloadSchema } from "@/shared/contracts";
+import { resizeTerminalPayloadSchema, type TerminalSize } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -67,6 +67,10 @@ vi.mock("@xterm/xterm", () => ({
     });
     reset = vi.fn<() => void>();
     dispose = vi.fn<() => void>();
+    resize = vi.fn<(cols: number, rows: number) => void>((cols, rows) => {
+      this.cols = cols;
+      this.rows = rows;
+    });
     parser = {
       registerCsiHandler: vi.fn<
         (id: unknown, callback: (...args: never[]) => boolean) => { dispose: () => void }
@@ -317,6 +321,10 @@ interface MockTerminalShape {
   clearSelection: MockFn;
   scrollToBottom: MockFn;
   refresh: MockFn;
+  resize: MockFn;
+  cols: number;
+  rows: number;
+  buffer: { active: { baseY: number; viewportY: number }; normal: { length: number } };
   attachCustomKeyEventHandler: MockFn;
 }
 
@@ -1977,6 +1985,213 @@ describe("XTermSurface", () => {
     expect(state.bridge.writeTerminal).not.toHaveBeenCalled();
     await flushFrame();
     expect(state.writeLog.map((entry) => entry.data)).toEqual(["", data, "new output"]);
+  });
+
+  // ── Geometry-aware snapshot replay ─────────────────────────────
+
+  it("replays a geometry snapshot at recorded widths and restores the viewport", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    state.fitSize = { cols: 120, rows: 40 };
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => undefined;
+        }}
+      />,
+    );
+    await flushFrame();
+    expect(terminal().cols).toBe(120);
+    expect(terminal().rows).toBe(40);
+    terminal().resize.mockClear();
+
+    const narrow = "narrow-frame";
+    const wide = "wide-frame-😀";
+    const data = narrow + wide;
+    act(() => {
+      listener?.onSnapshot?.({
+        status: "ready",
+        generation: "remote-pty",
+        fromCursor: 0,
+        toCursor: data.length,
+        data,
+        processState: "running",
+        terminalSize: { cols: 120, rows: 40 },
+        columnChanges: [
+          { fromCursor: 0, columns: 48 },
+          { fromCursor: narrow.length, columns: 100 },
+        ],
+      });
+      listener?.onOutput("live tail");
+    });
+
+    // Barrier fired: the first span parses at its recorded 48 columns.
+    await runWriteCallbacks(1);
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", narrow]);
+    expect(terminal().cols).toBe(48);
+
+    // The second span resizes to 100 before its bytes are written.
+    await runWriteCallbacks(1);
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", narrow, wide]);
+    expect(terminal().cols).toBe(100);
+
+    // The last parse restores the viewport width, then the live output that
+    // was buffered during hydration flushes at the restored geometry.
+    await runWriteCallbacks(1);
+    await flushFrame();
+    expect(terminal().cols).toBe(120);
+    expect(terminal().rows).toBe(40);
+    expect(terminal().resize.mock.calls).toEqual([
+      [48, 40],
+      [100, 40],
+      [120, 40],
+    ]);
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", narrow, wide, "live tail"]);
+  });
+
+  it("keeps recorded replay widths away from the PTY and refits after restore", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    const onTerminalResize = vi.fn<(size: TerminalSize) => void>();
+    state.fitSize = { cols: 100, rows: 30 };
+    let listener: TerminalFeedListener | undefined;
+    const ref = createRef<XTermSurfaceHandle>();
+    render(
+      <XTermSurface
+        ref={ref}
+        terminalId="test-1"
+        initialScrollback=""
+        onTerminalResize={onTerminalResize}
+        outputSource={(next) => {
+          listener = next;
+          return () => undefined;
+        }}
+      />,
+    );
+    await flushFrame();
+    state.bridge.resizeTerminal.mockClear();
+    onTerminalResize.mockClear();
+
+    // Arm the debounced PTY resize path (large normal buffer), then pause a
+    // geometry replay mid-parse at a synthetic width.
+    terminal().buffer.normal.length = 250;
+    act(() => ref.current?.refit());
+    await flushFrame();
+    const narrow = "narrow";
+    const wide = "wide";
+    const data = narrow + wide;
+    act(() => {
+      listener?.onSnapshot?.({
+        status: "ready",
+        generation: "remote-pty",
+        fromCursor: 0,
+        toCursor: data.length,
+        data,
+        processState: "running",
+        terminalSize: { cols: 100, rows: 30 },
+        columnChanges: [
+          { fromCursor: 0, columns: 48 },
+          { fromCursor: narrow.length, columns: 72 },
+        ],
+      });
+    });
+    await runWriteCallbacks(1);
+    expect(terminal().cols).toBe(48);
+
+    // The pending debounce fires mid-replay: the synthetic width must not
+    // reach the host.
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 120));
+    });
+    expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
+    expect(onTerminalResize).not.toHaveBeenCalled();
+
+    // A manual refit during the pause defers too — fit must not clobber 48.
+    // Wait only for the rAF tick: flushFrame would also drain the replay's
+    // pending parse callbacks and end the paused state being asserted.
+    act(() => ref.current?.refit());
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    });
+    expect(terminal().cols).toBe(48);
+    expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
+
+    // Finish the replay: the wide span parses at 72, then 100 is restored.
+    await runWriteCallbacks(1);
+    await runWriteCallbacks(1);
+    expect(terminal().cols).toBe(100);
+
+    // The deferred real fit runs after restore; a changed fit size proves the
+    // PTY saw viewport dimensions, never the recorded ones.
+    state.fitSize = { cols: 115, rows: 36 };
+    await flushFrame();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 120));
+    });
+    await flushFrame();
+    expect(state.bridge.resizeTerminal).toHaveBeenLastCalledWith({
+      threadId: "test-1",
+      cols: 115,
+      rows: 36,
+    });
+    expect(onTerminalResize).toHaveBeenLastCalledWith({ cols: 115, rows: 36 });
+    const sentCols = state.bridge.resizeTerminal.mock.calls.map(
+      ([input]) => (input as { cols: number }).cols,
+    );
+    expect(sentCols).not.toContain(48);
+    expect(sentCols).not.toContain(72);
+  });
+
+  it("drops a paused geometry replay's stale tail on reset", async () => {
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => undefined;
+        }}
+      />,
+    );
+    await flushFrame();
+    const narrow = "narrow";
+    const staleWide = "stale-wide-span";
+    const data = narrow + staleWide;
+    act(() => {
+      listener?.onSnapshot?.({
+        status: "ready",
+        generation: "remote-pty",
+        fromCursor: 0,
+        toCursor: data.length,
+        data,
+        processState: "running",
+        terminalSize: null,
+        columnChanges: [
+          { fromCursor: 0, columns: 48 },
+          { fromCursor: narrow.length, columns: 100 },
+        ],
+      });
+    });
+    await runWriteCallbacks(1);
+    expect(terminal().cols).toBe(48);
+
+    act(() => {
+      listener?.onReset();
+      listener?.onOutput("fresh");
+    });
+    await runWriteCallbacks(2);
+    await flushFrame();
+
+    // The queued wide span never parses; the reset wipes it, the viewport
+    // width is restored, and live output flows normally afterwards.
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", narrow, "fresh"]);
+    expect(terminal().cols).toBe(80);
+    expect(terminal().reset).toHaveBeenCalledTimes(3);
   });
 
   // ── Activity / bell / title callbacks ───────────────────────────

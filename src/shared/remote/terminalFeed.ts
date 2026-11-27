@@ -319,6 +319,9 @@ export function createTerminalFeed(options: TerminalFeedOptions = {}): TerminalF
                 fromCursor: cursorSync.fromCursor,
                 toCursor: cursorSync.toCursor,
                 data: message.data,
+                ...(cursorSync.terminalColumns === undefined
+                  ? {}
+                  : { terminalColumns: cursorSync.terminalColumns }),
               });
             } else {
               session.handleUntaggedFrame();

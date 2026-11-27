@@ -29,6 +29,7 @@ import type { CoverageLedger } from "./coverageLedger.ts";
 import type { WireLab } from "./wireLab.ts";
 import { LOOPBACK_HOST } from "./constants.ts";
 import { assertLoopbackHost } from "./loopback.ts";
+import { isSimulatorKey } from "./iosSimulatorKeyboard.ts";
 import {
   assertScenarioActionResultSafe,
   assertScenarioDescriptorSafe,
@@ -305,6 +306,32 @@ export class ControlServer {
         });
         return;
       }
+      if (url.pathname === "/v1/simulator/key") {
+        if (req.method !== "POST") throw new LabHttpError("not_found", "Not found.", 404);
+        if (!this.options.pressSimulatorKey) {
+          throw new LabHttpError(
+            "simulator_key_unavailable",
+            "Simulator keyboard qualification is not enabled.",
+            404,
+          );
+        }
+        rejectChunkedRequest(req);
+        const parsed = parseSimulatorKeyRequest(await readBoundedJsonBody(req));
+        try {
+          await this.options.pressSimulatorKey(parsed.key, parsed.shift);
+        } catch {
+          // Never put raw idb / companion process errors on the wire.
+          throw new LabHttpError(
+            "simulator_key_failed",
+            "Simulator key press could not be delivered.",
+            502,
+          );
+        }
+        const body = { ok: true };
+        assertSecretFree(body, "/v1/simulator/key");
+        writeJson(res, 200, body);
+        return;
+      }
       throw new LabHttpError("not_found", "Not found.", 404);
     } catch (error) {
       if (error instanceof LabHttpError && !res.headersSent)
@@ -333,6 +360,28 @@ export class ControlServer {
     }
     return this.plane.parity;
   }
+}
+
+function parseSimulatorKeyRequest(raw: unknown): { key: string; shift: boolean } {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new LabHttpError("invalid_simulator_key", "Request body must be a JSON object.", 400);
+  }
+  const record = raw as Record<string, unknown>;
+  // Accept exactly the two validated fields. No extra field may ride along to
+  // influence a target or option: the socket and udid come only from trusted
+  // supervisor input, never from the network request.
+  const exactFields =
+    Object.keys(record).length === 2 &&
+    Object.hasOwn(record, "key") &&
+    Object.hasOwn(record, "shift");
+  if (!exactFields || !isSimulatorKey(record.key) || typeof record.shift !== "boolean") {
+    throw new LabHttpError(
+      "invalid_simulator_key",
+      "Provide exactly a single lowercase letter or comma and a boolean shift.",
+      400,
+    );
+  }
+  return { key: record.key, shift: record.shift };
 }
 
 function matchPrefixed(pathname: string, prefix: string): string | null {

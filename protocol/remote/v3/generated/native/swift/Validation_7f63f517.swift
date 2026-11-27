@@ -29,6 +29,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_faee39be7b751959 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_48916cddaaeb3b09, RemoteSchemas.schema_dade9637aede6170, RemoteSchemas.schema_3897f50212cb0b25, RemoteSchemas.schema_a633f9a256d1d0c9, RemoteSchemas.schema_17b50a5a251b31ce, RemoteSchemas.schema_bd23acb1d60bc91b, RemoteSchemas.schema_8f58c1d1acd8bc3c, RemoteSchemas.schema_0ad133ee5894107b, RemoteSchemas.schema_603f34fb30f27dd4, RemoteSchemas.schema_ae488cfbae55d2ab, RemoteSchemas.schema_be70182f42f8818b, RemoteSchemas.schema_f1c1581e1729d48e], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_faf4eaef48627bb6 = RemoteSchema(type: "object", required: Set(["transferId"]), properties: ["transferId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -50,6 +54,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_fc24a3f2860a27ad = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_4545388132b77b29, RemoteSchemas.schema_e80087031872d26b], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_fc33becf88189b03 = RemoteSchema(type: "object", required: Set(["columns", "fromCursor"]), properties: ["columns": RemoteSchemas.schema_7b1fe7d08ab1d78e, "fromCursor": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

@@ -21,7 +21,7 @@ class LegacyProtocolUpgradeTest {
 
     @Test
     fun realV2SourceImportsReviewedPinWithoutRebindingOrDeletingSource() = runTest {
-        for (version in listOf(9, 12)) {
+        for (version in listOf(9, 12, 13, 14)) {
             val files = temporary.newFolder()
             val cipher = FakeTokenCipher("v2")
             val document = SessionCredentialDocumentV2(2, profile(version), cipher.encrypt("token"), version)
@@ -68,14 +68,14 @@ class LegacyProtocolUpgradeTest {
 
     @Test
     fun splitV1SourcePreservesReviewedPinAndRejectsFuturePin() = runTest {
-        for (version in listOf(9, 10, 12, ProtocolConstants.REMOTE_PROTOCOL_VERSION + 1)) {
+        for (version in listOf(9, 10, 12, 13, 14, ProtocolConstants.REMOTE_PROTOCOL_VERSION + 1)) {
             val files = temporary.newFolder()
             val legacyProfile = File(files, "datastore/${ConnectionMetadataStore.DATA_STORE_NAME}.preferences_pb")
             legacyProfile.parentFile!!.mkdirs()
             legacyProfile.writeText("profile")
             File(files, KeystoreSecureTokenStore.TOKEN_FILE_NAME).writeText("encrypted token")
             val loaded = repository(files, FakeTokenCipher("v2"), version).loadOutcome()
-            if (version == 9 || version == 10 || version == 12) {
+            if (version == 9 || version == 10 || version == 12 || version == 13 || version == 14) {
                 assertTrue(loaded is SessionCredentialLoadOutcome.Rejected.ProtocolMismatch)
                 assertEquals(version, (loaded as SessionCredentialLoadOutcome.Rejected.ProtocolMismatch).credentials.profile.protocolVersion)
             } else assertEquals(SessionCredentialLoadOutcome.Rejected.LegacyInconsistent, loaded)

@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import Database from "better-sqlite3";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { nativeBindingEnv } from "./runtimeItems.testFixtures";
 import { dbUpsertProject } from "./projectsThreads";
 import { dbCompareAndSetProjectNotes, dbGetProjectNotes, dbSetProjectNotes } from "./notes";
 import { runDatabaseMigrations } from "./migrations";
 import { rehomeProjectReferences } from "./projectDeduplication";
+import {
+  createSchema53PayloadOriginDatabase,
+  migrateSchema53FixtureThrough,
+} from "./runtimePayloadOrigins.testFixtures";
 
 const projectId = "project";
 const updatedAt = "2026-01-01T00:00:00.000Z";
@@ -35,24 +38,19 @@ afterEach(() => {
 
 describe("guarded Project Notes", () => {
   it("upgrades schema 77 notes without changing their legacy data", () => {
-    const db = new Database(
-      ":memory:",
-      nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {},
-    );
+    const db = createSchema53PayloadOriginDatabase(":memory:");
+    const legacyProjectId = "project-1";
     try {
-      db.exec(`
-        CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-        CREATE TABLE project_notes (project_id TEXT PRIMARY KEY, doc TEXT, todos TEXT, updated_at TEXT);
-      `);
+      migrateSchema53FixtureThrough(db, 77);
       db.prepare("INSERT INTO project_notes VALUES (?, ?, ?, ?)").run(
-        projectId,
+        legacyProjectId,
         JSON.stringify(doc("old")),
         "[]",
         updatedAt,
       );
       runDatabaseMigrations(db, 77);
       expect(db.prepare("SELECT * FROM project_notes").get()).toEqual({
-        project_id: projectId,
+        project_id: legacyProjectId,
         doc: JSON.stringify(doc("old")),
         todos: "[]",
         updated_at: updatedAt,

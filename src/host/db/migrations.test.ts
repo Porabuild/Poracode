@@ -87,8 +87,9 @@ describe("database migration registry", () => {
       [77, "memory cross-env sync"],
       [78, "guarded project notes"],
       [79, "adopt OpenCode provider"],
+      [80, "terminal scrollback column history"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(79);
+    expect(LATEST_SCHEMA_VERSION).toBe(80);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -126,6 +127,11 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
+      version: 80,
+      name: "terminal scrollback column history",
+      rollback: "rollback-compatible",
+    });
+    expect(describeMigrationRollbackPolicy().at(-2)).toEqual({
       version: 79,
       name: "adopt OpenCode provider",
       rollback: "forward-only",

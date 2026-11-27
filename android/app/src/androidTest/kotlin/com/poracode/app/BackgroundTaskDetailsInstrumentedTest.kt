@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasAnyAncestor
@@ -124,8 +125,10 @@ class BackgroundTaskDetailsInstrumentedTest {
         compose.waitUntil(20_000) { hasTextSubstring("Watching 3 endpoints") }
         assertEquals("A closed details view must stop output reads", readsAtClose, readCount())
 
-        // An older delayed reply must never replace the newest read after reopen.
-        control.delayNextBackgroundTaskOutput(1_200)
+        // A held older reply must never replace the newest read after reopen.
+        // The hold parks the old read until we release it, so its reply can only
+        // arrive after the reopen's fresh read has already displayed.
+        control.holdNextBackgroundTaskOutput()
         compose.onNodeWithTag("background-task-open:bg-monitor").performClick()
         waitForTag("background-task-details", timeoutMs = 10_000, requireDisplayed = true)
         waitForReads(atLeast = readsAtClose + 1)
@@ -134,6 +137,10 @@ class BackgroundTaskDetailsInstrumentedTest {
         compose.waitUntil(20_000) { !tagExists("background-task-details") }
         compose.onNodeWithTag("background-task-open:bg-monitor").performClick()
         waitForTag("background-task-details", timeoutMs = 10_000, requireDisplayed = true)
+        // A fresh read after reopen displays while the old read is still held.
+        waitForFreshOutput(staleRead)
+        // Release the old read; its reply now arrives strictly after the newest.
+        control.releaseBackgroundTaskOutput()
         waitForDeliveredReads(atLeast = staleRead + 1)
         compose.waitUntil(20_000) { (displayedReadOrdinal() ?: 0) > staleRead }
         assertTrue(
@@ -285,6 +292,27 @@ class BackgroundTaskDetailsInstrumentedTest {
 
     private fun waitForDeliveredReads(atLeast: Int, timeoutMs: Long = 20_000) {
         compose.waitUntil(timeoutMs) { backgroundTaskField("outputDelivered") >= atLeast }
+    }
+
+    private fun waitForFreshOutput(staleRead: Int) {
+        try {
+            compose.waitUntil(20_000) { (displayedReadOrdinal() ?: 0) > staleRead }
+        } catch (failure: ComposeTimeoutException) {
+            val runtime = application.richChat
+            val host = runtime.hostLease.value
+            val output = runtime.backgroundTasks.output.value
+            val actions = runtime.sessionActions.state.value
+            val ui = runCatching { tagText("background-task-output") }.getOrNull()
+            val counters = runCatching { control.backgroundTaskState() }.getOrNull()
+            throw AssertionError(
+                "Reopened output did not advance past read $staleRead: " +
+                    "counters=$counters, output=$output, visibleText=$ui, " +
+                    "foreground=${runtime.foreground.value}, online=${host?.online}, ready=${host?.ready}, " +
+                    "actionIds=${actions.actionIds}, inventoryRefreshing=${actions.inventoryRefreshing}, " +
+                    "actionFailure=${actions.failure}",
+                failure,
+            )
+        }
     }
 
     /** Waits for every issued read to resolve before sampling the counter. */

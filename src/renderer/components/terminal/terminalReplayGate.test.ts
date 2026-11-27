@@ -70,6 +70,54 @@ function setup() {
 }
 
 /**
+ * Real Bash capture (node-pty `bash --noprofile --norc -i`, PS1 prompt
+ * `native-fixture:fixture-repo audit-user$ `): the PTY started at 48 columns,
+ * ran `printf '%s%s\n' native-e2e-pty- first`, was resized to 100, then ran
+ * `printf '%s%s\n' native-e2e-pty- second`. The split lands where the
+ * SIGWINCH prompt redraw (`\r\x1b[K`) begins. Replayed chronologically at the
+ * recorded widths both commands stay ordered; replayed at the single final
+ * width the `\r` inside the first command's narrow-width echo overwrites the
+ * prompt and garbles the line.
+ */
+const BASH_RESIZE_PRE_48 =
+  "\r\nThe default interactive shell is now zsh.\r\nTo update your account to use zsh, please run `chsh -s /bin/zsh`.\r\nFor more details, please visit https://support.apple.com/kb/HT208050.\r\n\x1b[?1034hnative-fixture:fixture-repo audit-user$ printf ' \r%s%s\\n' native-e2e-pty- first\r\nnative-e2e-pty-first\r\nnative-fixture:fixture-repo audit-user$ ";
+const BASH_RESIZE_POST_100 =
+  "\r\x1b[Knative-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- second\r\nnative-e2e-pty-second\r\nnative-fixture:fixture-repo audit-user$ ";
+const BASH_RECORDED_LINES = [
+  "native-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- first",
+  "native-e2e-pty-first",
+  "native-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- second",
+  "native-e2e-pty-second",
+  "native-fixture:fixture-repo audit-user$",
+];
+
+/** Buffer rows joined across wrapped continuations, matching a logical screen. */
+function logicalScreen(terminal: Terminal): string[] {
+  const rows: string[] = [];
+  let text = "";
+  for (let i = 0; i < terminal.buffer.active.length; i++) {
+    const row = terminal.buffer.active.getLine(i);
+    if (!row?.isWrapped && text) {
+      rows.push(text.trimEnd());
+      text = "";
+    }
+    text += row?.translateToString(false) ?? "";
+  }
+  if (text) {
+    rows.push(text.trimEnd());
+  }
+  return rows.filter(Boolean);
+}
+
+/** Poll until `condition` holds (write callbacks and parse pauses are macrotask-driven). */
+async function waitFor(condition: () => boolean): Promise<void> {
+  for (let i = 0; i < 100 && !condition(); i++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  expect(condition()).toBe(true);
+}
+
+/**
  * Arm a `CSI Z` handler that suspends parsing mid-chunk (async handler) until
  * released — simulating an async parser handler (e.g. sixel) stalling a large
  * replay so a reset/supersession can land while the chunk is queued. Every
@@ -81,6 +129,8 @@ function armParsePause(terminal: Terminal) {
     return new Promise<boolean>((resolve) => resolvers.push(resolve));
   });
   return {
+    /** True once the parser has reached a CSI Z and enqueued its resolver. */
+    paused: () => resolvers.length > 0,
     release: () => {
       for (const resolve of resolvers.splice(0)) {
         resolve(true);
@@ -321,5 +371,238 @@ describe("TerminalReplayGate", () => {
     gate.begin("", { complete: () => (completed = true) });
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     expect(completed).toBe(true);
+  });
+
+  it("replays recorded-width spans so the wrapped echo stays ordered, then restores the viewport", async () => {
+    const terminal = new Terminal({ ...TERM_OPTIONS, cols: 100, rows: 24 });
+    const gate = new TerminalReplayGate(terminal);
+    try {
+      // Chronological spans: 48 columns up to the SIGWINCH redraw, then 100.
+      await new Promise<void>((resolve) =>
+        gate.beginSegments(
+          [
+            { data: BASH_RESIZE_PRE_48, columns: 48 },
+            { data: BASH_RESIZE_POST_100, columns: 100 },
+          ],
+          { complete: resolve },
+        ),
+      );
+      expect(logicalScreen(terminal).slice(-BASH_RECORDED_LINES.length)).toEqual(
+        BASH_RECORDED_LINES,
+      );
+      expect(terminal.cols).toBe(100);
+      expect(terminal.rows).toBe(24);
+      expect(gate.replayingAtRecordedColumns).toBe(false);
+      expect(gate.suppressing).toBe(false);
+
+      // Control: the same bytes at the single viewport width garble the first
+      // command — the 48-column `\r` inside its echo overwrites the prompt.
+      const flat = new Terminal({ ...TERM_OPTIONS, cols: 100, rows: 24 });
+      const flatGate = new TerminalReplayGate(flat);
+      try {
+        await new Promise<void>((resolve) =>
+          flatGate.beginSegments([{ data: BASH_RESIZE_PRE_48 + BASH_RESIZE_POST_100 }], {
+            complete: resolve,
+          }),
+        );
+        const flatLines = logicalScreen(flat);
+        expect(flatLines.slice(-BASH_RECORDED_LINES.length)).not.toEqual(BASH_RECORDED_LINES);
+        expect(flatLines.join("\n")).toContain("firstudit-user");
+      } finally {
+        flatGate.dispose();
+        flat.dispose();
+      }
+    } finally {
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+
+  it("suppresses historical replies across width spans while live queries still answer", async () => {
+    const terminal = new Terminal({ ...TERM_OPTIONS, cols: 100, rows: 24 });
+    const gate = new TerminalReplayGate(terminal);
+    const pty: string[] = [];
+    const dropped: string[] = [];
+    terminal.onData((data) => {
+      (gate.shouldDropReply(data) ? dropped : pty).push(data);
+    });
+    try {
+      await new Promise<void>((resolve) =>
+        gate.beginSegments(
+          [
+            { data: "row one\x1b[6n", columns: 48 },
+            { data: "\r\nrow two\x1b[6n", columns: 100 },
+          ],
+          { complete: resolve },
+        ),
+      );
+      expect(dropped).toHaveLength(2);
+      expect(dropped.every((d) => escReply(/^\[\d+;\d+R$/)(d))).toBe(true);
+      expect(pty).toHaveLength(0);
+
+      await new Promise<void>((resolve) => terminal.write("\x1b[6n", resolve));
+      expect(pty).toHaveLength(1);
+      expect(escReply(/^\[\d+;\d+R$/)(pty[0] ?? "")).toBe(true);
+      expect(terminal.cols).toBe(100);
+      expect(gate.replayingAtRecordedColumns).toBe(false);
+    } finally {
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+
+  it("reports replayingAtRecordedColumns and the span width while a replay is in flight", async () => {
+    const terminal = new Terminal({ ...TERM_OPTIONS, cols: 100, rows: 24 });
+    const gate = new TerminalReplayGate(terminal);
+    const pause = armParsePause(terminal);
+    try {
+      let completed = false;
+      gate.beginSegments(
+        [
+          { data: "narrow\x1b[Z", columns: 48 },
+          { data: "wide", columns: 100 },
+        ],
+        { complete: () => (completed = true) },
+      );
+      // The first span resizes to its recorded width, then parsing suspends
+      // at CSI Z — the geometry replay is observably in flight.
+      await waitFor(() => pause.paused());
+      expect(terminal.cols).toBe(48);
+      expect(gate.replayingAtRecordedColumns).toBe(true);
+      expect(completed).toBe(false);
+
+      pause.release();
+      await waitFor(() => completed);
+      pause.dispose();
+      expect(terminal.cols).toBe(100);
+      expect(gate.replayingAtRecordedColumns).toBe(false);
+      expect(logicalScreen(terminal).join("\n")).toContain("wide");
+    } finally {
+      pause.release();
+      pause.dispose();
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+
+  it("never parses pending spans of a superseded geometry replay and restores dimensions", async () => {
+    const terminal = new Terminal({ ...TERM_OPTIONS, cols: 100, rows: 24 });
+    const gate = new TerminalReplayGate(terminal);
+    const pty: string[] = [];
+    const dropped: string[] = [];
+    terminal.onData((data) => {
+      (gate.shouldDropReply(data) ? dropped : pty).push(data);
+    });
+    const completions: string[] = [];
+    const pause = armParsePause(terminal);
+    try {
+      gate.beginSegments(
+        [
+          { data: "OLD\x1b[Z", columns: 48 },
+          { data: "STALE-SUFFIX\x1b[6n", columns: 100 },
+        ],
+        { complete: () => completions.push("old") },
+      );
+      await waitFor(() => pause.paused());
+      expect(terminal.cols).toBe(48);
+      expect(gate.replayingAtRecordedColumns).toBe(true);
+
+      // Supersede while the first span is still parsing: its queued bytes
+      // drain suppressed, pending spans are never written, dimensions restore.
+      gate.begin("replacement", {
+        before: () => terminal.reset(),
+        complete: () => completions.push("new"),
+      });
+      pause.release();
+      await waitFor(() => completions.includes("new"));
+      pause.dispose();
+      await new Promise<void>((resolve) => terminal.write("", resolve));
+
+      expect(completions).toEqual(["new"]);
+      expect(terminal.cols).toBe(100);
+      expect(gate.replayingAtRecordedColumns).toBe(false);
+      const screen = logicalScreen(terminal).join("\n");
+      expect(screen).toContain("replacement");
+      expect(screen).not.toContain("STALE-SUFFIX");
+      expect(dropped).toHaveLength(0); // the pending span's query never parsed
+    } finally {
+      pause.release();
+      pause.dispose();
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+
+  it("restores recorded-width geometry before a cancelled replay's cleanup runs", async () => {
+    const terminal = new Terminal({ ...TERM_OPTIONS, cols: 100, rows: 24 });
+    const gate = new TerminalReplayGate(terminal);
+    const pause = armParsePause(terminal);
+    const colsAtCleanup: number[] = [];
+    try {
+      gate.beginSegments(
+        [
+          { data: "OLD\x1b[Z", columns: 48 },
+          { data: "NEVER", columns: 100 },
+        ],
+        { complete: () => {} },
+      );
+      await waitFor(() => pause.paused());
+      expect(terminal.cols).toBe(48);
+
+      let cleaned = false;
+      gate.cancel(() => {
+        colsAtCleanup.push(terminal.cols);
+        cleaned = true;
+      });
+      pause.release();
+      await waitFor(() => cleaned);
+      pause.dispose();
+      await new Promise<void>((resolve) => terminal.write("", resolve));
+
+      expect(colsAtCleanup).toEqual([100]); // width restored before cleanup
+      expect(terminal.cols).toBe(100);
+      expect(gate.replayingAtRecordedColumns).toBe(false);
+      const screen = logicalScreen(terminal).join("\n");
+      expect(screen).toContain("OLD"); // the in-flight span still parsed
+      expect(screen).not.toContain("NEVER"); // the pending span never did
+    } finally {
+      pause.release();
+      pause.dispose();
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+
+  it("parses a span without columns at the initial viewport width after a known span", async () => {
+    const terminal = new Terminal({ ...TERM_OPTIONS, cols: 100, rows: 24 });
+    const gate = new TerminalReplayGate(terminal);
+    try {
+      await new Promise<void>((resolve) =>
+        gate.beginSegments(
+          [
+            { data: "narrow\r\n", columns: 48 },
+            // 60 columns of text: wraps at the preceding 48 but not at 100.
+            { data: `${"x".repeat(60)}\r\n` },
+          ],
+          { complete: resolve },
+        ),
+      );
+      const lines = logicalScreen(terminal);
+      expect(lines).toContain("narrow");
+      expect(lines).toContain("x".repeat(60));
+      const wrapped: number[] = [];
+      for (let i = 0; i < terminal.buffer.active.length; i++) {
+        if (terminal.buffer.active.getLine(i)?.isWrapped) {
+          wrapped.push(i);
+        }
+      }
+      // No wrapped continuation row: the unknown span used the initial 100
+      // columns captured at the barrier, not the previous span's 48.
+      expect(wrapped).toEqual([]);
+      expect(terminal.cols).toBe(100);
+    } finally {
+      gate.dispose();
+      terminal.dispose();
+    }
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { collectSecretViolations } from "./harness/secrets.ts";
-import { controlRequest, startLab } from "./helpers/testClient.ts";
+import { controlRequest, randomCapability, startLab } from "./helpers/testClient.ts";
+import { startMockHarness } from "./harness/startMockHarness.ts";
 import { resolveRouteSchemas } from "./harness/schemaValidation.ts";
 import { parseNewsFeed } from "../../src/shared/newsFeed.ts";
 
@@ -198,5 +199,144 @@ describe("secret-free versioned control plane", () => {
     expect(unknown.status).toBe(404);
     const invented = await controlRequest(harness, "/v1/frames/custom-payload", { method: "POST" });
     expect(invented.status).toBe(404);
+  });
+});
+
+describe("opt-in iOS simulator keyboard control route", () => {
+  type KeyboardHarness = Awaited<ReturnType<typeof startMockHarness>> & { capability: string };
+  let harness: KeyboardHarness | undefined;
+
+  async function startKeyboardHarness(
+    press?: (key: string, shift: boolean) => Promise<void>,
+  ): Promise<KeyboardHarness> {
+    const capability = randomCapability();
+    const started = await startMockHarness({
+      capability,
+      control: {
+        port: 0,
+        capability,
+        ...(press ? { pressSimulatorKey: press } : {}),
+      },
+    });
+    return Object.assign(started, { capability });
+  }
+
+  afterEach(async () => {
+    await harness?.stop();
+    harness = undefined;
+  });
+
+  it("authenticates before forwarding any key press", async () => {
+    const calls: Array<[string, boolean]> = [];
+    harness = await startKeyboardHarness(async (key, shift) => {
+      calls.push([key, shift]);
+    });
+    const denied = await fetch(new URL("/v1/simulator/key", harness.controlUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: "a", shift: false }),
+    });
+    expect(denied.status).toBe(401);
+    expect(collectSecretViolations(await denied.json())).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it("returns 404 when no simulator keyboard is enabled", async () => {
+    harness = await startKeyboardHarness();
+    const response = await controlRequest(harness, "/v1/simulator/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: "a", shift: false }),
+    });
+    expect(response.status).toBe(404);
+    expect(collectSecretViolations(await response.json())).toEqual([]);
+  });
+
+  it("rejects malformed bodies and non-POST requests with 400/404", async () => {
+    const calls: Array<[string, boolean]> = [];
+    harness = await startKeyboardHarness(async (key, shift) => {
+      calls.push([key, shift]);
+    });
+    const invalidBodies: unknown[] = [
+      { key: "A", shift: false },
+      { key: "ab", shift: false },
+      { key: "1", shift: false },
+      { key: ";rm -rf", shift: false },
+      { key: "a", shift: "false" },
+      { key: "a" },
+      { shift: false },
+      {},
+      "not-an-object",
+      ["a", false],
+    ];
+    for (const body of invalidBodies) {
+      const response = await controlRequest(harness, "/v1/simulator/key", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+      expect(collectSecretViolations(await response.json())).toEqual([]);
+    }
+    const get = await controlRequest(harness, "/v1/simulator/key", { method: "GET" });
+    expect(get.status).toBe(404);
+    expect(calls).toEqual([]);
+  });
+
+  it("rejects an extra command:false field and forwards nothing", async () => {
+    const calls: Array<[string, boolean]> = [];
+    harness = await startKeyboardHarness(async (key, shift) => {
+      calls.push([key, shift]);
+    });
+    const response = await controlRequest(harness, "/v1/simulator/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: "a", shift: false, command: false }),
+    });
+    expect(response.status).toBe(400);
+    expect(collectSecretViolations(await response.json())).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it("accepts a bounded key press and forwards only the validated fields", async () => {
+    const calls: Array<[string, boolean]> = [];
+    harness = await startKeyboardHarness(async (key, shift) => {
+      calls.push([key, shift]);
+    });
+    const letter = await controlRequest(harness, "/v1/simulator/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: "z", shift: true }),
+    });
+    expect(letter.status).toBe(200);
+    expect(await letter.json()).toEqual({ ok: true });
+    const comma = await controlRequest(harness, "/v1/simulator/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: ",", shift: false }),
+    });
+    expect(comma.status).toBe(200);
+    expect(await comma.json()).toEqual({ ok: true });
+    expect(calls).toEqual([
+      ["z", true],
+      [",", false],
+    ]);
+  });
+
+  it("never leaks raw process errors into the HTTP response", async () => {
+    harness = await startKeyboardHarness(async () => {
+      throw new Error("idb_companion grpc raw detail ENOENT /var/folders/secret");
+    });
+    const response = await controlRequest(harness, "/v1/simulator/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: "a", shift: false }),
+    });
+    expect(response.status).toBe(502);
+    const raw = await response.text();
+    expect(raw).not.toContain("grpc raw detail");
+    expect(raw).not.toContain("idb_companion");
+    expect(raw).not.toContain("ENOENT");
+    expect(collectSecretViolations(JSON.parse(raw) as unknown)).toEqual([]);
   });
 });

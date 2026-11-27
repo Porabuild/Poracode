@@ -445,9 +445,11 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     if (this.failed) return;
     const pending = this.pendingTerminalOutput.get(event.threadId);
     if (pending) {
-      // Never coalesce across terminal generations — a restart must not splice
-      // old instance bytes onto a new cursor space.
-      if (pending.terminalInstanceId !== event.terminalInstanceId) {
+      // Keep a single instance and column count per batch.
+      if (
+        pending.terminalInstanceId !== event.terminalInstanceId ||
+        pending.terminalColumns !== event.terminalColumns
+      ) {
         this.flushTerminalOutputForThread(event.threadId);
         this.pendingTerminalOutput.set(event.threadId, { ...event });
       } else {

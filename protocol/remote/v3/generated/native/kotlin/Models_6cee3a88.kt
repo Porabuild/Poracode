@@ -91,6 +91,21 @@ data class ProcedurereadProjectFileResult_891e9ab241(
 
 typealias ProcedurereadTerminalSizeResult_2d2a48957e = ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09?
 
+typealias ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItemU2DColumns_7b1fe7d08a = Long?
+
+@Serializable
+data class ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItem_fc33becf88(
+    @SerialName("columns") val columns: RemoteField<Long>,
+    @SerialName("fromCursor") val fromCursor: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("columns", "Long", true, true, 20.0, 400.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("fromCursor", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
 @Serializable
 enum class ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a9bc12 {
     @SerialName("running") RUNNING,
@@ -98,7 +113,8 @@ enum class ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a
 }
 
 @Serializable
-data class ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782(
+data class ProcedurereadTerminalSnapshotResultU2DOptionU2D1_95daca4313(
+    @SerialName("columnChanges") val columnChanges: RemoteField<List<ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItem_fc33becf88>> = RemoteField.Missing,
     @SerialName("data") val data: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b,
     @SerialName("fromCursor") val fromCursor: Long,
     @SerialName("generation") val generation: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>,
@@ -108,6 +124,7 @@ data class ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782(
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("columnChanges", "List<ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItem_fc33becf88>", false, false, null, null, null, null, null, 2049, null, null, listOf()),
             RemoteFieldDescriptor("data", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("fromCursor", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("generation", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
@@ -118,7 +135,7 @@ data class ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782(
     }
 }
 
-typealias ProcedurereadTerminalSnapshotResult_b67f4828f0 = ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782?
+typealias ProcedurereadTerminalSnapshotResult_575ba25e2b = ProcedurereadTerminalSnapshotResultU2DOptionU2D1_95daca4313?
 
 @Serializable
 enum class ProcedurereadThreadBackgroundTasksResultU2DItemU2DCategory_6d7393f750 {

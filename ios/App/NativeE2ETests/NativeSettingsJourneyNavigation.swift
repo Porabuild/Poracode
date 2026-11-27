@@ -21,11 +21,7 @@ extension NativeFamilyJourneyUITests {
     attachment.lifetime = .keepAlways
     add(attachment)
     XCTAssertTrue(action.isHittable)
-    // A system toolbar supplies its own hit behavior. XCTest reports the
-    // accessibility element frame, which can be smaller than the default
-    // 44-point control size. Check both dimensions against Apple's 28-point minimum.
-    XCTAssertGreaterThanOrEqual(actionFrame.width, 28)
-    XCTAssertGreaterThanOrEqual(actionFrame.height, 28)
+    assertNativeToolbarActionMinimumSize(action)
     if let keyboardFrame {
       XCTAssertLessThanOrEqual(actionFrame.maxY, keyboardFrame.minY,
         "Page actions must remain above the visible keyboard")
@@ -34,6 +30,17 @@ extension NativeFamilyJourneyUITests {
         "A page action with no keyboard must remain in the lower portion of the sheet")
       assertNativeDuoToolbarRail(action)
     }
+  }
+
+  func assertNativeToolbarActionMinimumSize(
+    _ action: XCUIElement, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    // A system toolbar supplies its own hit behavior. XCTest reports the
+    // accessibility element frame, which can be smaller than the default
+    // 44-point control size. Check both dimensions against Apple's 28-point minimum.
+    let frame = action.frame
+    XCTAssertGreaterThanOrEqual(frame.width, 28, file: file, line: line)
+    XCTAssertGreaterThanOrEqual(frame.height, 28, file: file, line: line)
   }
 
   func assertNativeDuoToolbarRail(

@@ -6,10 +6,12 @@
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import net from "node:net";
-import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
-import { chmod, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, rmSync } from "node:fs";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { IOS_UI_SHARD_ENV, parseIosUiShard, planIosUiShard } from "./ios-ui-test-shards.mjs";
 
 const STARTUP_TIMEOUT_MS = Number(process.env.NATIVE_E2E_STARTUP_TIMEOUT_MS ?? 30_000);
 const TEST_TIMEOUT_MS = Number(process.env.NATIVE_E2E_TEST_TIMEOUT_MS ?? 120_000);
@@ -28,6 +30,10 @@ const IOS_UI_RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-5";
 // build cache and is never pruned here.
 export const IOS_UI_MAX_RUN_DIRS = 5;
 const IOS_UI_RUN_DIR_PATTERN = /^ios-ui-\d+-\d+$/;
+// Injected per-run xctestrun (harness control URL/capability). Excluded from
+// the generated-xctestrun lookup so an interrupted cleanup cannot leave a stale
+// injected runner as the inventory source on a later run.
+const IOS_UI_READINESS_XCTESTRUN = "NativeE2E-readiness.xctestrun";
 
 const SECRET_VALUE_PATTERN = /(lc_pair_|lc_access_|lc_ws_)[A-Za-z0-9_-]+/g;
 const FRAGMENT_SECRET_PATTERN = /([#&?](?:token|ticket|access_token|capability)=)[^&\s"']+/gi;
@@ -270,6 +276,34 @@ export function selectPrunableIosRunDirs(names, keep = IOS_UI_MAX_RUN_DIRS) {
 export const IOS_PHYSICAL_UDID_ENV = "NATIVE_E2E_IOS_PHYSICAL_UDID";
 export const DEVICE_HOST_ENV = "NATIVE_E2E_DEVICE_HOST";
 export const DEVICE_FORWARD_ENV = "NATIVE_E2E_DEVICE_FORWARD";
+export const IOS_HID_ENV = "NATIVE_E2E_IOS_HID";
+
+/**
+ * Opt-in iOS simulator HID qualification, scoped to the hardware
+ * command-shortcut journeys: with NATIVE_E2E_IOS_HID=1 the mock WireLab
+ * harness drives the fixed simulator through a private native HID helper
+ * (idb_companion over a socket root this supervisor owns and removes), while
+ * the XCTest runners keep their explicit Duo transition
+ * (NATIVE_E2E_DUO_TRANSITION_URL) and legacy Find-key
+ * (NATIVE_E2E_FIND_KEY_URL) overrides at their existing priority. A physical
+ * CoreDevice target has no simulator HID channel and the real-peer production
+ * host has no simulator at all, so either combination is rejected at the
+ * early gate, before any simctl, xcodebuild, or harness process starts. The
+ * mock native CI job opts in to this simulator input path.
+ */
+export function assertIosHidTarget({ hid, physicalUdid, peerMode }) {
+  if (!hid) return;
+  if (physicalUdid) {
+    throw new Error(
+      `${IOS_HID_ENV}=1 requires the mock simulator journey; ${IOS_PHYSICAL_UDID_ENV} is set`,
+    );
+  }
+  if (peerMode !== "mock") {
+    throw new Error(
+      `${IOS_HID_ENV}=1 requires the mock harness; NATIVE_E2E_PEER_MODE=real is not supported`,
+    );
+  }
+}
 
 // Physical UDIDs are either the legacy 40-hex form or a UUID (simulators use
 // the same UUID form). Anything else — a device name, a typo — must fail
@@ -435,6 +469,42 @@ export async function startLoopbackForwarders({ listenHost, ports, targetHost = 
   };
 }
 
+/**
+ * Watches the ios-ui wire-lab child. `harness` is any EventEmitter-like child
+ * (a real ChildProcess in production, a stub in tests); `exit`/`error` events
+ * are the only signals, with no polling, sleep, or retry. Before readiness a
+ * failure rejects the readiness promise; after readiness it stops the owned
+ * XCTest child and flags the journey to fail once evidence is collected. After
+ * XCTest finishes (`isDone`) the journey's own teardown is ignored.
+ *
+ * A failed spawn emits `error` and never `exit`, and an unhandled `error` event
+ * would crash the process, so both events are listened to. Returns a live state
+ * object whose `harnessDied` flag the journey consults.
+ */
+export function watchIosHarnessExit({ harness, isReady, isDone, rejectReady, killChildren }) {
+  const state = { harnessDied: false };
+  const onFailure = (error) => {
+    if (isDone()) return;
+    if (!isReady()) {
+      rejectReady(error);
+      return;
+    }
+    state.harnessDied = true;
+    killChildren("SIGTERM");
+  };
+  harness.on("exit", (code) =>
+    onFailure(new Error(`native iOS harness exited early (${String(code)})`)),
+  );
+  harness.on("error", (cause) =>
+    onFailure(
+      new Error(
+        `native iOS harness failed to spawn: ${cause instanceof Error ? cause.message : String(cause)}`,
+      ),
+    ),
+  );
+  return state;
+}
+
 async function runIosUIJourney({ registerShutdown }) {
   // Physical-device opt-in (qualification design §iOS): with
   // IOS_PHYSICAL_UDID_ENV set the journey targets the CoreDevice destination
@@ -466,6 +536,11 @@ async function runIosUIJourney({ registerShutdown }) {
   }
   // Validate the selector before any harness, simulator, or xcodebuild work.
   const physicalTarget = physicalUdid ? selectIosTestDestination({ physicalUdid }) : null;
+  // Parse the optional shard selector at the same early gate: a malformed
+  // NATIVE_E2E_IOS_SHARD must fail before simctl, the build, or the wire-lab.
+  // null (the omitted case) keeps the unsharded journey and its full selector
+  // set, including the real-peer qualification which never sets a shard.
+  const iosUiShard = parseIosUiShard(process.env[IOS_UI_SHARD_ENV]);
   // E.2 real-peer mode: with NATIVE_E2E_PEER_MODE=real the journey runs the
   // family tests against the production headless host instead of the mock
   // wire lab. The harness is then started in real mode (it needs
@@ -474,6 +549,10 @@ async function runIosUIJourney({ registerShutdown }) {
   // and requires `mode=real`.
   const peerMode = process.env.NATIVE_E2E_PEER_MODE === "real" ? "real" : "mock";
   const harnessMode = peerMode === "real" ? "real" : "mock";
+  // Opt-in simulator HID qualification: mock-simulator-only. Reject a physical
+  // CoreDevice target or the real-peer host before any process starts.
+  const iosHid = process.env[IOS_HID_ENV] === "1";
+  assertIosHidTarget({ hid: iosHid, physicalUdid, peerMode });
   const uiCapability = randomBytes(32).toString("base64url");
   const uiSlot = process.env[SLOT_ENV] ?? "0";
   const nativeE2ERoot = join(repoRoot, ".tmp/native-e2e");
@@ -484,74 +563,36 @@ async function runIosUIJourney({ registerShutdown }) {
   await mkdir(uiRoot, { recursive: true, mode: 0o700 });
   await pruneIosUIRunDirs(nativeE2ERoot);
 
-  const harness = spawn(
-    process.execPath,
-    [
-      "--import",
-      tsRegisterPath,
-      "--no-warnings=ExperimentalWarning",
-      cliPath,
-      "--mode",
-      harnessMode,
-      "--slot",
-      uiSlot,
-    ],
-    {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        NATIVE_E2E_MODE: harnessMode,
-        [SLOT_ENV]: uiSlot,
-        NATIVE_E2E_CONTROL_CAPABILITY: uiCapability,
-        NATIVE_E2E_STARTUP_TIMEOUT_MS: String(STARTUP_TIMEOUT_MS),
-        NATIVE_E2E_TEST_TIMEOUT_MS: String(Math.max(TEST_TIMEOUT_MS, 300_000)),
-        NATIVE_E2E_SHUTDOWN_TIMEOUT_MS: String(SHUTDOWN_WAIT_MS),
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: process.platform !== "win32",
-    },
-  );
-
-  let controlUrl;
-  let realPeerPairingUrl;
-  // Function scope: the finally closes the forwarders even when a throw (for
-  // example a harness startup timeout) happens before they are started.
-  let forwarders = null;
-  const ready = new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error("native iOS harness startup timed out")),
-      STARTUP_TIMEOUT_MS,
-    );
-    const consume = createLineRedactor(
-      (output) => process.stderr.write(output),
-      (line) => {
-        const match = line.match(/control=(http:\/\/127\.0\.0\.1:\d+)/);
-        if (!match) return;
-        controlUrl = match[1];
-        if (harnessMode === "real") {
-          const runDir = line.match(/runDir=(\S+)/)?.[1];
-          if (runDir) realPeerPairingUrl = readRealPeerPairingUrl(runDir);
-        }
-        clearTimeout(timer);
-        resolve();
-      },
-    );
-    harness.stdout?.on("data", consume);
-    harness.stderr?.on("data", consume);
-    harness.once("exit", (code) =>
-      reject(new Error(`native iOS harness exited early (${String(code)})`)),
-    );
-  });
-
-  // Only the simulator path assigns this; the physical path never selects a
-  // simulator. `readinessPath` spans both paths (deleted in the finally).
+  // Cleanup state spans the whole journey: the harness is only spawned after
+  // build-for-testing (Phase 2), and its bounded test budget starts at spawn,
+  // so the compile must not run while it is alive. `journeyDone` gates the exit
+  // watcher once XCTest returns, so the finally's teardown kill is not treated
+  // as a mid-suite failure.
   let simulatorId;
   let readinessPath;
+  let forwarders = null;
+  let harness;
+  let journeyDone = false;
+  // The opt-in HID socket root is OWNED by this supervisor, never the harness
+  // or the test app. One idempotent helper is shared by the normal finally and
+  // both signal finish paths, so cancellation during the abort race can no
+  // longer leave the companion's short-lived socket directory behind.
+  let hidSocketRoot = null;
+  const cleanupHidSocketRoot = () => {
+    if (!hidSocketRoot) return;
+    const root = hidSocketRoot;
+    hidSocketRoot = null; // one destructive cleanup only
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Best-effort: never mask the primary test error, never block shutdown.
+    }
+  };
   // Kill the harness process group on signals; the fixed simulator survives
   // (it is reused), and per-run artifacts stay bounded through pruning.
   let shuttingDown = false;
   const killHarnessGroup = (signal) => {
-    if (!harness.pid) return;
+    if (!harness?.pid) return;
     try {
       if (process.platform !== "win32") process.kill(-harness.pid, signal);
       else harness.kill(signal);
@@ -563,6 +604,8 @@ async function runIosUIJourney({ registerShutdown }) {
       }
     }
   };
+  // Registered before the build so a signal during the long compile still
+  // kills the owned xcodebuild/simctl children.
   registerShutdown((code = 1) => {
     if (shuttingDown) return;
     shuttingDown = true;
@@ -571,15 +614,21 @@ async function runIosUIJourney({ registerShutdown }) {
     const killer = setTimeout(() => {
       killHarnessGroup("SIGKILL");
       killTrackedChildren("SIGKILL");
+      cleanupHidSocketRoot();
       process.exit(code);
     }, SHUTDOWN_WAIT_MS);
-    harness.once("exit", () => {
-      clearTimeout(killer);
-      process.exit(code);
-    });
+    if (harness) {
+      harness.once("exit", () => {
+        clearTimeout(killer);
+        killTrackedChildren("SIGKILL");
+        cleanupHidSocketRoot();
+        process.exit(code);
+      });
+    }
   });
   try {
-    await ready;
+    // Phase 1: select/boot the target and build-for-testing before the harness
+    // exists, so its bounded test budget is spent on XCTest, not a cold compile.
     let target = physicalTarget;
     if (target) {
       // Physical device: xcodebuild talks to CoreDevice directly; the
@@ -633,10 +682,179 @@ async function runIosUIJourney({ registerShutdown }) {
       throw new Error(`native iOS UI build-for-testing failed (${String(buildStatus)})`);
     }
     const products = join(derivedData, "Build", "Products");
-    const generatedName = (await readdir(products)).find((name) => name.endsWith(".xctestrun"));
+    const generatedName = (await readdir(products)).find(
+      (name) => name.endsWith(".xctestrun") && name !== IOS_UI_READINESS_XCTESTRUN,
+    );
     if (!generatedName) throw new Error("native iOS build did not produce an xctestrun file");
-    readinessPath = join(products, "NativeE2E-readiness.xctestrun");
     const generated = await readFile(join(products, generatedName), "utf8");
+
+    // Evidence-based sharding: only when NATIVE_E2E_IOS_SHARD is set, enumerate
+    // the compiled mock cases from the ORIGINAL generated xctestrun before the
+    // wire-lab starts, so the harness's bounded test budget still excludes both
+    // the build and this enumeration. The unsharded journey (and real-peer
+    // qualification, which never sets a shard) keeps the broad selector set.
+    let shardTestingFlags = null;
+    if (iosUiShard) {
+      const compiledTestsPath = join(uiRoot, "compiled-tests.json");
+      const enumerationStatus = await runStreaming(
+        "xcodebuild",
+        [
+          "-xctestrun",
+          join(products, generatedName),
+          "-destination",
+          target.destination,
+          ...iosOnlyTestingFlags(),
+          "-parallel-testing-enabled",
+          "NO",
+          "-enumerate-tests",
+          "-test-enumeration-style",
+          "flat",
+          "-test-enumeration-format",
+          "json",
+          "-test-enumeration-output-path",
+          compiledTestsPath,
+          "test-without-building",
+        ],
+        process.env,
+        uiCapability,
+      );
+      if (enumerationStatus !== 0) {
+        throw new Error(`native iOS test enumeration failed (${String(enumerationStatus)})`);
+      }
+      let compiledInventory;
+      try {
+        compiledInventory = await readFile(compiledTestsPath, "utf8");
+      } catch (error) {
+        throw new Error(
+          `native iOS test enumeration did not write ${compiledTestsPath}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      }
+      let shardPlan;
+      try {
+        shardPlan = planIosUiShard(compiledInventory, iosUiShard);
+      } catch (error) {
+        throw new Error(
+          `native iOS shard planning failed: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      }
+      // shard-selection.json records the configured plan, written before the
+      // run starts (not a post-run result): total compiled IDs plus this job's
+      // assigned selectors, for the final disjoint/exhaustive audit.
+      await writeFile(
+        join(uiRoot, "shard-selection.json"),
+        `${JSON.stringify(
+          {
+            shard: `${iosUiShard.index}/${iosUiShard.count}`,
+            totalIdentifiers: shardPlan.totalIdentifiers,
+            assignedIdentifiers: shardPlan.assignedIdentifiers,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      // Per-identifier -only-testing flags replace the broad selectors at the
+      // actual XCTest step, so Xcode runs exactly this shard (no union).
+      shardTestingFlags = shardPlan.assignedIdentifiers.map(
+        (identifier) => `-only-testing:${identifier}`,
+      );
+    }
+
+    // Phase 2 owns the opt-in HID socket root: create ONE short-lived private
+    // directory only after build + enumeration (a failed compile or shard plan
+    // never leaves a stray dir) and only for the opt-in. The harness reads it
+    // from a dedicated socket-root env var; this supervisor removes it on every
+    // finish path. The default no-HID journey is unchanged.
+    if (iosHid) {
+      hidSocketRoot = await mkdtemp(join(tmpdir(), "pora-hid-"));
+    }
+
+    // Phase 2: spawn the wire-lab after the build; its budget now starts just
+    // before XCTest. The iOS mock runner names its primary fixture host;
+    // real/Android/default names are untouched.
+    harness = spawn(
+      process.execPath,
+      [
+        "--import",
+        tsRegisterPath,
+        "--no-warnings=ExperimentalWarning",
+        cliPath,
+        "--mode",
+        harnessMode,
+        "--slot",
+        uiSlot,
+        ...(harnessMode === "mock" ? ["--lab-label", "Navigation Host A"] : []),
+        ...(iosHid && harnessMode === "mock" ? ["--ios-hid-udid", simulatorId] : []),
+      ],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          NATIVE_E2E_MODE: harnessMode,
+          [SLOT_ENV]: uiSlot,
+          NATIVE_E2E_CONTROL_CAPABILITY: uiCapability,
+          NATIVE_E2E_STARTUP_TIMEOUT_MS: String(STARTUP_TIMEOUT_MS),
+          NATIVE_E2E_TEST_TIMEOUT_MS: String(Math.max(TEST_TIMEOUT_MS, 300_000)),
+          NATIVE_E2E_SHUTDOWN_TIMEOUT_MS: String(SHUTDOWN_WAIT_MS),
+          ...(iosHid ? { NATIVE_E2E_IOS_HID_SOCKET_ROOT: hidSocketRoot } : {}),
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+        detached: process.platform !== "win32",
+      },
+    );
+
+    let controlUrl;
+    let realPeerPairingUrl;
+    let harnessReady = false;
+    let startupTimer;
+    let failStartup;
+    const ready = new Promise((resolve, reject) => {
+      // Every settle path (control line, startup timeout, early exit/spawn
+      // error) clears the startup timer so it never stays armed.
+      failStartup = (error) => {
+        clearTimeout(startupTimer);
+        reject(error);
+      };
+      startupTimer = setTimeout(
+        () => failStartup(new Error("native iOS harness startup timed out")),
+        STARTUP_TIMEOUT_MS,
+      );
+      const consume = createLineRedactor(
+        (output) => process.stderr.write(output),
+        (line) => {
+          const match = line.match(/control=(http:\/\/127\.0\.0\.1:\d+)/);
+          if (!match) return;
+          controlUrl = match[1];
+          if (harnessMode === "real") {
+            const runDir = line.match(/runDir=(\S+)/)?.[1];
+            if (runDir) realPeerPairingUrl = readRealPeerPairingUrl(runDir);
+          }
+          harnessReady = true;
+          clearTimeout(startupTimer);
+          resolve();
+        },
+      );
+      harness.stdout?.on("data", consume);
+      harness.stderr?.on("data", consume);
+    });
+    // Fail startup fast on early exit/spawn error; stop the owned XCTest on a
+    // post-readiness exit (mid-suite bail-out).
+    const harnessExit = watchIosHarnessExit({
+      harness,
+      isReady: () => harnessReady,
+      isDone: () => journeyDone,
+      rejectReady: (error) => failStartup(error),
+      killChildren: killTrackedChildren,
+    });
+
+    await ready;
+
+    // Phase 3: inject the harness control URL/capability into the xctestrun,
+    // then run XCTest.
+    readinessPath = join(products, IOS_UI_READINESS_XCTESTRUN);
     const interfaceStyle = process.env.NATIVE_E2E_INTERFACE_STYLE;
     // Real-peer family journeys: the pairing credential is minted by the real
     // harness itself (`secrets/real-peer-pairing.json` in its run dir) and
@@ -671,6 +889,7 @@ async function runIosUIJourney({ registerShutdown }) {
         ...(interfaceStyle === "Dark" || interfaceStyle === "Light"
           ? { NATIVE_E2E_INTERFACE_STYLE: interfaceStyle }
           : {}),
+        ...(iosHid ? { NATIVE_E2E_IOS_HID: "1" } : {}),
       }),
       { mode: 0o600 },
     );
@@ -691,6 +910,13 @@ async function runIosUIJourney({ registerShutdown }) {
       );
     }
 
+    // If the control host died between readiness and launching XCTest, fail
+    // now rather than run the whole suite against a dead host.
+    if (harnessExit.harnessDied) {
+      throw new Error("native iOS harness exited before XCTest started");
+    }
+
+    const onlyTestingFlags = shardTestingFlags ?? iosOnlyTestingFlags();
     const status = await runStreaming(
       "xcodebuild",
       [
@@ -700,7 +926,7 @@ async function runIosUIJourney({ registerShutdown }) {
         target.destination,
         "-resultBundlePath",
         resultBundle,
-        ...iosOnlyTestingFlags(),
+        ...onlyTestingFlags,
         "-parallel-testing-enabled",
         "NO",
         "test-without-building",
@@ -708,6 +934,7 @@ async function runIosUIJourney({ registerShutdown }) {
       process.env,
       uiCapability,
     );
+    journeyDone = true;
     // Attachment export happens immediately after the runner returns and
     // before the status is enforced, so a failed UI test still yields its
     // screenshots. The result bundle stays the authoritative artifact for the
@@ -734,10 +961,14 @@ async function runIosUIJourney({ registerShutdown }) {
     if (attachmentsPath) {
       process.stderr.write(`native iOS XCTest attachments: ${attachmentsPath}\n`);
     }
+    if (harnessExit.harnessDied) {
+      throw new Error("native iOS harness exited unexpectedly during XCTest");
+    }
     if (status !== 0) throw new Error(`native iOS UI journey failed (${String(status)})`);
   } finally {
+    journeyDone = true;
     if (forwarders) await forwarders.close().catch(() => {});
-    if (harness.pid) {
+    if (harness?.pid) {
       try {
         process.kill(-harness.pid, "SIGTERM");
       } catch {
@@ -750,6 +981,7 @@ async function runIosUIJourney({ registerShutdown }) {
       await runBuffered("xcrun", ["simctl", "delete", "unavailable"]).catch(() => {});
     }
     if (readinessPath) await unlink(readinessPath).catch(() => {});
+    cleanupHidSocketRoot();
   }
 }
 

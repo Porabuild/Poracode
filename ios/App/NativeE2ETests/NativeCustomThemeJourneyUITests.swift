@@ -124,7 +124,11 @@ extension NativeFamilyJourneyUITests {
     app.buttons["native-e2e.theme.create"].tap()
     let name = app.textFields["native-e2e.theme.name"]
     replaceThemeField(name, with: "Portable Theme Check")
-    app.buttons["native-e2e.theme.export"].tap()
+    let keyboard = app.keyboards.firstMatch
+    if keyboard.exists { keyboard.buttons["Return"].tap() }
+    let exportTheme = app.buttons["native-e2e.theme.export"]
+    try await poll { exportTheme.exists && exportTheme.isHittable }
+    exportTheme.tap()
     customThemeLayout("file-export")
     let local = app.staticTexts.matching(NSPredicate(format: "label IN %@", ["On My iPad", "On My iPhone"])).firstMatch
     if local.waitForExistence(timeout: 3), local.isHittable { local.tap() }

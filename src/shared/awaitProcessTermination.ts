@@ -49,6 +49,16 @@ export async function awaitProcessTermination(
     child.on("error", onError);
     terminateChildProcessTree(child, options);
     forceTimer = setTimeout(() => {
+      // A stalled loop can make independent timers due together. Start the exit
+      // window when escalation begins.
+      deadline = setTimeout(() => {
+        cleanup();
+        reject(
+          new Error(
+            `Subagent process did not exit after termination${lastError ? `: ${lastError.message}` : ""}`,
+          ),
+        );
+      }, graceMs);
       try {
         if (ownsGroup) process.kill(-pid, "SIGKILL");
         else if (!exited) child.kill("SIGKILL");
@@ -56,14 +66,6 @@ export async function awaitProcessTermination(
         lastError = error instanceof Error ? error : new Error(String(error));
       }
     }, graceMs);
-    deadline = setTimeout(() => {
-      cleanup();
-      reject(
-        new Error(
-          `Subagent process did not exit after termination${lastError ? `: ${lastError.message}` : ""}`,
-        ),
-      );
-    }, graceMs * 2);
     // An exited group leader can leave live descendants, so still kill its owned group.
     if (ownsGroup) groupTimer = setInterval(check, 20);
     exited ||= child.exitCode != null || child.signalCode != null;

@@ -28,6 +28,10 @@ struct TerminalRenderedText: Sendable, Equatable {
 
 /// Projects the cursor and SGR subset used by Poracode's PTY byte stream into stable text.
 /// Unknown escape sequences are consumed, never displayed as control garbage.
+/// `columnChanges` carries accepted PTY widths as chronological absolute UTF-16
+/// markers; `fromCursor` is the absolute cursor of `source`'s first unit. A nil
+/// `columns` marker (or no markers at all) keeps the original widthless
+/// projection for that span.
 enum TerminalANSIParser {
   private static let maximumCursorColumn = TerminalCursorReconciler.maximumTranscriptUTF16Units
   private static let maximumRenderedCells = 2 * TerminalCursorReconciler.maximumTranscriptUTF16Units
@@ -38,15 +42,25 @@ enum TerminalANSIParser {
     var width = 1
   }
 
-  static func render(_ source: String) -> TerminalRenderedText {
+  static func render(
+    _ source: String,
+    fromCursor: Int64 = 0,
+    columnChanges: [TerminalCursorColumnChange] = []
+  ) -> TerminalRenderedText {
+    var widthLimit: Int? = nil
+    var changeIndex = 0
+    var cursorOffset = fromCursor
+    var offsetIndex = 0
     let characters = Array(source.unicodeScalars)
     var lines: [ArraySlice<Cell>] = [[]]
+    var lineSoftWraps = [false]
     var renderedCells = 0
     var row = 0
     var column = 0
     var style = TerminalANSIStyle()
     var index = 0
     var canJoinPrevious = false
+    var wrapPending = false
 
     func reserveCells(_ additional: Int) {
       let available = maximumRenderedCells - additional
@@ -57,6 +71,7 @@ enum TerminalANSIParser {
       }
       if removedRows > 0 {
         lines.removeFirst(removedRows)
+        lineSoftWraps.removeFirst(removedRows)
         row -= removedRows
       }
       if renderedCells > available {
@@ -70,18 +85,54 @@ enum TerminalANSIParser {
       }
     }
 
+    func advanceRow(soft: Bool, resetColumn: Bool) {
+      if row == lines.count - 1 { reserveCells(1) }
+      lineSoftWraps[row] = soft
+      row += 1
+      if row == lines.count {
+        lines.append([])
+        lineSoftWraps.append(false)
+        renderedCells += 1
+      }
+      if resetColumn { column = 0 }
+      wrapPending = false
+    }
+
+    func softWrapRow() {
+      advanceRow(soft: true, resetColumn: true)
+    }
+
     func write(_ scalar: Unicode.Scalar) {
       let scalarWidth = TerminalUnicodeWidth.columns(for: scalar)
       if scalarWidth == 0 && canJoinPrevious {
-        var previous = min(column, lines[row].count) - 1
+        let baseEnd = wrapPending ? column + 1 : column
+        var previous = min(baseEnd, lines[row].count) - 1
         while previous >= 0 && lines[row][lines[row].startIndex + previous].width == 0 {
           previous -= 1
         }
         if previous >= 0 { lines[row][lines[row].startIndex + previous].text += String(scalar) }
         return
       }
-      let width = max(1, scalarWidth)
+      var width = max(1, scalarWidth)
+      if let widthLimit { width = min(width, widthLimit) }
       canJoinPrevious = true
+
+      if let widthLimit {
+        if wrapPending { softWrapRow() }
+        if width > widthLimit - column {
+          let missing = max(0, widthLimit - lines[row].count)
+          reserveCells(missing)
+          while lines[row].count < widthLimit {
+            lines[row].append(Cell(text: " ", style: style))
+            renderedCells += 1
+          }
+          // A wide glyph that wraps off the last column clears that boundary
+          // cell first, matching xterm's pending-wrap behavior.
+          eraseCell(at: widthLimit - 1, in: &lines[row], style: style)
+          softWrapRow()
+        }
+      }
+
       if column + width - lines[row].count > maximumRenderedCells {
         column = maximumRenderedCells - width
       }
@@ -94,42 +145,88 @@ enum TerminalANSIParser {
       let position = lines[row].startIndex + column
       lines[row][position] = Cell(text: String(scalar), style: style, width: width)
       if width == 2 { lines[row][position + 1] = Cell(text: "", style: style, width: 0) }
-      column += width
+
+      if let widthLimit {
+        if column + width == widthLimit {
+          column = widthLimit - 1
+          wrapPending = true
+        } else {
+          column += width
+          wrapPending = false
+        }
+      } else {
+        column += width
+      }
+    }
+
+    /// Advance the absolute cursor offset to `index` and apply every width
+    /// marker at or before it. Runs before each scalar and again at a CSI
+    /// terminator so a width change inside an escape applies before the
+    /// command executes.
+    func advanceMarkers(at index: Int) {
+      for previous in offsetIndex..<index {
+        cursorOffset += characters[previous].value > 0xffff ? 2 : 1
+      }
+      offsetIndex = index
+      while changeIndex < columnChanges.count,
+        columnChanges[changeIndex].fromCursor <= cursorOffset
+      {
+        let nextWidth = usableColumns(columnChanges[changeIndex].columns)
+        if nextWidth != widthLimit {
+          // A pending wrap leaves the logical cursor one cell past the last
+          // column; keep that position through the width change.
+          if wrapPending { column += 1 }
+          widthLimit = nextWidth
+          if let nextWidth { column = min(column, nextWidth - 1) }
+          wrapPending = false
+        }
+        changeIndex += 1
+      }
     }
 
     while index < characters.count {
+      if changeIndex < columnChanges.count { advanceMarkers(at: index) }
       let character = characters[index]
       if character.value < 0x20 { canJoinPrevious = false }
       switch character {
       case "\n":
-        reserveCells(1)
-        row += 1
-        if row == lines.count { lines.append([]) }
-        renderedCells += 1
-        column = 0
+        if widthLimit == nil { column = 0 }
+        advanceRow(soft: false, resetColumn: widthLimit == nil)
         index += 1
       case "\r":
         column = 0
+        wrapPending = false
         index += 1
       case "\u{8}":
         column = max(0, column - 1)
+        wrapPending = false
         index += 1
       case "\t":
-        let spaces = 8 - column % 8
-        for _ in 0..<spaces { write(" ") }
+        if let widthLimit {
+          // A known width jumps to the next eight-column stop without filling
+          // cells; a pending wrap is left untouched.
+          column = min(((column / 8) + 1) * 8, widthLimit - 1)
+        } else {
+          let spaces = 8 - column % 8
+          for _ in 0..<spaces { write(" ") }
+        }
         canJoinPrevious = false
         index += 1
       case "\u{1B}":
         let parsed = parseEscape(characters, startingAt: index)
         index = parsed.nextIndex
         guard let command = parsed.command else { continue }
+        if changeIndex < columnChanges.count { advanceMarkers(at: index - 1) }
         apply(
           command,
           lines: &lines,
+          lineSoftWraps: &lineSoftWraps,
           row: &row,
           column: &column,
           style: &style,
-          renderedCells: &renderedCells
+          renderedCells: &renderedCells,
+          wrapPending: &wrapPending,
+          widthLimit: widthLimit
         )
       default:
         if character.value >= 0x20 && character.value != 0x7F {
@@ -158,12 +255,22 @@ enum TerminalANSIParser {
     }
     for lineIndex in lines.indices {
       for cell in lines[lineIndex] { appendCell(cell) }
-      if lineIndex < lines.count - 1 {
+      if lineIndex < lines.count - 1 && !lineSoftWraps[lineIndex] {
         appendCell(Cell(text: "\n", style: TerminalANSIStyle()))
       }
     }
     flushRun()
     return TerminalRenderedText(runs: runs)
+  }
+
+  /// Usable observed width; anything outside the known range is an unknown
+  /// (widthless) span rather than a hard failure.
+  private static func usableColumns(_ columns: Int?) -> Int? {
+    guard let columns,
+      columns >= TerminalCursorReconciler.minimumTerminalColumns,
+      columns <= TerminalCursorReconciler.maximumTerminalColumns
+    else { return nil }
+    return columns
   }
 
   // ArraySlice makes prefix eviction constant-time. Compact once the discarded
@@ -237,26 +344,39 @@ enum TerminalANSIParser {
   private static func apply(
     _ command: Command,
     lines: inout [ArraySlice<Cell>],
+    lineSoftWraps: inout [Bool],
     row: inout Int,
     column: inout Int,
     style: inout TerminalANSIStyle,
-    renderedCells: inout Int
+    renderedCells: inout Int,
+    wrapPending: inout Bool,
+    widthLimit: Int?
   ) {
     let first = command.parameters.first ?? 0
     switch command.final {
+    case "A" where widthLimit != nil:
+      var remaining = max(1, first)
+      while remaining > 0 && row > 0 && lineSoftWraps[row - 1] {
+        row -= 1
+        remaining -= 1
+      }
+      wrapPending = false
     case "m": applySGR(command.parameters.isEmpty ? [0] : command.parameters, to: &style)
     case "K":
       let previousCount = lines[row].count
+      // A pending wrap puts the logical cursor one cell past the last
+      // column, so erase and trim start there rather than on the pending cell.
+      let eraseColumn = column + (wrapPending ? 1 : 0)
       switch first {
       case 1:
-        let end = min(column + 1, lines[row].count)
+        let end = min(eraseColumn + 1, lines[row].count)
         for position in 0..<end { eraseCell(at: position, in: &lines[row], style: style) }
       case 2:
         lines[row] = []
       default:
-        if column < lines[row].count {
-          eraseCell(at: column, in: &lines[row], style: style)
-          lines[row].removeSubrange((lines[row].startIndex + column)...)
+        if eraseColumn < lines[row].count {
+          eraseCell(at: eraseColumn, in: &lines[row], style: style)
+          lines[row].removeSubrange((lines[row].startIndex + eraseColumn)...)
         }
       }
       renderedCells += lines[row].count - previousCount
@@ -267,12 +387,26 @@ enum TerminalANSIParser {
       }
     case "J" where first == 2 || first == 3:
       lines = [[]]
+      lineSoftWraps = [false]
       row = 0
       column = 0
       renderedCells = 0
-    case "G": column = min(maximumCursorColumn, max(1, first)) - 1
-    case "C": column = min(maximumCursorColumn, column + min(maximumCursorColumn, max(1, first)))
-    case "D": column = max(0, column - max(1, first))
+      wrapPending = false
+    case "G":
+      column = min(widthLimit ?? maximumCursorColumn, max(1, first)) - 1
+      wrapPending = false
+    case "C":
+      if let widthLimit {
+        // Bound the displacement before adding: a hostile parameter must not
+        // overflow the addition.
+        column += min(max(1, first), max(0, widthLimit - 1 - column))
+      } else {
+        column = min(maximumCursorColumn, column + min(maximumCursorColumn, max(1, first)))
+      }
+      wrapPending = false
+    case "D":
+      column = max(0, column - max(1, first))
+      wrapPending = false
     default: break
     }
   }

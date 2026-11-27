@@ -146,7 +146,8 @@ enum RichChatTerminalWatchPolicy {
       watchID: watchID,
       generation: durable.generation,
       toCursor: durable.toCursor,
-      transcript: durable.transcript
+      transcript: durable.transcript,
+      columnChanges: durable.columnChanges
     )
   }
 

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -293,7 +293,7 @@ describe("clean desktop device Hub packaging", () => {
 });
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "poracode-hub-artifact-test-"));
+  const root = await mkdtemp(join(await realpath(tmpdir()), "poracode-hub-artifact-test-"));
   roots.push(root);
   const target = {
     platform: "win32" as NodeJS.Platform,

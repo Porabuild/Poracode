@@ -38,9 +38,11 @@ extension NativeFamilyJourneyUITests {
     let timeline = app.collectionViews["native-e2e.workflow-agent-detail"]
     for _ in 0..<3 where !agentList.isHittable { timeline.swipeUp() }
     XCTAssertTrue(agentList.waitForExistence(timeout: 5)); agentList.tap()
-    let resultHeading = app.buttons["native-e2e.tool-details.agent-results"].firstMatch
+    let resultHeadingID = "native-e2e.tool-details.agent-results"
+    let resultHeading = app.descendants(matching: .any)[resultHeadingID].firstMatch
     XCTAssertTrue(resultHeading.exists)
-    XCTAssertFalse(resultHeading.isEnabled, "A resolved result without a viewer destination must not offer an empty disclosure.")
+    XCTAssertFalse(app.buttons[resultHeadingID].exists,
+      "A resolved result without a viewer destination must not offer an empty disclosure.")
     let agentRow = app.buttons["native-e2e.tool-body-row.body:agent-results:0:0"].firstMatch
     XCTAssertTrue(agentRow.waitForExistence(timeout: 5)); agentRow.tap()
     let agentField = app.textViews["native-e2e.tool-body-field.body:agent-results:0:0.2"].firstMatch

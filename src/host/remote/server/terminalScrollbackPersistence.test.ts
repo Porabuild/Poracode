@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import type { TerminalColumnChange } from "@/shared/terminalColumnHistory";
+import { MAX_TERMINAL_COLUMN_CHANGES } from "@/shared/terminalColumnHistory";
 import { TerminalScrollbackPersistence } from "./terminalScrollbackPersistence";
 
 describe("TerminalScrollbackPersistence", () => {
@@ -243,5 +245,134 @@ describe("TerminalScrollbackPersistence B1 bounds and failure contract", () => {
     persistence.flush();
     expect(append).toHaveBeenCalledWith("thread-1", "😀", 2);
     expect(persistence.getPendingBytes()).toBe(0);
+  });
+});
+
+describe("TerminalScrollbackPersistence column geometry", () => {
+  type AppendFn = (
+    threadId: string,
+    data: string,
+    outputLength: number,
+    columnChanges?: TerminalColumnChange[],
+  ) => void;
+  function widthOutput(
+    threadId: string,
+    data: string,
+    outputLength: number,
+    terminalColumns?: number,
+    terminalInstanceId = "gen",
+  ) {
+    return {
+      type: "thread-output",
+      threadId,
+      data,
+      outputLength,
+      terminalInstanceId,
+      ...(terminalColumns === undefined ? {} : { terminalColumns }),
+    } as const;
+  }
+
+  it("coalesces buffered width transitions into one absolute-cursor change list", () => {
+    const append = vi.fn<AppendFn>();
+    const persistence = new TerminalScrollbackPersistence({ append });
+    persistence.handle(widthOutput("thread-1", "aaa", 3, 48));
+    persistence.handle(widthOutput("thread-1", "bbb", 6));
+    persistence.handle(widthOutput("thread-1", "ccc", 9, 100));
+    persistence.handle(widthOutput("thread-1", "ddd", 12, 100));
+    persistence.flush();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledWith("thread-1", "aaabbbcccddd", 12, [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 3, columns: null },
+      { fromCursor: 6, columns: 100 },
+    ]);
+  });
+
+  it("keeps the legacy three-argument append when no event carried a width", () => {
+    const append = vi.fn<AppendFn>();
+    const persistence = new TerminalScrollbackPersistence({ append });
+    persistence.handle(widthOutput("thread-1", "abc", 3));
+    persistence.handle(widthOutput("thread-1", "def", 6));
+    persistence.flush();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]).toHaveLength(3);
+    expect(append).toHaveBeenCalledWith("thread-1", "abcdef", 6);
+  });
+
+  it("drops geometry for the whole batch on non-contiguous pending offsets", () => {
+    const append = vi.fn<AppendFn>();
+    const persistence = new TerminalScrollbackPersistence({ append });
+    persistence.handle(widthOutput("thread-1", "aaa", 3, 48));
+    // outputLength 10 with 3 units leaves a gap: earlier widths must not be
+    // applied to raw bytes whose cursor positions shifted.
+    persistence.handle(widthOutput("thread-1", "bbb", 10, 100));
+    persistence.handle(widthOutput("thread-1", "ccc", 13, 100));
+    persistence.flush();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]).toHaveLength(3);
+    expect(append).toHaveBeenCalledWith("thread-1", "aaabbbccc", 13);
+  });
+
+  it("bounds coalesced width churn to the retained span cap", () => {
+    const append = vi.fn<AppendFn>();
+    const persistence = new TerminalScrollbackPersistence({ append });
+    for (let index = 0; index < 1100; index++) {
+      persistence.handle(widthOutput("thread-1", "x", index + 1, index % 2 === 0 ? 48 : 100));
+    }
+    persistence.flush();
+    const changes = append.mock.calls[0]?.[3];
+    expect(changes?.length).toBeLessThanOrEqual(MAX_TERMINAL_COLUMN_CHANGES);
+    // The oldest spans fall off the bounded history and read as unknown.
+    expect(changes?.[0]).toEqual({ fromCursor: 0, columns: null });
+    expect(changes?.at(-1)).toEqual({ fromCursor: 1099, columns: 100 });
+  });
+
+  it("retries a failed flush with the identical column changes", () => {
+    vi.useFakeTimers();
+    try {
+      let fail = true;
+      const append = vi.fn<AppendFn>(() => {
+        if (fail) throw Object.assign(new Error("full"), { code: "SQLITE_FULL" });
+      });
+      const persistence = new TerminalScrollbackPersistence({ append });
+      persistence.handle(widthOutput("thread-1", "aa", 2, 48));
+      vi.advanceTimersByTime(250);
+      expect(append).toHaveBeenCalledTimes(1);
+      fail = false;
+      persistence.flush();
+      expect(append).toHaveBeenCalledTimes(2);
+      expect(append).toHaveBeenLastCalledWith("thread-1", "aa", 2, [
+        { fromCursor: 0, columns: 48 },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the legacy three-argument append for malformed cursors with a valid width", () => {
+    const append = vi.fn<AppendFn>();
+    const persistence = new TerminalScrollbackPersistence({ append });
+    // outputLength below the batch length yields a negative fromCursor.
+    persistence.handle(widthOutput("thread-1", "abcde", 2, 48));
+    // An unsafe cursor must not reach TerminalColumnHistory.record either.
+    persistence.handle(widthOutput("thread-2", "ab", 2 ** 53, 100));
+    persistence.flush();
+    expect(append).toHaveBeenCalledTimes(2);
+    for (const call of append.mock.calls) expect(call).toHaveLength(3);
+    expect(append).toHaveBeenCalledWith("thread-1", "abcde", 2);
+    expect(append).toHaveBeenCalledWith("thread-2", "ab", 2 ** 53);
+  });
+
+  it("flushes each terminal generation with only its own widths", () => {
+    const append = vi.fn<AppendFn>();
+    const persistence = new TerminalScrollbackPersistence({ append });
+    persistence.handle(widthOutput("thread-1", "old", 3, 48, "gen-a"));
+    persistence.handle(widthOutput("thread-1", "new", 3, 100, "gen-b"));
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledWith("thread-1", "old", 3, [{ fromCursor: 0, columns: 48 }]);
+    persistence.flush();
+    expect(append).toHaveBeenLastCalledWith("thread-1", "new", 3, [
+      { fromCursor: 0, columns: 100 },
+    ]);
   });
 });

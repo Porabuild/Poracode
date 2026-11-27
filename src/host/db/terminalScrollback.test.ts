@@ -21,6 +21,7 @@ import {
   dbClearThreadTerminalScrollback,
   dbGetThreadTerminalScrollbackRecord,
 } from "./terminalScrollback";
+import { MAX_TERMINAL_COLUMN_CHANGES } from "@/shared/terminalColumnHistory";
 import {
   MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
   TERMINAL_SCROLLBACK_CHUNK_CHARS,
@@ -235,5 +236,141 @@ describe("bounded durable terminal chunks", () => {
     expect(
       getSqlite().prepare("SELECT COUNT(*) AS n FROM thread_terminal_scrollback_chunks").get(),
     ).toEqual({ n: 0 });
+  });
+});
+
+describe("durable terminal column history", () => {
+  const chunkRows = () =>
+    getSqlite()
+      .prepare(
+        "SELECT seq, chars, hex(data) AS data FROM thread_terminal_scrollback_chunks WHERE thread_id = ? ORDER BY seq",
+      )
+      .all(id);
+
+  it("migrates a real schema-79 scrollback row to v80 with identical raw bytes", () => {
+    const legacyText = "width-48 scrollback 🌐 日本語";
+    dbAppendThreadTerminalOutput(id, legacyText, legacyText.length);
+    const chunksBefore = chunkRows();
+    expect(chunksBefore.length).toBeGreaterThan(0);
+    // Rewind to the exact pre-80 shape a released v79 database carries.
+    getSqlite().exec(`ALTER TABLE thread_terminal_scrollback DROP COLUMN column_changes;
+      UPDATE app_state SET value = '79' WHERE key = 'schema_version';`);
+    closeDatabase();
+    expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow(/schema is incomplete/);
+    closeDatabase();
+    initDatabase(path);
+    expect(read()).toEqual({ transcript: legacyText, outputLength: legacyText.length });
+    expect(chunkRows()).toEqual(chunksBefore);
+    expect(
+      getSqlite()
+        .prepare("SELECT column_changes FROM thread_terminal_scrollback WHERE thread_id = ?")
+        .get(id),
+    ).toEqual({ column_changes: null });
+    // The migrated row keeps accepting appends; old bytes stay unknown-width.
+    dbAppendThreadTerminalOutput(id, "!", legacyText.length + 1, [
+      { fromCursor: legacyText.length, columns: 100 },
+    ]);
+    expect(read()?.columnChanges).toEqual([
+      { fromCursor: 0, columns: null },
+      { fromCursor: legacyText.length, columns: 100 },
+    ]);
+  });
+
+  it("merges, reopens, clips to retention and resets multi-width geometry", () => {
+    const head = "prompt$ ";
+    const middle = "x".repeat(400);
+    const tail = "y".repeat(200);
+    const resizeAt = head.length + middle.length;
+    const all = head + middle + tail;
+    const expected = [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: resizeAt, columns: 100 },
+    ];
+    dbAppendThreadTerminalOutput(id, all, all.length, [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: resizeAt, columns: 100 },
+    ]);
+    expect(read()?.columnChanges).toEqual(expected);
+    // Reopen: persisted {toCursor, changes} validates against stored outputLength.
+    closeDatabase();
+    initDatabase(path);
+    expect(read()?.columnChanges).toEqual(expected);
+    // A contiguous append at the same width merges into the retained window.
+    dbAppendThreadTerminalOutput(id, "more", all.length + 4, [
+      { fromCursor: all.length, columns: 100 },
+    ]);
+    expect(read()?.columnChanges).toEqual(expected);
+    // Pruning to the 200k raw retention clips geometry to the same window.
+    const fill = "z".repeat(MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS);
+    const outputLength = all.length + 4 + fill.length;
+    dbAppendThreadTerminalOutput(id, fill, outputLength, [
+      { fromCursor: all.length + 4, columns: 100 },
+    ]);
+    const retained = read();
+    expect(retained?.transcript).toBe(fill);
+    expect(retained?.outputLength).toBe(outputLength);
+    expect(retained?.columnChanges).toEqual([
+      { fromCursor: outputLength - MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS, columns: 100 },
+    ]);
+    // A discontinuity replaces the row and discards stale geometry entirely.
+    dbAppendThreadTerminalOutput(id, "fresh", 5);
+    expect(read()).toEqual({ transcript: "fresh", outputLength: 5 });
+  });
+
+  it("retains the full known-span budget across alternating known and unknown widths", () => {
+    // 2051 one-unit markers alternating known/unknown would exhaust the
+    // 1024-span history if unknown gaps counted as spans. recordChanges
+    // stores only known widths, so the last 1024 known spans survive intact.
+    const data = "x".repeat(2051);
+    const markers = Array.from({ length: data.length }, (_, fromCursor) => ({
+      fromCursor,
+      columns: fromCursor % 2 === 0 ? 48 : null,
+    }));
+    dbAppendThreadTerminalOutput(id, data, data.length, markers);
+    const record = read();
+    expect(record?.transcript).toBe(data);
+    expect(record?.outputLength).toBe(data.length);
+    const changes = record?.columnChanges ?? [];
+    expect(changes.length).toBeLessThanOrEqual(MAX_TERMINAL_COLUMN_CHANGES);
+    const known = changes.filter((change) => change.columns !== null);
+    expect(known).toHaveLength(1024);
+    expect(known[0]).toEqual({ fromCursor: 4, columns: 48 });
+    expect(known.at(-1)).toEqual({ fromCursor: 2050, columns: 48 });
+  });
+
+  it("discards malformed or stale column metadata without affecting raw reads", () => {
+    dbAppendThreadTerminalOutput(id, "known", 5, [{ fromCursor: 0, columns: 48 }]);
+    expect(read()?.columnChanges).toEqual([{ fromCursor: 0, columns: 48 }]);
+    const setGeometry = (value: string | null) =>
+      getSqlite()
+        .prepare("UPDATE thread_terminal_scrollback SET column_changes = ? WHERE thread_id = ?")
+        .run(value, id);
+    for (const stale of [
+      "not-json{",
+      JSON.stringify({ toCursor: 99, changes: [{ fromCursor: 0, columns: 48 }] }),
+      JSON.stringify({ toCursor: 5, changes: [{ fromCursor: 0, columns: 999 }] }),
+      JSON.stringify({ toCursor: 5, changes: [{ fromCursor: 42, columns: 48 }] }),
+      JSON.stringify({
+        toCursor: 5,
+        changes: Array.from({ length: MAX_TERMINAL_COLUMN_CHANGES + 1 }, () => ({
+          fromCursor: 0,
+          columns: 48,
+        })),
+      }),
+    ]) {
+      setGeometry(stale);
+      expect(read()).toEqual({ transcript: "known", outputLength: 5 });
+    }
+    // The next contiguous append treats stale metadata as absent: old bytes
+    // read as unknown width and only the supplied span is recorded.
+    dbAppendThreadTerminalOutput(id, "!", 6, [{ fromCursor: 5, columns: 100 }]);
+    expect(read()).toEqual({
+      transcript: "known!",
+      outputLength: 6,
+      columnChanges: [
+        { fromCursor: 0, columns: null },
+        { fromCursor: 5, columns: 100 },
+      ],
+    });
   });
 });

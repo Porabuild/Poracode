@@ -9,6 +9,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_6fad2fc28fc6e3d6 = RemoteSchema(type: "array", maxItems: 2049, items: RemoteSchemas.schema_fc33becf88189b03, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_6fb5e1ff4ba2dc63 = RemoteSchema(type: "integer", minimum: 1.0, maximum: 4.0, unknownPolicy: .strip)
 }
 

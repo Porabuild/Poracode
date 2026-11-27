@@ -243,10 +243,15 @@ test("uploads prompt attachments as file segments and refuses unsupported images
   expect(await refused.text()).toContain("does not accept image attachments");
 });
 
-test("delivery precedence: body > settings > default steer; queue hits queueThreadFollowUp", async () => {
+test("implicit follow-ups use the current host setting and explicit delivery wins", async () => {
   const calls: { name: string; payload: unknown }[] = [];
+  let settingsReads = 0;
+  let followUpBehavior: "steer" | "queue" = "queue";
   const client = S.promptClient({
-    settings: async () => ({ agentSettings: {}, followUpBehavior: "queue" }),
+    settings: async () => {
+      if (++settingsReads === 1) throw new Error("Temporary settings failure");
+      return { agentSettings: {}, followUpBehavior };
+    },
     setPendingSteer: async (payload: unknown) => calls.push({ name: "steer", payload }),
     callRemoteProcedure: async (name: string, payload: unknown) => {
       calls.push({ name, payload });
@@ -264,22 +269,32 @@ test("delivery precedence: body > settings > default steer; queue hits queueThre
         new Request("http://poracode.invalid/api/session/ses_thread-1/prompt", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ model: { providerID: "codex", id: "m1" }, ...body }),
         }),
       );
+
+    expect((await post({ text: "fallback" })).status).toBe(200);
+    expect(calls.at(-1)?.name).toBe("steer");
 
     expect((await post({ text: "q1" })).status).toBe(200);
     expect(calls.at(-1)?.name).toBe("queueThreadFollowUp");
 
+    followUpBehavior = "steer";
+    expect((await post({ text: "live preference" })).status).toBe(200);
+    expect(calls.at(-1)?.name).toBe("steer");
+
+    followUpBehavior = "queue";
     expect((await post({ text: "s1", delivery: "steer" })).status).toBe(200);
     expect(calls.at(-1)?.name).toBe("steer");
 
+    followUpBehavior = "steer";
     calls.length = 0;
     expect((await post({ text: "q2", delivery: "queue" })).status).toBe(200);
     expect(calls[0]).toMatchObject({
       name: "queueThreadFollowUp",
       payload: { threadId: "thread-1", prompt: "q2" },
     });
+    expect(settingsReads).toBe(3);
   } finally {
     if (prev === undefined) delete process.env.PORACODE_TUI_HOME;
     else process.env.PORACODE_TUI_HOME = prev;

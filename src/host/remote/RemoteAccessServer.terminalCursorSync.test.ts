@@ -457,6 +457,128 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
     reliable.ws.close();
   });
 
+  it("carries recorded PTY widths on the ready result and reliable output only", async () => {
+    const columnChanges = [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 3, columns: 100 },
+    ];
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "readTerminalSnapshot") {
+        return {
+          generation: "gen-w",
+          fromCursor: 0,
+          toCursor: 5,
+          data: "hello",
+          processState: "running",
+          terminalSize: { cols: 100, rows: 24 },
+          columnChanges,
+        } as never;
+      }
+      return "" as never;
+    });
+    const server = createCursorSyncServer({ callSupervisor });
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
+    const openSocket = async () => {
+      const ticket = await issueWebSocketTicket(info, token);
+      const url = new URL("/ws", info.wsBaseUrl);
+      url.searchParams.set("ticket", ticket);
+      const ws = new WebSocket(url);
+      const next = createWsReader(ws);
+      await new Promise<void>((resolve, reject) => {
+        ws.once("open", resolve);
+        ws.once("error", reject);
+      });
+      await next(); // ready
+      return { ws, next };
+    };
+    const legacy = await openSocket();
+    const reliable = await openSocket();
+
+    legacy.ws.send(JSON.stringify({ type: "terminal-watch", id: "term-w" }));
+    reliable.ws.send(
+      JSON.stringify({
+        type: "terminal-watch",
+        id: "term-w",
+        cursorSync: { version: 1, watchId: "watch-w" },
+      }),
+    );
+    await expect(reliable.next()).resolves.toEqual({
+      type: "terminal-watch-result",
+      id: "term-w",
+      cursorSync: {
+        version: 1,
+        watchId: "watch-w",
+        result: {
+          status: "ready",
+          generation: "gen-w",
+          fromCursor: 0,
+          toCursor: 5,
+          data: "hello",
+          processState: "running",
+          terminalSize: { cols: 100, rows: 24 },
+          columnChanges,
+        },
+      },
+    });
+
+    // First span carries an observed width; the second omits it.
+    server.publishSupervisorEvent({
+      type: "thread-output",
+      threadId: "term-w",
+      data: "abc",
+      outputLength: 8,
+      terminalInstanceId: "gen-w",
+      terminalColumns: 100,
+    });
+    server.publishSupervisorEvent({
+      type: "thread-output",
+      threadId: "term-w",
+      data: "de",
+      outputLength: 10,
+      terminalInstanceId: "gen-w",
+    });
+
+    await expect(legacy.next()).resolves.toEqual({
+      type: "terminal-output",
+      id: "term-w",
+      data: "abc",
+    });
+    await expect(reliable.next()).resolves.toEqual({
+      type: "terminal-output",
+      id: "term-w",
+      data: "abc",
+      cursorSync: {
+        version: 1,
+        watchId: "watch-w",
+        generation: "gen-w",
+        fromCursor: 5,
+        toCursor: 8,
+        terminalColumns: 100,
+      },
+    });
+    await expect(legacy.next()).resolves.toEqual({
+      type: "terminal-output",
+      id: "term-w",
+      data: "de",
+    });
+    await expect(reliable.next()).resolves.toEqual({
+      type: "terminal-output",
+      id: "term-w",
+      data: "de",
+      cursorSync: {
+        version: 1,
+        watchId: "watch-w",
+        generation: "gen-w",
+        fromCursor: 8,
+        toCursor: 10,
+      },
+    });
+
+    legacy.ws.close();
+    reliable.ws.close();
+  });
+
   it("disconnects reliable terminal watchers on hard outbound congestion", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
       if (name === "readTerminalSnapshot") {

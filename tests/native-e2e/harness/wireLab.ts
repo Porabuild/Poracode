@@ -254,8 +254,10 @@ export class WireLab {
 
   async stop(): Promise<void> {
     this.routes.releaseAttachment();
-    // Abort a checkpoint-held request before waiting for HTTP sockets to drain.
+    // Abort checkpoint-held/held-output requests before waiting for HTTP
+    // sockets to drain: a parked read must settle so shutdown cannot hang.
     this.workspace.agentDiscovery.reset();
+    this.backgroundTasks.settleHeldOutput();
     for (const connection of this.connections) {
       connection.ws.close(1001, "wire lab stopping");
     }

@@ -65,7 +65,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_b176186fb3> = .init(id: "websocket.server", schema: RemoteSchemas.schema_b176186fb3da3d3b)
+  static let websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_faee39be7b> = .init(id: "websocket.server", schema: RemoteSchemas.schema_faee39be7b751959)
 }
 
 public extension RemoteRootCodecs {
@@ -105,13 +105,13 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let websocketU2EServerU2ETerminalU2DOutput: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D9_95d0adeb5b> = .init(id: "websocket.server.terminal-output", schema: RemoteSchemas.schema_95d0adeb5b1f4c44)
+  static let websocketU2EServerU2ETerminalU2DOutput: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D9_603f34fb30> = .init(id: "websocket.server.terminal-output", schema: RemoteSchemas.schema_603f34fb30f27dd4)
 }
 
 public extension RemoteRootCodecs {
-  static let websocketU2EServerU2ETerminalU2DWatchU2DBaselineU2DChunk: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D11_e65689e97e> = .init(id: "websocket.server.terminal-watch-baseline-chunk", schema: RemoteSchemas.schema_e65689e97e7d91c3)
+  static let websocketU2EServerU2ETerminalU2DWatchU2DBaselineU2DChunk: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D11_be70182f42> = .init(id: "websocket.server.terminal-watch-baseline-chunk", schema: RemoteSchemas.schema_be70182f42f8818b)
 }
 
 public extension RemoteRootCodecs {
-  static let websocketU2EServerU2ETerminalU2DWatchU2DResult: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D10_4655073d71> = .init(id: "websocket.server.terminal-watch-result", schema: RemoteSchemas.schema_4655073d71f8e50b)
+  static let websocketU2EServerU2ETerminalU2DWatchU2DResult: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D10_ae488cfbae> = .init(id: "websocket.server.terminal-watch-result", schema: RemoteSchemas.schema_ae488cfbae55d2ab)
 }

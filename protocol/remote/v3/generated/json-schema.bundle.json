@@ -33615,11 +33615,51 @@
       "x-poracode-unknownFields": "strip"
     },
     "procedure.readTerminalSnapshot.result": {
+      "$defs": {
+        "__schema0": {
+          "maximum": 400,
+          "minimum": 20,
+          "type": "integer"
+        },
+        "__schema1": {
+          "additionalProperties": true,
+          "properties": {
+            "columns": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fromCursor": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "fromCursor",
+            "columns"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "anyOf": [
         {
           "additionalProperties": true,
           "properties": {
+            "columnChanges": {
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "maxItems": 2049,
+              "type": "array"
+            },
             "data": {
               "type": "string"
             },
@@ -33651,9 +33691,7 @@
                   "additionalProperties": true,
                   "properties": {
                     "cols": {
-                      "maximum": 400,
-                      "minimum": 20,
-                      "type": "integer"
+                      "$ref": "#/$defs/__schema0"
                     },
                     "rows": {
                       "maximum": 200,
@@ -91252,5 +91290,5 @@
   },
   "manifestHash": "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
   "protocolVersion": 15,
-  "sourceHash": "sha256:52cb317cf1f13735396c17f15f9302f38c512da8e1a3a0f6518e1e5734d3b100"
+  "sourceHash": "sha256:026fa981d58fee99cceddc28247ff4c49140fc2c6baa8e2e4aecb1cf3f199ab2"
 }

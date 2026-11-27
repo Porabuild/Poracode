@@ -108,8 +108,10 @@ final class NativeBackgroundTaskUITests: XCTestCase {
     let readsWhileClosed = try await readCount()
     XCTAssertEqual(readsWhileClosed, readsAtClose, "A closed details view must stop output reads")
 
-    // An older delayed reply must never replace the newest read after reopen.
-    _ = try await scenarioAction(["type": "background-task-output-delay", "delayMs": 1_200])
+    // A held older reply must never replace the newest read after reopen. On
+    // iOS a same-identity close/reopen retains the single in-flight read, so no
+    // fresh read can be issued until the held request is released.
+    _ = try await scenarioAction(["type": "background-task-output-hold"])
     button("background-task-open:bg-monitor").tap()
     XCTAssertTrue(element("background-task-details").waitForExistence(timeout: 10))
     try await waitForReads(atLeast: readsAtClose + 1)
@@ -118,10 +120,18 @@ final class NativeBackgroundTaskUITests: XCTestCase {
     try await waitUntil { !self.element("background-task-details").exists }
     button("background-task-open:bg-monitor").tap()
     XCTAssertTrue(element("background-task-details").waitForExistence(timeout: 10))
-    try await waitForDeliveredReads(atLeast: staleRead + 1)
+    // The retained in-flight read means reopen must not issue a duplicate
+    // output read while the old request is still held.
+    let readsWhileHeld = try await readCount()
+    XCTAssertEqual(readsWhileHeld, staleRead,
+                   "Reopen must not issue a duplicate output read while the old request is held")
+    // Release the held read, wait for its delivery, then for the subsequent
+    // newer output to display; the stale ordinal must not win.
+    _ = try await scenarioAction(["type": "background-task-output-release"])
+    try await waitForDeliveredReads(atLeast: staleRead)
     try await waitUntil { (self.displayedReadOrdinal() ?? 0) > staleRead }
     XCTAssertGreaterThan(displayedReadOrdinal() ?? 0, staleRead,
-                         "A stale delayed read replaced the newest output")
+                         "A stale held read replaced the newest output")
 
     attachScreenshot("background-task-details")
 
@@ -186,7 +196,13 @@ final class NativeBackgroundTaskUITests: XCTestCase {
   }
 
   private func displayedReadOrdinal() -> Int? {
-    let text = label(of: "background-task-output")
+    // The output identifier is shared by the loading progress indicator, the
+    // loading static text, and the ready SwiftUI Text. Query static texts only
+    // and take the first match so an ambiguous descendants() match cannot fail
+    // the ordinal read; extraction and the surrounding wait timeout are intact.
+    let output = app.staticTexts.matching(identifier: "background-task-output").firstMatch
+    guard output.exists else { return nil }
+    let text = output.label.isEmpty ? (output.value as? String ?? "") : output.label
     guard let range = text.range(of: #"read \d+"#, options: .regularExpression) else { return nil }
     return Int(text[range].replacingOccurrences(of: "read ", with: ""))
   }

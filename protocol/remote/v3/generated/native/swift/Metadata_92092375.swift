@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 15
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:52cb317cf1f13735396c17f15f9302f38c512da8e1a3a0f6518e1e5734d3b100"
+  public static let sourceHash = "sha256:026fa981d58fee99cceddc28247ff4c49140fc2c6baa8e2e4aecb1cf3f199ab2"
   public static let manifestHash = "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -303,7 +303,7 @@ public enum RemoteContractMetadata {
     .init(name: "readProjectFile", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduredeleteProjectEntryRequest_56df8e6416", resultType: "ProcedurereadProjectFileResult_891e9ab241"),
     .init(name: "readTerminalScrollback", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b"),
     .init(name: "readTerminalSize", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadTerminalSizeResult_2d2a48957e"),
-    .init(name: "readTerminalSnapshot", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadTerminalSnapshotResult_b67f4828f0"),
+    .init(name: "readTerminalSnapshot", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadTerminalSnapshotResult_575ba25e2b"),
     .init(name: "readThreadBackgroundTasks", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadThreadBackgroundTasksResult_f5906c75b7"),
     .init(name: "refreshAgentStatuses", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurerefreshAgentStatusesRequest_0cf7156720", resultType: "ProcedurerefreshAgentStatusesResult_8c4b8eeb10"),
     .init(name: "refreshPlugins", scope: "session:read", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedurelistPluginsRequest_16b775effb", resultType: "ProcedurelistPluginsResult_c8fcec3264"),
@@ -360,8 +360,8 @@ public enum RemoteContractMetadata {
     .init(direction: "server", type: "pong", modelType: "WebSocketServerMessageU2DOptionU2D5_17b50a5a25"),
     .init(direction: "server", type: "ready", modelType: "WebSocketServerMessageU2DOptionU2D2_dade9637ae"),
     .init(direction: "server", type: "resync-required", modelType: "WebSocketServerMessageU2DOptionU2D4_a633f9a256"),
-    .init(direction: "server", type: "terminal-output", modelType: "WebSocketServerMessageU2DOptionU2D9_95d0adeb5b"),
-    .init(direction: "server", type: "terminal-watch-baseline-chunk", modelType: "WebSocketServerMessageU2DOptionU2D11_e65689e97e"),
-    .init(direction: "server", type: "terminal-watch-result", modelType: "WebSocketServerMessageU2DOptionU2D10_4655073d71"),
+    .init(direction: "server", type: "terminal-output", modelType: "WebSocketServerMessageU2DOptionU2D9_603f34fb30"),
+    .init(direction: "server", type: "terminal-watch-baseline-chunk", modelType: "WebSocketServerMessageU2DOptionU2D11_be70182f42"),
+    .init(direction: "server", type: "terminal-watch-result", modelType: "WebSocketServerMessageU2DOptionU2D10_ae488cfbae"),
   ]
 }

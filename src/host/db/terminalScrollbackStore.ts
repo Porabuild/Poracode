@@ -1,4 +1,10 @@
 import type Database from "better-sqlite3";
+import {
+  knownTerminalColumns,
+  MAX_TERMINAL_COLUMN_CHANGES,
+  TerminalColumnHistory,
+  type TerminalColumnChange,
+} from "@/shared/terminalColumnHistory";
 
 export const MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS = 200_000;
 /** Matches schema 52's CHECK constraint. Never rewrite more than one small tail. */
@@ -10,6 +16,7 @@ interface ScrollbackRow {
   chunked: number;
   stored_chars: number;
   next_seq: number;
+  column_changes: string | null;
 }
 interface ChunkRow {
   seq: number;
@@ -17,14 +24,88 @@ interface ChunkRow {
   data: Buffer;
 }
 
+/**
+ * Read the bounded `{toCursor, changes}` geometry blob written by schema 80.
+ * Metadata is trusted only when it still describes this row's exact output
+ * cursor and every marker has a valid absolute UTF-16 cursor and column count;
+ * anything else is discarded as unknown geometry without touching raw reads.
+ */
+function readColumnChanges(
+  value: string | null | undefined,
+  outputLength: number,
+): TerminalColumnChange[] {
+  if (!value) return [];
+  let stored: unknown;
+  try {
+    stored = JSON.parse(value);
+  } catch {
+    return [];
+  }
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return [];
+  const { toCursor, changes } = stored as { toCursor?: unknown; changes?: unknown };
+  if (toCursor !== outputLength || !Array.isArray(changes)) return [];
+  if (changes.length > MAX_TERMINAL_COLUMN_CHANGES) return [];
+  const result: TerminalColumnChange[] = [];
+  let previousCursor = -1;
+  for (const entry of changes) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const { fromCursor, columns } = entry as { fromCursor?: unknown; columns?: unknown };
+    if (
+      typeof fromCursor !== "number" ||
+      !Number.isSafeInteger(fromCursor) ||
+      fromCursor < 0 ||
+      fromCursor > outputLength ||
+      fromCursor < previousCursor
+    ) {
+      return [];
+    }
+    if (
+      columns !== null &&
+      (typeof columns !== "number" || knownTerminalColumns(columns) === null)
+    ) {
+      return [];
+    }
+    previousCursor = fromCursor;
+    result.push({ fromCursor, columns: columns as number | null });
+  }
+  return result;
+}
+
+/**
+ * Supplied spans are absolute UTF-16 cursors. Malformed entries degrade to
+ * "unknown width" (or are dropped) rather than failing the raw append; the
+ * list is sorted and capped so `recordChanges` always sees append-only,
+ * bounded input.
+ */
+function sanitizeColumnChanges(
+  changes: readonly TerminalColumnChange[] | undefined,
+): TerminalColumnChange[] {
+  if (!changes?.length) return [];
+  const result: TerminalColumnChange[] = [];
+  for (const entry of changes as readonly unknown[]) {
+    if (!entry || typeof entry !== "object") continue;
+    const fromCursor = (entry as { fromCursor?: unknown }).fromCursor;
+    if (typeof fromCursor !== "number" || !Number.isSafeInteger(fromCursor) || fromCursor < 0) {
+      continue;
+    }
+    result.push({
+      fromCursor,
+      columns: knownTerminalColumns((entry as { columns?: unknown }).columns as number | undefined),
+    });
+  }
+  result.sort((a, b) => a.fromCursor - b.fromCursor);
+  return result.slice(-MAX_TERMINAL_COLUMN_CHANGES);
+}
+
 function createStore(sqlite: SqliteDatabase) {
-  const read = sqlite.prepare(`SELECT transcript, output_length, chunked, stored_chars, next_seq
+  const read =
+    sqlite.prepare(`SELECT transcript, output_length, chunked, stored_chars, next_seq, column_changes
     FROM thread_terminal_scrollback WHERE thread_id = ?`);
   const threadExists = sqlite.prepare("SELECT 1 FROM threads WHERE id = ?");
   const create = sqlite.prepare(`INSERT INTO thread_terminal_scrollback
     (thread_id, transcript, output_length, chunked, stored_chars, next_seq) VALUES (?, '', 0, 1, 0, 0)`);
   const write = sqlite.prepare(`UPDATE thread_terminal_scrollback SET transcript = '',
-    output_length = ?, chunked = 1, stored_chars = ?, next_seq = ? WHERE thread_id = ?`);
+    output_length = ?, chunked = 1, stored_chars = ?, next_seq = ?, column_changes = ? WHERE thread_id = ?`);
   const clearChunks = sqlite.prepare(
     "DELETE FROM thread_terminal_scrollback_chunks WHERE thread_id = ?",
   );
@@ -43,7 +124,12 @@ function createStore(sqlite: SqliteDatabase) {
     "DELETE FROM thread_terminal_scrollback_chunks WHERE thread_id = ? AND seq <= ?",
   );
 
-  const append = sqlite.transaction((threadId: string, data: string, outputLength: number) => {
+  function appendOutput(
+    threadId: string,
+    data: string,
+    outputLength: number,
+    incomingColumns: TerminalColumnChange[] = [],
+  ): void {
     const previous = read.get(threadId) as ScrollbackRow | undefined;
     if (!previous && !threadExists.get(threadId)) return;
     if (!previous) create.run(threadId);
@@ -96,12 +182,62 @@ function createStore(sqlite: SqliteDatabase) {
       }
     }
     if (pruneThrough !== undefined) prune.run(threadId, pruneThrough);
-    write.run(outputLength, storedChars, nextSeq, threadId);
-  });
+
+    // Column geometry is derived, never authoritative: merge the still-valid
+    // stored window (only when this append continues it) with the supplied
+    // spans, then clip the snapshot to the same retention the raw read serves.
+    // recordChanges stores only known-width spans, so unknown gaps never
+    // consume the bounded span budget. A reset, discontinuity, or unusable
+    // cursor range leaves geometry empty while raw chunks stay byte-identical.
+    let storedGeometry: string | null = null;
+    const inputFrom = outputLength - data.length;
+    if (
+      Number.isSafeInteger(outputLength) &&
+      outputLength >= 0 &&
+      Number.isSafeInteger(inputFrom) &&
+      inputFrom >= 0 &&
+      inputFrom <= outputLength
+    ) {
+      const previousChanges =
+        contiguous && previous ? readColumnChanges(previous.column_changes, inputFrom) : [];
+      const incomingChanges = sanitizeColumnChanges(incomingColumns);
+      if (previousChanges.length > 0 || incomingChanges.length > 0) {
+        const geometry = new TerminalColumnHistory();
+        if (previous && previousChanges.length > 0) {
+          const previousUnits = previous.chunked
+            ? previous.stored_chars
+            : previous.transcript.length;
+          geometry.recordChanges(
+            Math.max(0, inputFrom - previousUnits),
+            inputFrom,
+            previousChanges,
+          );
+        }
+        geometry.recordChanges(inputFrom, outputLength, incomingChanges);
+        const retainedFrom = Math.max(
+          0,
+          outputLength - Math.min(storedChars, MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS),
+        );
+        if (retainedFrom <= outputLength) {
+          const changes = geometry.snapshot(retainedFrom, outputLength);
+          storedGeometry = changes.some((change) => change.columns !== null)
+            ? JSON.stringify({ toCursor: outputLength, changes })
+            : null;
+        }
+      }
+    }
+    write.run(outputLength, storedChars, nextSeq, storedGeometry, threadId);
+  }
+
+  const append = sqlite.transaction(appendOutput);
 
   return {
-    append: (threadId: string, data: string, outputLength: number) =>
-      append.immediate(threadId, data, outputLength),
+    append: (
+      threadId: string,
+      data: string,
+      outputLength: number,
+      columns?: TerminalColumnChange[],
+    ) => append.immediate(threadId, data, outputLength, columns),
     read: (threadId: string) => {
       const row = read.get(threadId) as ScrollbackRow | undefined;
       if (!row) return null;
@@ -111,7 +247,12 @@ function createStore(sqlite: SqliteDatabase) {
             .join("")
             .slice(-MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS)
         : row.transcript;
-      return { transcript, outputLength: row.output_length };
+      const columnChanges = readColumnChanges(row.column_changes, row.output_length);
+      return {
+        transcript,
+        outputLength: row.output_length,
+        ...(columnChanges.length ? { columnChanges } : {}),
+      };
     },
   };
 }

@@ -1,0 +1,67 @@
+{
+  "cases": [
+    {
+      "id": "resize-between-commands",
+      "input": "\r\nThe default interactive shell is now zsh.\r\nTo update your account to use zsh, please run `chsh -s /bin/zsh`.\r\nFor more details, please visit https://support.apple.com/kb/HT208050.\r\n\u001b[?1034hnative-fixture:fixture-repo audit-user$ printf ' \r%s%s\\n' native-e2e-pty- first\r\nnative-e2e-pty-first\r\nnative-fixture:fixture-repo audit-user$ \r\u001b[Knative-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- second\r\nnative-e2e-pty-second\r\nnative-fixture:fixture-repo audit-user$ ",
+      "columnChanges": [
+        {
+          "fromCursor": 0,
+          "columns": 48
+        },
+        {
+          "fromCursor": 334,
+          "columns": 100
+        }
+      ],
+      "expectedTail": [
+        "native-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- first",
+        "native-e2e-pty-first",
+        "native-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- second",
+        "native-e2e-pty-second",
+        "native-fixture:fixture-repo audit-user$"
+      ]
+    },
+    {
+      "id": "grow-during-command-edit",
+      "input": "\r\nThe default interactive shell is now zsh.\r\nTo update your account to use zsh, please run `chsh -s /bin/zsh`.\r\nFor more details, please visit https://support.apple.com/kb/HT208050.\r\n\u001b[?1034hnative-fixture:fixture-repo audit-user$ printf ' \r%s%s\\n' native-e2e-pty- \r\u001b[K\u001b[Anative-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- redraw\r\nnative-e2e-pty-redraw\r\nnative-fixture:fixture-repo audit-user$ ",
+      "columnChanges": [
+        {
+          "fromCursor": 0,
+          "columns": 48
+        },
+        {
+          "fromCursor": 265,
+          "columns": 100
+        }
+      ],
+      "expectedTail": [
+        "To update your account to use zsh, please run `chsh -s /bin/zsh`.",
+        "For more details, please visit https://support.apple.com/kb/HT208050.",
+        "native-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- redraw",
+        "native-e2e-pty-redraw",
+        "native-fixture:fixture-repo audit-user$"
+      ]
+    },
+    {
+      "id": "shrink-during-command-edit",
+      "input": "\r\nThe default interactive shell is now zsh.\r\nTo update your account to use zsh, please run `chsh -s /bin/zsh`.\r\nFor more details, please visit https://support.apple.com/kb/HT208050.\r\n\u001b[?1034hnative-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- \r\u001b[Knative-fixture:fixture-repo audit-user$ printf '%\r%s%s\\n' native-e2e-pty- redraw\r\nnative-e2e-pty-redraw\r\nnative-fixture:fixture-repo audit-user$ ",
+      "columnChanges": [
+        {
+          "fromCursor": 0,
+          "columns": 100
+        },
+        {
+          "fromCursor": 263,
+          "columns": 48
+        }
+      ],
+      "expectedTail": [
+        "To update your account to use zsh, please run `chsh -s /bin/zsh`.",
+        "For more details, please visit https://support.apple.com/kb/HT208050.",
+        "native-fixture:fixture-repo audit-user$ printf '%s%s\\n' native-e2e-pty- redraw",
+        "native-e2e-pty-redraw",
+        "native-fixture:fixture-repo audit-user$"
+      ]
+    }
+  ]
+}

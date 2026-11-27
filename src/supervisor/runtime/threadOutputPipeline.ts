@@ -2,6 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import type { ThreadAttention, ThreadStatus, ThreadStatusSource } from "@/shared/contracts";
 import { extractOscEventsFromPtyStream } from "@/shared/osc";
+import { knownTerminalColumns } from "@/shared/terminalColumnHistory";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import { isThreadConfigEqual, isThreadTurnActive } from "@/shared/contracts";
 import type { TerminalStatusHint } from "../agents/base";
@@ -357,9 +358,11 @@ export class ThreadOutputPipeline {
   }
 
   handlePtyData(session: SessionRuntime, data: string): void {
+    const fromCursor = session.outputLength;
+    const columns = knownTerminalColumns(session.pty?.cols);
     session.outputLength += data.length;
     session.outputTranscript ??= new TranscriptBuffer(200_000);
-    session.outputTranscript.append(data);
+    session.outputTranscript.append(data, { fromCursor, columns });
 
     if (this.options.isDev) {
       this.options.logWriter.append(this.options.resolveLogPath(session.threadId), data);
@@ -371,6 +374,7 @@ export class ThreadOutputPipeline {
       data,
       outputLength: session.outputLength,
       terminalInstanceId: session.instanceId,
+      ...(columns !== null ? { terminalColumns: columns } : {}),
     });
 
     const ptyCarryIn = session.ptyOscCarry;

@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 15
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:52cb317cf1f13735396c17f15f9302f38c512da8e1a3a0f6518e1e5734d3b100"
+    const val sourceHash = "sha256:026fa981d58fee99cceddc28247ff4c49140fc2c6baa8e2e4aecb1cf3f199ab2"
     const val manifestHash = "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -308,7 +308,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("readProjectFile", "session:read", "projectLocation", "json", "ProceduredeleteProjectEntryRequest_56df8e6416", "ProcedurereadProjectFileResult_891e9ab241"),
         RemoteProcedureDescriptor("readTerminalScrollback", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b"),
         RemoteProcedureDescriptor("readTerminalSize", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProcedurereadTerminalSizeResult_2d2a48957e"),
-        RemoteProcedureDescriptor("readTerminalSnapshot", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProcedurereadTerminalSnapshotResult_b67f4828f0"),
+        RemoteProcedureDescriptor("readTerminalSnapshot", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProcedurereadTerminalSnapshotResult_575ba25e2b"),
         RemoteProcedureDescriptor("readThreadBackgroundTasks", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProcedurereadThreadBackgroundTasksResult_f5906c75b7"),
         RemoteProcedureDescriptor("refreshAgentStatuses", "session:operate", "desktop", "json", "ProcedurerefreshAgentStatusesRequest_0cf7156720", "ProcedurerefreshAgentStatusesResult_8c4b8eeb10"),
         RemoteProcedureDescriptor("refreshPlugins", "session:read", "optionalProjectLocation", "json", "ProcedurelistPluginsRequest_16b775effb", "ProcedurelistPluginsResult_c8fcec3264"),
@@ -365,8 +365,8 @@ object RemoteContractMetadata {
         RemoteWebSocketVariantDescriptor("server", "pong", "WebSocketServerMessageU2DOptionU2D5_17b50a5a25"),
         RemoteWebSocketVariantDescriptor("server", "ready", "WebSocketServerMessageU2DOptionU2D2_dade9637ae"),
         RemoteWebSocketVariantDescriptor("server", "resync-required", "WebSocketServerMessageU2DOptionU2D4_a633f9a256"),
-        RemoteWebSocketVariantDescriptor("server", "terminal-output", "WebSocketServerMessageU2DOptionU2D9_95d0adeb5b"),
-        RemoteWebSocketVariantDescriptor("server", "terminal-watch-baseline-chunk", "WebSocketServerMessageU2DOptionU2D11_e65689e97e"),
-        RemoteWebSocketVariantDescriptor("server", "terminal-watch-result", "WebSocketServerMessageU2DOptionU2D10_4655073d71"),
+        RemoteWebSocketVariantDescriptor("server", "terminal-output", "WebSocketServerMessageU2DOptionU2D9_603f34fb30"),
+        RemoteWebSocketVariantDescriptor("server", "terminal-watch-baseline-chunk", "WebSocketServerMessageU2DOptionU2D11_be70182f42"),
+        RemoteWebSocketVariantDescriptor("server", "terminal-watch-result", "WebSocketServerMessageU2DOptionU2D10_ae488cfbae"),
     )
 }

@@ -47,7 +47,7 @@ interface BackupFixture {
  * connection stays open) so the backup proves its online-snapshot behavior.
  */
 function buildBackupFixture(): BackupFixture {
-  const root = mkdtempSync(join(tmpdir(), "poracode-backup-"));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "poracode-backup-"));
   fixtures.push(root);
   const namespace = join(root, "profile");
   mkdirSync(namespace, { recursive: true, mode: 0o700 });

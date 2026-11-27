@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 function fixture(format: string, extra: Record<string, unknown> = {}) {
-  const root = mkdtempSync(join(tmpdir(), "poracode-plugin-adapter-"));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "poracode-plugin-adapter-"));
   roots.push(root);
   const pkg = join(root, "package");
   mkdirSync(join(pkg, format), { recursive: true });
