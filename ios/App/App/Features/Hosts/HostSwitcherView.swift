@@ -74,20 +74,33 @@ struct HostSwitcherView: View {
         horizontalSizeClass == .regular
     }
 
+    @ViewBuilder
     private var compactLayout: some View {
-        List {
+        let list = List {
             hostSection(showsEmptyAction: false)
         }
         .listStyle(.insetGrouped)
         .poracodeReadableListMargins(720)
-        .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                Button(HostStrings.addHost, systemImage: "plus") {
-                    showAddHost = true
-                }
-                .accessibilityLabel(HostStrings.addHostAccessibility)
-                .accessibilityIdentifier("native-e2e.connections.add")
+        // A lone bottom-bar item centers on iOS 26; add/create belongs lower trailing.
+        // The availability check stays at view level so ToolbarSpacer never reaches
+        // the toolbar builder's type on older iOS versions.
+        if #available(iOS 26.0, *) {
+            list.toolbar {
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                addHostToolbarItem
             }
+        } else {
+            list.toolbar { addHostToolbarItem }
+        }
+    }
+
+    private var addHostToolbarItem: some ToolbarContent {
+        ToolbarItem(placement: .bottomBar) {
+            Button(HostStrings.addHost, systemImage: "plus") {
+                showAddHost = true
+            }
+            .accessibilityLabel(HostStrings.addHostAccessibility)
+            .accessibilityIdentifier("native-e2e.connections.add")
         }
     }
 
