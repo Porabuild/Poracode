@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { I18nProvider } from "@lingui/react";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -16,13 +15,9 @@ const mocks = vi.hoisted(() => ({
   sourceCurrent: true,
   entries: [] as { kind: "item"; id: string }[],
 }));
-vi.mock("@heroui/react", () => ({
+vi.mock("@heroui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@heroui/react")>()),
   toast: { warning: mocks.warning },
-  Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => (
-    <button type="button" onClick={onPress}>
-      {children}
-    </button>
-  ),
 }));
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
   hydrateThreadRuntimeItems: mocks.hydrate,

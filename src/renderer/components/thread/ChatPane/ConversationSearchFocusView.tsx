@@ -1,5 +1,5 @@
-import { Button } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Button, Modal } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { SearchMatch } from "@/renderer/commands/SearchMatch";
 import { createSearchQuery } from "@/shared/searchMatching";
 import {
@@ -31,7 +31,7 @@ interface FocusRow {
   text: string;
 }
 
-function revealExactHit(element: HTMLDivElement | null): void {
+function revealExactHit(element: HTMLLIElement | null): void {
   element?.scrollIntoView({ block: "center" });
 }
 
@@ -48,7 +48,6 @@ export function ConversationSearchFocusView(props: {
   /** Palette text, used only for literal highlighting in this read-only view. */
   query?: string;
 }) {
-  const { t } = useLingui();
   const searchQuery = createSearchQuery(props.query ?? "");
   // Neighbors without readable message text are omitted; the exact hit is
   // always kept, with a short fallback, so the chosen row never disappears.
@@ -60,51 +59,62 @@ export function ConversationSearchFocusView(props: {
   });
 
   return (
-    <div
-      className="absolute inset-0 z-20 flex min-h-0 flex-col bg-background"
-      role="region"
-      aria-label={t`Matched message in history`}
-      data-conversation-search-focus="true"
+    <Modal.Backdrop
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) props.onReturn();
+      }}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <span className="text-xs font-medium text-muted">
-          <Trans>Matched message in history</Trans>
-        </span>
-        <Button size="sm" variant="ghost" onPress={props.onReturn} data-return="true">
-          <Trans>Return to conversation</Trans>
-        </Button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-        {rows.map((row) => (
-          <div
-            key={row.item.id}
-            ref={row.exact ? revealExactHit : undefined}
-            data-exact-match={row.exact ? "true" : undefined}
-            data-row-item-id={row.item.id}
-            className={`my-2 rounded-lg border px-3 py-2 text-sm ${
-              row.exact ? "border-primary bg-primary/5" : "border-border bg-content1"
-            }`}
-          >
-            {row.exact ? (
-              <div className="mb-1 text-xs font-semibold text-primary">
-                <Trans>Exact match</Trans>
-              </div>
-            ) : null}
-            {row.role ? (
-              <div className="mb-1 text-xs font-medium text-muted" data-message-role={row.role}>
-                {row.role === "user" ? <Trans>You</Trans> : <Trans>Assistant</Trans>}
-              </div>
-            ) : null}
-            <p className="whitespace-pre-wrap break-words font-sans text-sm text-foreground">
-              {row.text ? (
-                <SearchMatch text={row.text} query={searchQuery} fuzzy={false} />
-              ) : (
-                <Trans>Message text unavailable</Trans>
-              )}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
+      <Modal.Container placement="center" scroll="inside" size="lg">
+        <Modal.Dialog data-conversation-search-focus="true">
+          <Modal.Header>
+            <div className="flex items-center justify-between gap-2">
+              <Modal.Heading>
+                <Trans>Matched message in history</Trans>
+              </Modal.Heading>
+              <Button size="sm" variant="ghost" onPress={props.onReturn} data-return="true">
+                <Trans>Return to conversation</Trans>
+              </Button>
+            </div>
+          </Modal.Header>
+          <Modal.Body>
+            <ul className="flex flex-col gap-1">
+              {rows.map((row) => (
+                <li
+                  key={row.item.id}
+                  ref={row.exact ? revealExactHit : undefined}
+                  data-exact-match={row.exact ? "true" : undefined}
+                  data-row-item-id={row.item.id}
+                  className={`rounded-3xl px-2 py-1.5 text-sm ${
+                    row.exact ? "bg-[var(--row-active)] text-foreground" : "text-muted"
+                  }`}
+                >
+                  {row.exact ? (
+                    <div className="mb-1 text-xs font-semibold text-muted">
+                      <Trans>Exact match</Trans>
+                    </div>
+                  ) : null}
+                  {row.role ? (
+                    <div
+                      className="mb-1 text-xs font-medium text-muted"
+                      data-message-role={row.role}
+                    >
+                      {row.role === "user" ? <Trans>You</Trans> : <Trans>Assistant</Trans>}
+                    </div>
+                  ) : null}
+                  <p className="whitespace-pre-wrap break-words font-sans text-sm">
+                    {row.text ? (
+                      <SearchMatch text={row.text} query={searchQuery} fuzzy={false} />
+                    ) : (
+                      <Trans>Message text unavailable</Trans>
+                    )}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Modal.Body>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }

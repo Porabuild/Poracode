@@ -71,6 +71,7 @@ internal fun HomeDestinationScreenContent(
             item.project.id !in excludedProjectIds[item.connectionId.value].orEmpty()
         },
         onRefresh = session::refreshSnapshot,
+        onAckGlobalError = session::clearGlobalError,
         onReconnect = session::reconnectSelectedHost,
         onUnpair = session::unpair,
         onOpenThread = session::openThread,

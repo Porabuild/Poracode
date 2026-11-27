@@ -127,6 +127,20 @@ class AppSessionPushRouteSessionTest {
     }
 
     @Test
+    fun clearGlobalError_expectedGuardPreservesReplacement() = runTest {
+        val f = buildSession()
+        val session = ready(f)
+
+        session.surfacePushUnavailable("displayed")
+        session.surfacePushUnavailable("replacement")
+        session.clearGlobalError("displayed")
+        assertEquals("replacement", session.state.value.globalError)
+
+        session.clearGlobalError("replacement")
+        assertNull(session.state.value.globalError)
+    }
+
+    @Test
     fun wrongHostResolution_isStaleBeforeAnyRead() = runTest {
         val f = buildSession()
         val session = ready(f)

@@ -1,18 +1,9 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import type { ReactNode } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import { ConversationSearchFocusView } from "./ConversationSearchFocusView";
 import type { ConversationSearchFocus } from "./loadRuntimeItemThroughHistory";
-
-vi.mock("@heroui/react", () => ({
-  Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => (
-    <button type="button" onClick={onPress}>
-      {children}
-    </button>
-  ),
-}));
 
 // The exact-item + bounded-window reads that produce `focus` are synthetic
 // (buildDeepConversationCdpFixture / mocked ConversationMatchReaders): the
@@ -96,8 +87,9 @@ describe("ConversationSearchFocusView", () => {
     expect(exactRow.querySelector("mark")?.textContent).toBe("needle");
     expect(exactRow.innerHTML).not.toContain("<script");
 
-    // Scene state and the return target stay available.
-    expect(document.querySelector('[data-conversation-search-focus="true"]')).toBeTruthy();
+    // Scene state and the return target stay available in a labeled dialog.
+    const dialog = screen.getByRole("dialog", { name: "Matched message in history" });
+    expect(dialog).toBe(document.querySelector('[data-conversation-search-focus="true"]'));
     expect(screen.getByRole("button", { name: "Return to conversation" })).toBeTruthy();
   });
 
@@ -114,5 +106,21 @@ describe("ConversationSearchFocusView", () => {
     expect(screen.queryByText("user_message")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Return to conversation" }));
     expect(onReturn).toHaveBeenCalledOnce();
+  });
+
+  it("returns through the dialog's Escape dismissal", async () => {
+    const focus: ConversationSearchFocus = {
+      threadId: "saved",
+      itemId: "exact",
+      neighbors: false,
+      items: [userMessage("exact", "needle")],
+    };
+    const onReturn = vi.fn<() => void>();
+    renderWithI18n(<ConversationSearchFocusView focus={focus} onReturn={onReturn} />);
+
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Matched message in history" }), {
+      key: "Escape",
+    });
+    await waitFor(() => expect(onReturn).toHaveBeenCalledOnce());
   });
 });
