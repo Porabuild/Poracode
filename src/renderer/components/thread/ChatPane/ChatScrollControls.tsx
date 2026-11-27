@@ -11,6 +11,7 @@ import { createPortal, flushSync } from "react-dom";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import { floatingBubbleIconClass } from "@/renderer/components/layout/floatingGlass";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
@@ -34,6 +35,10 @@ import { useChatScrollResizeObserver } from "./useChatScrollResizeObserver";
 import { ChatReaderFollowContext } from "./chatReaderFollow";
 
 type ScrollGeometry = Pick<HTMLElement, "scrollHeight" | "clientHeight">;
+type InitialRevealGeometry = ScrollGeometry & {
+  scrollTop: number;
+  virtualizerLayoutChangeEpoch: number;
+};
 
 const USER_SCROLL_INTENT_MS = 750;
 const IOS_MOMENTUM_SETTLE_MS = 260;
@@ -130,6 +135,9 @@ export function ChatScrollControls(props: {
   const initialSettleSecondRafRef = useRef<number | null>(null);
   const initialSettleRevealRafRef = useRef<number | null>(null);
   const initialSettleRevealTimeoutRef = useRef<number | null>(null);
+  const checkInitialRevealRef = useRef<(() => void) | null>(null);
+  const initialRevealGeometryRef = useRef<InitialRevealGeometry | null>(null);
+  const initialRevealLayoutChangeEpochRef = useRef(0);
   const explicitPinRafRef = useRef<number | null>(null);
   const explicitPinSecondRafRef = useRef<number | null>(null);
   const virtualizerLayoutChangeUntilRef = useRef(0);
@@ -187,6 +195,7 @@ export function ChatScrollControls(props: {
   }
 
   function beginVirtualizerLayoutChange() {
+    initialRevealLayoutChangeEpochRef.current += 1;
     markVirtualizerLayoutChange(true);
   }
 
@@ -259,6 +268,11 @@ export function ChatScrollControls(props: {
     stickToBottomRef.current = false;
     const el = scrollRef.current;
     setShowScrollDown(!el || !isContentAtBottom(el));
+    if (!initialScrollSettled && initialScrollRevealDelayMs === 0) {
+      // Cancel the pending tail reconciliation without leaving the transcript
+      // hidden until the watchdog fires.
+      scheduleInitialRevealFrameCheck();
+    }
   }
   disableStickToBottomRef.current = disableStickToBottom;
 
@@ -534,6 +548,7 @@ export function ChatScrollControls(props: {
       window.clearTimeout(initialSettleRevealTimeoutRef.current);
       initialSettleRevealTimeoutRef.current = null;
     }
+    initialRevealGeometryRef.current = null;
   }
 
   function cancelScheduledExplicitPin() {
@@ -546,6 +561,73 @@ export function ChatScrollControls(props: {
       explicitPinSecondRafRef.current = null;
     }
   }
+
+  function hasInitialRevealTakeover() {
+    return (
+      promptAnchoredRef.current ||
+      !stickToBottomRef.current ||
+      readerFollow?.isFollowing() === false
+    );
+  }
+
+  function scheduleInitialRevealFrameCheck() {
+    initialSettleRevealRafRef.current = requestAnimationFrame(() => {
+      initialSettleRevealRafRef.current = null;
+      checkInitialRevealRef.current?.();
+    });
+  }
+
+  const checkInitialRevealGeometry = useEffectEvent(() => {
+    if (initialScrollSettled) return;
+    const el = scrollRef.current;
+    if (!el || el.clientHeight <= 0) {
+      scheduleInitialRevealFrameCheck();
+      return;
+    }
+    const current = {
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+      scrollTop: el.scrollTop,
+      virtualizerLayoutChangeEpoch: initialRevealLayoutChangeEpochRef.current,
+    };
+    const previous = initialRevealGeometryRef.current;
+    const geometryStable =
+      previous !== null &&
+      current.scrollHeight === previous.scrollHeight &&
+      current.clientHeight === previous.clientHeight &&
+      current.scrollTop === previous.scrollTop &&
+      current.virtualizerLayoutChangeEpoch === previous.virtualizerLayoutChangeEpoch;
+    // A reader, search jump, or anchored prompt can take over while hidden.
+    // In that case reveal its position without pinning to the tail.
+    if (
+      geometryStable ||
+      hasInitialRevealTakeover() ||
+      (hasRecentUserScrollIntent() && !isElementAtBottom(current))
+    ) {
+      initialRevealGeometryRef.current = null;
+      if (geometryStable && initialLayoutReady && !isCompactLayoutViewport()) {
+        // Stable measured rows can commit before the current paint.
+        flushSync(onInitialScrollSettled);
+      } else {
+        onInitialScrollSettled();
+      }
+      return;
+    }
+
+    // LegendList's hidden anchor adjustments can arm the anti-drag holdoff
+    // without any real reader takeover. The direct write below is tagged and
+    // synchronous; no post-onLoad scrollToEnd is allowed to defer past reveal.
+    pinHoldoffUntilRef.current = 0;
+    writeBottomPin(el, current);
+    initialRevealGeometryRef.current = { ...current, scrollTop: lastScrollTopRef.current };
+    scheduleInitialRevealFrameCheck();
+  });
+  useLayoutEffect(() => {
+    checkInitialRevealRef.current = () => checkInitialRevealGeometry();
+    return () => {
+      checkInitialRevealRef.current = null;
+    };
+  }, []);
 
   function scheduleExplicitPinSettle() {
     cancelScheduledExplicitPin();
@@ -601,7 +683,10 @@ export function ChatScrollControls(props: {
                 writeBottomPin(el);
               }
             } else {
-              scrollToBottom();
+              // The hidden reconcile passes are done. Finish only after the
+              // direct-pinned viewport stays unchanged for a consecutive frame.
+              checkInitialRevealGeometry();
+              return;
             }
             onInitialScrollSettled();
           };
@@ -630,7 +715,6 @@ export function ChatScrollControls(props: {
             // later inside this window.
             revealAfterLatestVirtualizerSettle();
           } else {
-            // Desktop preserves its existing immediate post-settle reveal.
             revealSettledTranscript(false);
           }
         });
@@ -641,9 +725,11 @@ export function ChatScrollControls(props: {
   const forceInitialScrollReveal = useEffectEvent(() => {
     if (initialScrollSettled) return;
     cancelScheduledInitialSettle();
-    userScrollIntentUntilRef.current = 0;
-    pinHoldoffUntilRef.current = 0;
-    scrollToBottom({ reconcileVirtualizer: true });
+    const el = scrollRef.current;
+    if (el && !hasInitialRevealTakeover() && !hasRecentUserScrollIntent()) {
+      pinHoldoffUntilRef.current = 0;
+      writeBottomPin(el);
+    }
     onInitialScrollSettled();
   });
 
@@ -689,14 +775,13 @@ export function ChatScrollControls(props: {
   const revealMeasuredInitialLayout = useEffectEvent(() => {
     const el = scrollRef.current;
     if (!el || el.clientHeight <= 0) return;
-    // LegendList's onLoad follows both row measurement and initial scrolling.
-    // Its ready signal replaces the fallback's extra reconciliation frames.
+    // LegendList's onLoad follows row measurement and initial scrolling, but
+    // the rest of the virtual tail can still be positioned over the next
+    // paints. Replace only the fallback's reconciling frames; the shared
+    // pre-reveal check still pins directly and waits for stable geometry.
     cancelScheduledInitialSettle();
     cancelScheduledPin();
-    userScrollIntentUntilRef.current = 0;
-    pinHoldoffUntilRef.current = 0;
-    writeBottomPin(el);
-    onInitialScrollSettled();
+    scheduleInitialRevealFrameCheck();
   });
   useLayoutEffect(() => {
     if (!initialLayoutReady || initialScrollSettled || initialScrollRevealDelayMs > 0) return;

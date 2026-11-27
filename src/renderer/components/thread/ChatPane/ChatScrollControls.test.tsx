@@ -754,7 +754,7 @@ describe("ChatScrollControls", () => {
     expect(controlsRef.current?.isThreadOpenSettling()).toBe(false);
   });
 
-  it("reveals measured initial history without another scroll reconciliation or animation-frame wait", () => {
+  it("waits for stable geometry after measured initial history before revealing", () => {
     const frames = new Map<number, FrameRequestCallback>();
     let nextFrame = 0;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -763,18 +763,25 @@ describe("ChatScrollControls", () => {
     });
     vi.stubGlobal("cancelAnimationFrame", (handle: number) => frames.delete(handle));
     const scrollEl = document.createElement("div");
+    let scrollHeight = 1000;
+    let clientHeight = 200;
     let scrollTop = 0;
     Object.defineProperties(scrollEl, {
-      scrollHeight: { configurable: true, get: () => 1000 },
-      clientHeight: { configurable: true, get: () => 200 },
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, get: () => clientHeight },
       scrollTop: {
         configurable: true,
         get: () => scrollTop,
         set: (value: number) => {
-          scrollTop = Math.min(value, 800);
+          scrollTop = Math.max(0, Math.min(value, scrollHeight - clientHeight));
         },
       },
     });
+    const flushPaint = () => {
+      const callbacks = [...frames.values()];
+      frames.clear();
+      act(() => callbacks.forEach((callback) => callback(performance.now())));
+    };
     const onInitialScrollSettled = vi.fn<() => void>();
     const reconcile = vi.fn<() => void>();
     const controlsRef = createRef<ChatScrollControlsHandle>();
@@ -789,6 +796,7 @@ describe("ChatScrollControls", () => {
     );
     expect(onInitialScrollSettled).not.toHaveBeenCalled();
     reconcile.mockClear();
+
     rerender(
       <Harness
         scrollEl={scrollEl}
@@ -799,8 +807,37 @@ describe("ChatScrollControls", () => {
         onInitialScrollSettled={onInitialScrollSettled}
       />,
     );
-    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+
+    clientHeight = 0;
+    flushPaint();
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    clientHeight = 200;
+
+    flushPaint();
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
     expect(scrollTop).toBe(800);
+
+    // A late virtual tail measurement can still move both content geometry and
+    // the pinned offset after LegendList's first load callback.
+    scrollHeight = 1200;
+    scrollTop = 500;
+    flushPaint();
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    expect(scrollTop).toBe(1000);
+
+    // A non-live measurement signal alone also restarts the frame comparison.
+    act(() => controlsRef.current?.beginVirtualizerLayoutChange());
+    flushPaint();
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    expect(scrollTop).toBe(1000);
+
+    act(() => controlsRef.current?.beginLiveVirtualizerLayoutChange());
+    flushPaint();
+    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+    expect(scrollTop).toBe(1000);
+    expect(reconcile).not.toHaveBeenCalled();
+
     rerender(
       <Harness
         scrollEl={scrollEl}
@@ -811,14 +848,13 @@ describe("ChatScrollControls", () => {
         onInitialScrollSettled={onInitialScrollSettled}
       />,
     );
-    act(() => {
-      for (const callback of frames.values()) callback(performance.now());
-    });
+    flushPaint();
     expect(reconcile).not.toHaveBeenCalled();
     expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+    expect(scrollTop).toBe(1000);
   });
 
-  it("reveals the initial transcript only after a post-reconcile animation frame", () => {
+  it("reveals the reader's position when they take over during the measured settle", () => {
     const animationFrames = new Map<number, FrameRequestCallback>();
     let nextAnimationFrameHandle = 0;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -833,7 +869,65 @@ describe("ChatScrollControls", () => {
     Object.defineProperties(scrollEl, {
       scrollHeight: { configurable: true, get: () => 1000 },
       clientHeight: { configurable: true, get: () => 200 },
-      scrollTop: { configurable: true, writable: true, value: 800 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+    const onInitialScrollSettled = vi.fn<() => void>();
+    const virtualScrollToBottom = vi.fn<() => void>();
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+
+    renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={virtualScrollToBottom}
+        initialScrollSettled={false}
+        initialLayoutReady
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+
+    virtualScrollToBottom.mockClear();
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    act(() => {
+      controlsRef.current?.markUserScrollIntent();
+      controlsRef.current?.disableStickToBottom();
+      scrollEl.scrollTop = 230;
+    });
+    act(() => {
+      const callbacks = [...animationFrames.values()];
+      animationFrames.clear();
+      callbacks.forEach((callback) => callback(0));
+    });
+    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+    expect(scrollEl.scrollTop).toBe(230);
+    expect(virtualScrollToBottom).not.toHaveBeenCalled();
+  });
+
+  it("keeps the fixed fallback hidden until geometry stops changing across frames", () => {
+    const animationFrames = new Map<number, FrameRequestCallback>();
+    let nextAnimationFrameHandle = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextAnimationFrameHandle += 1;
+      animationFrames.set(nextAnimationFrameHandle, callback);
+      return nextAnimationFrameHandle;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => {
+      animationFrames.delete(handle);
+    });
+    let scrollHeight = 1000;
+    let clientHeight = 200;
+    let scrollTop = 0;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, get: () => clientHeight },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.max(0, Math.min(value, scrollHeight - clientHeight));
+        },
+      },
     });
     const onInitialScrollSettled = vi.fn<() => void>();
     const virtualScrollToBottom = vi.fn<() => void>();
@@ -848,24 +942,38 @@ describe("ChatScrollControls", () => {
       />,
     );
 
-    // Flush only the callbacks that were already queued at each paint. The
-    // reveal callback scheduled by the second settle must wait for the next
-    // paint instead of exposing LegendList's estimated offset.
     const flushPaint = () => {
       const callbacks = [...animationFrames.values()];
       animationFrames.clear();
       act(() => callbacks.forEach((callback) => callback(0)));
     };
+    // Every pre-reveal fallback pass reconciles the virtualizer. The first
+    // pass that does not is the shared final geometry check's baseline frame.
+    let sawGeometryBaseline = false;
+    for (let frame = 0; frame < 8 && !sawGeometryBaseline; frame += 1) {
+      const reconcilesBeforeFlush = virtualScrollToBottom.mock.calls.length;
+      flushPaint();
+      sawGeometryBaseline = virtualScrollToBottom.mock.calls.length === reconcilesBeforeFlush;
+    }
+    expect(sawGeometryBaseline).toBe(true);
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    expect(scrollTop).toBe(800);
+
+    // Rows that finish positioning after that first check move both the tail
+    // height and the offset. The next frame re-pins but must still stay hidden.
+    scrollHeight = 1400;
+    scrollTop = 620;
     flushPaint();
     expect(onInitialScrollSettled).not.toHaveBeenCalled();
-    flushPaint();
-    expect(onInitialScrollSettled).not.toHaveBeenCalled();
-    flushPaint();
-    expect(onInitialScrollSettled).not.toHaveBeenCalled();
-    const reconcilesBeforeReveal = virtualScrollToBottom.mock.calls.length;
+    expect(scrollTop).toBe(1200);
+
     flushPaint();
     expect(onInitialScrollSettled).toHaveBeenCalledOnce();
-    expect(virtualScrollToBottom).toHaveBeenCalledTimes(reconcilesBeforeReveal);
+    expect(scrollTop).toBe(1200);
+
+    const reconcilesAtReveal = virtualScrollToBottom.mock.calls.length;
+    flushPaint();
+    expect(virtualScrollToBottom).toHaveBeenCalledTimes(reconcilesAtReveal);
   });
 
   it("reveals the initial transcript if startup animation frames never run", () => {

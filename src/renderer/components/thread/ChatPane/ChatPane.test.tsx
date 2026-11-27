@@ -571,31 +571,64 @@ describe("ChatPane", () => {
     }
   });
 
-  it.each([false, true])("reveals measured history immediately for remote=%s", (remote) => {
-    const thread: Thread = {
-      ...makeThread(),
-      ...(remote ? { remoteServerId: "remote-host", remoteId: "remote-thread" } : {}),
-    };
-    useAppStore.setState({ threads: [thread] });
-    seedAssistantMessage(thread.id, "Measured history");
-    const height = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
-    const reader = vi.spyOn(runtimeInterestHydration, "adoptRuntimeThreadReader").mockReturnValue({
-      ready: Promise.resolve(),
-      release: () => {},
-    });
-    const frames = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
-    const onInitialScrollSettled = vi.fn<() => void>();
-    try {
-      const { container, unmount } = renderChatPane(thread, { onInitialScrollSettled });
-      expect(onInitialScrollSettled).toHaveBeenCalledOnce();
-      expect(getContentElement(getScrollElement(container))).not.toHaveClass("opacity-0");
-      unmount();
-    } finally {
-      height.mockRestore();
-      reader.mockRestore();
-      frames.mockRestore();
-    }
-  });
+  it.each([false, true])(
+    "reveals measured history after stable animation frames for remote=%s",
+    (remote) => {
+      const thread: Thread = {
+        ...makeThread(),
+        ...(remote ? { remoteServerId: "remote-host", remoteId: "remote-thread" } : {}),
+      };
+      useAppStore.setState({ threads: [thread] });
+      seedAssistantMessage(thread.id, "Measured history");
+      const height = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+      const reader = vi
+        .spyOn(runtimeInterestHydration, "adoptRuntimeThreadReader")
+        .mockReturnValue({
+          ready: Promise.resolve(),
+          release: () => {},
+        });
+      const animationFrames = new Map<number, FrameRequestCallback>();
+      let nextAnimationFrameHandle = 0;
+      const frameRequest = vi
+        .spyOn(window, "requestAnimationFrame")
+        .mockImplementation((callback: FrameRequestCallback) => {
+          nextAnimationFrameHandle += 1;
+          animationFrames.set(nextAnimationFrameHandle, callback);
+          return nextAnimationFrameHandle;
+        });
+      const frameCancel = vi
+        .spyOn(window, "cancelAnimationFrame")
+        .mockImplementation((handle: number) => {
+          animationFrames.delete(handle);
+        });
+      const flushPaint = () => {
+        const callbacks = [...animationFrames.values()];
+        animationFrames.clear();
+        act(() => callbacks.forEach((callback) => callback(0)));
+      };
+      const onInitialScrollSettled = vi.fn<() => void>();
+      try {
+        const { container, unmount } = renderChatPane(thread, { onInitialScrollSettled });
+        const content = getContentElement(getScrollElement(container));
+        expect(onInitialScrollSettled).not.toHaveBeenCalled();
+        expect(content).toHaveClass("opacity-0");
+
+        flushPaint();
+        expect(onInitialScrollSettled).not.toHaveBeenCalled();
+        expect(content).toHaveClass("opacity-0");
+
+        flushPaint();
+        expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+        expect(content).not.toHaveClass("opacity-0");
+        unmount();
+      } finally {
+        height.mockRestore();
+        reader.mockRestore();
+        frameRequest.mockRestore();
+        frameCancel.mockRestore();
+      }
+    },
+  );
 
   it("waits for the initial history layout before paging at the start", async () => {
     const thread = makeThread();
