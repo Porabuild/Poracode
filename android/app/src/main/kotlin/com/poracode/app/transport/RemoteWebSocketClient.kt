@@ -245,6 +245,9 @@ class RemoteWebSocketClient(
         connectionLoop.launchConnect()
     }
 
+    /** Explicit in-thread offline-banner retry through the same generation-safe ladder. */
+    override fun forceReconnect(reason: String) = connectionLoop.forceReconnect(reason)
+
     override fun setThreadItemInterests(threadIds: List<String>) {
         val unique = ThreadItemInterestDecisions.sortedUnique(threadIds)
         val previous = state.threadItemInterests.getAndSet(unique)

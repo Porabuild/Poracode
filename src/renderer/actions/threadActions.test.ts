@@ -22,7 +22,11 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
-import { setOwnWindowThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import {
+  setOwnWindowThreadIds,
+  useAuxiliaryThreadWindows,
+} from "@/renderer/state/auxiliaryThreadWindows";
+import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import {
   archiveThread,
   acknowledgeThread,
@@ -37,6 +41,7 @@ import {
   setThreadRuntimeReopenEnabled,
   setThreadWorktree,
   switchToAdjacentThread,
+  switchToAdjacentThreadInWorkspace,
   toggleMarkThreadDone,
   toggleStarThread,
   unloadStoredThread,
@@ -1913,6 +1918,153 @@ describe("threadActions", () => {
       await waitFor(() =>
         expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b"] }),
       );
+    });
+  });
+
+  describe("switchToAdjacentThreadInWorkspace", () => {
+    beforeEach(() => {
+      // Manual sort + flat layout keep the workspace order equal to store order
+      // across projects, so navigation is deterministic in these tests.
+      usePanelStore.setState({ threadSortMode: "manual", threadListLayout: "flat" });
+      useSidebarUiStore.setState({ flatListProjectFilter: null });
+      useAuxiliaryThreadWindows.setState({ hiddenThreadIds: new Set<string>() });
+    });
+
+    function makeWorkspaceProject(id: string, overrides: Partial<Project> = {}): Project {
+      return {
+        id,
+        name: id,
+        location: { kind: "posix", path: `/repo/${id}` },
+        createdAt: "2026-03-22T00:00:00.000Z",
+        ...overrides,
+      };
+    }
+
+    it("cycles across two projects in flat sidebar order and wraps at the ends", async () => {
+      const alpha = makeWorkspaceProject("alpha");
+      const beta = makeWorkspaceProject("beta");
+      const threads = [
+        makeThread({ id: "a1", projectId: alpha.id }),
+        makeThread({ id: "b1", projectId: beta.id }),
+        makeThread({ id: "a2", projectId: alpha.id }),
+        makeThread({ id: "b2", projectId: beta.id }),
+      ];
+      useAppStore.setState((state) => ({ ...state, projects: [alpha, beta], threads }));
+
+      // Flat list interleaves projects by store order, unlike the project-local
+      // command which would stay inside alpha.
+      switchToAdjacentThreadInWorkspace(threads[0]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b1"] }),
+      );
+
+      switchToAdjacentThreadInWorkspace(threads[3]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: ["a1"] }),
+      );
+
+      switchToAdjacentThreadInWorkspace(threads[0]!, "previous");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: ["b2"] }),
+      );
+    });
+
+    it("respects project order when the grouped-by-project layout is selected", async () => {
+      usePanelStore.setState({ threadListLayout: "grouped" });
+      const alpha = makeWorkspaceProject("alpha");
+      const beta = makeWorkspaceProject("beta");
+      const threads = [
+        makeThread({ id: "a1", projectId: alpha.id }),
+        makeThread({ id: "b1", projectId: beta.id }),
+        makeThread({ id: "a2", projectId: alpha.id }),
+        makeThread({ id: "b2", projectId: beta.id }),
+      ];
+      useAppStore.setState((state) => ({ ...state, projects: [alpha, beta], threads }));
+
+      // Grouped layout walks project sections first, so a2 -> b1 rather than
+      // the flat list's a2 -> b2.
+      switchToAdjacentThreadInWorkspace(threads[2]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b1"] }),
+      );
+    });
+
+    it("skips archived, auxiliary, disabled-project, and out-of-workspace rows", async () => {
+      useSharedSettings.setState({
+        workspaces: [
+          {
+            id: "ws-active",
+            name: "Active",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            icon: "briefcase",
+          },
+          { id: "ws-other", name: "Other", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+        ] as Workspace[],
+      });
+      useWorkspaceStore.setState({ activeWorkspaceId: "ws-active" });
+      const alpha = makeWorkspaceProject("alpha");
+      const beta = makeWorkspaceProject("beta");
+      const disabled = makeWorkspaceProject("disabled", { disabled: true });
+      const foreign = makeWorkspaceProject("foreign", { workspaceId: "ws-other" });
+      const threads = [
+        makeThread({ id: "a1", projectId: alpha.id }),
+        makeThread({ id: "archived", projectId: alpha.id, archived: true }),
+        makeThread({ id: "hidden", projectId: alpha.id }),
+        makeThread({ id: "disabled", projectId: disabled.id }),
+        makeThread({ id: "foreign", projectId: foreign.id }),
+        makeThread({ id: "a2", projectId: alpha.id }),
+        makeThread({ id: "b1", projectId: beta.id }),
+      ];
+      useAppStore.setState((state) => ({
+        ...state,
+        projects: [alpha, beta, disabled, foreign],
+        threads,
+      }));
+      useAuxiliaryThreadWindows.setState({ hiddenThreadIds: new Set(["hidden"]) });
+
+      // Every ineligible row sits between a1 and a2 in store order, so landing
+      // on a2 proves all four exclusions together.
+      switchToAdjacentThreadInWorkspace(threads[0]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a2"] }),
+      );
+
+      // Wraps over the filtered list rather than falling through to a hidden row.
+      switchToAdjacentThreadInWorkspace(threads[6]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: ["a1"] }),
+      );
+    });
+
+    it("honours the active flat-list project filter", async () => {
+      const alpha = makeWorkspaceProject("alpha");
+      const beta = makeWorkspaceProject("beta");
+      const threads = [
+        makeThread({ id: "a1", projectId: alpha.id }),
+        makeThread({ id: "a2", projectId: alpha.id }),
+        makeThread({ id: "b1", projectId: beta.id }),
+      ];
+      useAppStore.setState((state) => ({ ...state, projects: [alpha, beta], threads }));
+      useSidebarUiStore.setState({ flatListProjectFilter: [alpha.id] });
+
+      switchToAdjacentThreadInWorkspace(threads[1]!, "next");
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a1"] }),
+      );
+    });
+
+    it("does nothing when the workspace has fewer than two valid threads", () => {
+      const alpha = makeWorkspaceProject("alpha");
+      const only = makeThread({ id: "only", projectId: alpha.id });
+      useAppStore.setState((state) => ({
+        ...state,
+        projects: [alpha],
+        threads: [only],
+        view: { kind: "home" },
+      }));
+
+      switchToAdjacentThreadInWorkspace(only, "next");
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
     });
   });
 });

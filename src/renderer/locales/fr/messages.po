@@ -210,6 +210,8 @@ msgstr "{0} à {time}"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} authenticated."
@@ -464,6 +466,18 @@ msgstr "{0} utilisé"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Idle"
 msgstr "{0}, Inactif"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, new line {1}"
+msgstr "{0}, nouvelle ligne {1}"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, old line {1}"
+msgstr "{0}, ancienne ligne {1}"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
@@ -1498,6 +1512,11 @@ msgstr "Ajouter une fenêtre de contexte"
 msgid "Add credentials before this thread can run."
 msgstr "Ajoutez des informations d'identification avant que ce fil puisse s'exécuter."
 
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Add credentials for {0} in Settings"
+msgstr "Ajouter les informations d'identification de {0} dans les paramètres"
+
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Ajouter un recours"
@@ -2045,10 +2064,6 @@ msgid "An agent is fixing this PR."
 msgstr "Un agent corrige cette PR."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "An environment variable on this machine keeps both options off."
-#~ msgstr "Une variable d’environnement sur cette machine garde les deux options désactivées."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "An environment variable on this machine keeps telemetry off."
 msgstr "Une variable d’environnement sur cette machine maintient la télémétrie désactivée."
 
@@ -2067,17 +2082,6 @@ msgstr "Un enquêteur trouve la cause racine, et un correcteur livre le correcti
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "An MCP server with this name already exists."
 msgstr "Un serveur MCP portant ce nom existe déjà."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Anonymous feature-use events. No prompts, code, or location."
-#~ msgstr "Événements d’utilisation anonymes. Aucun prompt, code ni localisation."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Anonymous product analytics"
-#~ msgstr "Analyse de produit anonyme"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -2362,6 +2366,10 @@ msgstr "Demander aux sessions de ne pas écrire une autre mémoire de fournisseu
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
 msgstr "Demander si nécessaire"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Assistant"
+msgstr "Assistant"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
@@ -2898,10 +2906,6 @@ msgstr "Rechercher le dossier parent"
 #: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Browse full library"
 msgstr "Parcourir toute la bibliothèque"
-
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Browse Ollama library"
-#~ msgstr "Parcourir la bibliothèque Ollama"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
@@ -4713,6 +4717,7 @@ msgid "Confused"
 msgstr "Perplexe"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -4791,6 +4796,7 @@ msgstr "Connexion..."
 #: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
@@ -5388,11 +5394,6 @@ msgstr "Couverture"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Coverage across reported currencies"
 msgstr "Couverture des devises déclarées"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Crash diagnostics with personal data removed."
-#~ msgstr "Diagnostics de plantage sans données personnelles."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -6848,11 +6849,6 @@ msgstr "{0} téléchargé."
 msgid "Downloading"
 msgstr "Téléchargement en cours"
 
-#. placeholder {0}: run.tag
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Downloading {0}…"
-#~ msgstr "Téléchargement de {0}…"
-
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
@@ -7544,6 +7540,10 @@ msgstr "Toutes les heures"
 msgid "Every hour at {0} minutes past"
 msgstr "Toutes les heures, à {0} minutes"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Exact match"
+msgstr "Correspondance exacte"
+
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Exactly what is collected, and how to turn it off."
 msgstr "Exactement ce qui est collecté, et comment le désactiver."
@@ -7954,12 +7954,6 @@ msgstr "Favori"
 #: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Favoris"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
-#~ msgstr "Événements d’utilisation liés à un ID d’installation aléatoire. Aucun prompt, code ni localisation."
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
@@ -10997,6 +10991,10 @@ msgstr "Respecter la casse"
 msgid "Match your system, or force light or dark."
 msgstr "Suivez votre système, ou forcez le thème clair ou sombre."
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Matched message in history"
+msgstr "Message trouvé dans l'historique"
+
 #: src/renderer/components/common/effortLabel.ts
 msgid "Max"
 msgstr "Maximal"
@@ -11367,6 +11365,10 @@ msgstr "Actions du message"
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Message search unavailable"
 msgstr "Recherche de messages indisponible"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Message text unavailable"
+msgstr "Texte du message indisponible"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
@@ -12123,6 +12125,10 @@ msgstr "Catégorie suivante"
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "Chat suivant"
+
+#: src/renderer/commands/registry.ts
+msgid "Next chat in workspace"
+msgstr "Chat suivant dans l'espace de travail"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
@@ -12967,18 +12973,9 @@ msgstr "Ollama n’est pas joignable sur l’hôte sélectionné. Démarrez Olla
 msgid "Ollama model download progress"
 msgstr "Progression du téléchargement du modèle Ollama"
 
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Ollama model tag"
-#~ msgstr "Étiquette du modèle Ollama"
-
 #: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
 msgid "Ollama models"
 msgstr "Modèles Ollama"
-
-#. placeholder {0}: props.hostLabel
-#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
-#~ msgid "Ollama on {0}"
-#~ msgstr "Ollama sur {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 msgid "Ollama on {machineHostLabel}"
@@ -13783,6 +13780,7 @@ msgstr "Appareils associés"
 msgid "Pairing access"
 msgstr "Accès de couplage"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Association expirée — associez à nouveau pour vous reconnecter."
@@ -14257,10 +14255,6 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode déverrouille brièvement ce Mac pendant un tour d'Utilisation de l'ordinateur actif, recouvre tous les écrans pendant qu'il travaille et le verrouille à nouveau à la fin du tour. Toute frappe au clavier ou tout mouvement du pointeur sur ce Mac le verrouille immédiatement. L'installation nécessite une approbation administrateur unique. Sur un Mac géré par votre organisation, consultez d'abord votre service informatique."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-#~ msgstr "Poracode peut envoyer des analyses d’utilisation anonymes et des rapports de plantage. Aucun prompt, code, nom de fichier ni sortie de terminal."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 msgid "Poracode can send product analytics and crash reports."
 msgstr "Poracode peut envoyer des analyses de produit et des rapports de plantage."
 
@@ -14333,10 +14327,6 @@ msgstr "Poracode uniquement"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode retient les préférences et les corrections entre les fournisseurs. La capture démarre à la fin d'un tour. Un passage quotidien les fusionne. Les skills appris d'un travail répété restent des suggestions jusqu'à votre approbation."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-#~ msgstr "Poracode n’envoie rien sauf si vous l’activez. Prompts, code ou noms de fichiers — jamais."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14522,6 +14512,7 @@ msgstr "Empêcher la mise en veille du système"
 #: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FirstDiffHunk.tsx
 msgid "Preview"
 msgstr "Aperçu"
 
@@ -14542,6 +14533,10 @@ msgstr "Catégorie précédente"
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
 msgstr "Chat précédent"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous chat in workspace"
+msgstr "Chat précédent dans l'espace de travail"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
@@ -15270,6 +15265,7 @@ msgstr "Récemment mises à jour"
 msgid "Recents"
 msgstr "Récents"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Reconnect"
 msgstr "Reconnecter"
@@ -15294,6 +15290,10 @@ msgstr "Reconnexion au terminal…"
 #: src/renderer/components/devices/LiveDevicePreview.tsx
 msgid "Reconnecting to the device…"
 msgstr "Reconnexion à l’appareil…"
+
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
+msgid "Reconnecting to the server…"
+msgstr "Reconnexion au serveur…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
@@ -16304,6 +16304,10 @@ msgstr "Réessayer en tant qu'administrateur"
 msgid "Return to app"
 msgstr "Revenir à l'application"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Return to conversation"
+msgstr "Retour à la conversation"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Reusable guidance delivered across supported agents."
 msgstr "Guidance réutilisable fournie à tous les agents pris en charge."
@@ -17081,12 +17085,6 @@ msgstr "Faire défiler vers le bas"
 msgid "Scroll to prompt: {preview}"
 msgstr "Faire défiler jusqu'à l'invite : {preview}"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
-#~ msgstr "Diagnostics de plantage nettoyés envoyés à Sentry. Les vidages de plantage natifs sont un choix distinct."
-
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK installé"
@@ -17299,6 +17297,10 @@ msgstr "Rechercher…"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Recherche de fichiers…"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Searching large diffs…"
+msgstr "Recherche dans les grands diffs…"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Searching saved messages…"
@@ -17661,6 +17663,7 @@ msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -18059,6 +18062,7 @@ msgstr "Auxiliaire"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "Connectez-vous"
@@ -18076,6 +18080,10 @@ msgstr "Connexion nécessaire"
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Connectez-vous sur le bureau appairé, puis actualisez cet état."
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Sign in on the paired desktop, then refresh."
+msgstr "Connectez-vous sur le poste associé, puis actualisez."
+
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -18089,6 +18097,7 @@ msgstr "Connexion requise"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in to {0}"
 msgstr "Se connecter à {0}"
 
@@ -19024,12 +19033,20 @@ msgid "Switch to the next chat"
 msgstr "Passer au chat suivant"
 
 #: src/renderer/commands/registry.ts
+msgid "Switch to the next chat in this workspace"
+msgstr "Passer au chat suivant dans cet espace de travail"
+
+#: src/renderer/commands/registry.ts
 msgid "Switch to the next tab"
 msgstr "Passer à l'onglet suivant"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous chat"
 msgstr "Passer au chat précédent"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat in this workspace"
+msgstr "Passer au chat précédent dans cet espace de travail"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous tab"
@@ -21135,6 +21152,8 @@ msgstr "Saisissez votre réponse…"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to authenticate {0}."
@@ -23047,6 +23066,10 @@ msgstr "Hier : {prompts, plural, one {# prompt} other {# prompts}} · {compactTo
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
 msgstr "Hier : {prompts, plural, one {# prompt} other {# prompts}} · mené par {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "You"
+msgstr "Vous"
 
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "You coded across {count} connected environments this week"

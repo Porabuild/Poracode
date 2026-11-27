@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { searchProjectTreePayloadSchema, type ProjectLocation } from "@/shared/contracts";
+import {
+  searchProjectTreePayloadSchema,
+  type ProjectLocation,
+  type ProjectTreeEntry,
+} from "@/shared/contracts";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
 const execGitMock = vi.hoisted(() => vi.fn<() => Promise<string>>());
+const nativeSearchMock = vi.hoisted(() => vi.fn<() => Promise<ProjectTreeEntry[] | null>>());
 
 vi.mock("./git", async () => {
   const actual = await vi.importActual<typeof import("./git")>("./git");
@@ -11,6 +16,12 @@ vi.mock("./git", async () => {
     execGit: execGitMock,
   };
 });
+
+vi.mock("./git/gitNativeHelperClient", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./git/gitNativeHelperClient")>()),
+  isNativeGitHelperActive: () => true,
+  queryNativeSearchTree: nativeSearchMock,
+}));
 
 import { ProjectSearchIndex } from "./ProjectSearchIndex";
 
@@ -24,6 +35,26 @@ const location: Extract<ProjectLocation, { kind: "wsl" }> = {
 describe("ProjectSearchIndex caching", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("keeps native search on one request even when a provisional match is requested", async () => {
+    const entries: ProjectTreeEntry[] = [
+      { path: "src/needle.ts", name: "needle.ts", type: "file" },
+    ];
+    nativeSearchMock.mockResolvedValue(entries);
+    const index = new ProjectSearchIndex(() => "");
+
+    const result = await index.searchProjectTree({
+      projectLocation: { kind: "posix", path: "/fixture" },
+      query: "needle",
+      limit: 10,
+      entryType: "file",
+      provisional: true,
+    });
+
+    expect(result).toEqual({ entries });
+    expect(nativeSearchMock).toHaveBeenCalledOnce();
+    expect(execGitMock).not.toHaveBeenCalled();
   });
 
   it("uses separate cache entries when useIgnoreFiles changes", async () => {

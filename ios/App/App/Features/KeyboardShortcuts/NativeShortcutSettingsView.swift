@@ -140,7 +140,9 @@ struct NativeShortcutCommandView: View {
     .toolbar {
       ToolbarItem(placement: .bottomBar) {
         Button(NativeShortcutStrings.add, systemImage: "plus") {
-          editing = NativeShortcutEditTarget(command: command, condition: store.defaults.entries.first { $0.command == command }?.condition)
+          let conditionSource = NativeShortcutPlatformPolicy.conditionSourceCommand(command)
+          let condition = store.defaults.entries.first { $0.command == conditionSource }?.condition
+          editing = NativeShortcutEditTarget(command: command, condition: condition)
         }
         .disabled(!store.canEdit)
         .accessibilityIdentifier("native-e2e.keyboard.add")

@@ -11,11 +11,39 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
+import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ProjectIdentity
 import com.poracode.app.model.ProjectWorkspaceTarget
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.session.AppSession
+import com.poracode.app.session.HostPresentation
 import com.poracode.app.transport.RemoteWebSocketClient
+
+internal data class HomeThreadConnectionStatus(val online: Boolean, val offline: Boolean)
+
+internal fun findOpenHomeThread(
+    state: AppSession.UiState,
+    threads: List<HostPresentation.UnifiedThreadItem>,
+    presentedId: String?,
+): HostPresentation.UnifiedThreadItem? {
+    val selectedHost = state.hostCatalog.selectedConnectionId ?: return null
+    return threads.firstOrNull {
+        it.connectionId == selectedHost &&
+            (it.id == presentedId || it.id == state.openThreadId || it.thread.id == state.openThreadId)
+    }
+}
+
+internal fun homeThreadConnectionStatus(
+    state: AppSession.UiState,
+    connectionId: ClientConnectionId?,
+): HomeThreadConnectionStatus {
+    val selected = connectionId != null && connectionId == state.hostCatalog.selectedConnectionId
+    val online = selected && state.socketState == RemoteWebSocketClient.ConnectionState.Online
+    val offline = selected && !online && !state.sessionExpired &&
+        state.socketState != RemoteWebSocketClient.ConnectionState.SessionExpired &&
+        state.socketState != RemoteWebSocketClient.ConnectionState.Connecting
+    return HomeThreadConnectionStatus(online, offline)
+}
 
 internal fun homeKeyboardShortcutsModifier(
     hasOpenThread: Boolean,

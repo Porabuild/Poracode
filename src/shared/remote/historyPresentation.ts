@@ -25,9 +25,22 @@ export const historyRuntimeItemSchema = persistedRuntimeItemSchema.extend({
 });
 export type HistoryRuntimeItem = z.infer<typeof historyRuntimeItemSchema>;
 
+/**
+ * The item-detail response. `position` is additive and optional: it is the
+ * item's canonical transcript position on the owning host, read from
+ * `HistoryPageRowMeta.position`. It lives OUTSIDE the stored `item` so the
+ * persisted row stays untouched. A host that predates it omits the field, and
+ * every existing reader still parses complete rows (no projection version
+ * bump, no capability negotiation, no downgrade path: an absent position just
+ * means positioned, item-centered reads are unavailable and the reader keeps
+ * its bounded paging).
+ */
 export const historyItemDetailSchema = z.object({
   item: persistedRuntimeItemSchema,
+  /** Canonical 0-based transcript position; absent on older hosts. */
+  position: z.number().int().nonnegative().optional(),
 });
+export type HistoryItemDetail = z.infer<typeof historyItemDetailSchema>;
 
 export const historyItemDetailQuerySchema = z.object({
   notices: z.literal("v1"),

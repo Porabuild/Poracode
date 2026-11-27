@@ -462,10 +462,12 @@ export function ChatScrollControls(props: {
 
   function syncLayoutNowAndAfterPaint() {
     observeScrollElements();
+    if (!stickToBottomRef.current && hasScheduledLayoutSync()) return;
     const el = scrollRef.current;
-    const geometry = el
-      ? { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }
-      : undefined;
+    const geometry =
+      el && stickToBottomRef.current
+        ? { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }
+        : undefined;
     const layoutHeightChanged =
       !!geometry &&
       (geometry.scrollHeight !== lastPinnedScrollHeightRef.current ||

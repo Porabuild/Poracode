@@ -11,6 +11,7 @@ enum NativeShortcutPlatformPolicy {
     "composer.toggle-work-plan", "composer.cycle-effort", "composer.toggle-fast",
     "composer.cycle-permission", "composer.start-dictation",
     "palette.open", "find.open", "thread.next", "thread.previous", "thread.recent.next", "thread.recent.previous",
+    "thread.nextInWorkspace", "thread.previousInWorkspace",
     "files.open", "files.toggle", "git.open", "terminal.toggle", "browser.toggle",
     "browser.focus-address-bar", "browser.tab.new",
     "editor.save", "editor.toggle-markdown-preview",
@@ -18,6 +19,14 @@ enum NativeShortcutPlatformPolicy {
 
   static func accepts(_ chord: NativeKeyChord) -> Bool {
     !["meta+,", "meta+m", "shift+tab"].contains(chord.canonical)
+  }
+
+  static func conditionSourceCommand(_ command: String) -> String {
+    switch command {
+    case "thread.nextInWorkspace": "thread.next"
+    case "thread.previousInWorkspace": "thread.previous"
+    default: command
+    }
   }
 
   static let defaults: NativeKeybindingDocument = {

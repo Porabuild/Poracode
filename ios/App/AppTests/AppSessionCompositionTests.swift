@@ -211,6 +211,7 @@ final class FakeLiveSocket: SessionLiveSocket {
   private(set) var interestUpdates: [[String]] = []
   private(set) var startedWithSeq: Int?
   private(set) var stopCount = 0
+  private(set) var reconnectNowCount = 0
   private(set) var resumeAfterResyncSeqs: [Int] = []
   private(set) var recoverFromResyncAbortCount = 0
   private(set) var noteAuthoritativeSeqs: [Int] = []
@@ -251,6 +252,10 @@ final class FakeLiveSocket: SessionLiveSocket {
   func stop() async {
     stopCount += 1
     resyncSuspended = false
+  }
+
+  func reconnectNow() async {
+    reconnectNowCount += 1
   }
 
   func suspendForBackground() async {
@@ -3123,5 +3128,62 @@ final class PreservedUpgradeRouteURLProtocol: URLProtocol {
     self.snapshotStatus = 401
     self.snapshotBody = Data()
     self.requests = []
+  }
+}
+
+// MARK: - In-thread offline-banner Reconnect (native parity)
+
+/// The narrow session retry must route to the selected host's current socket
+/// only, fenced by host + incarnation, and never reconnect a retired host.
+@MainActor
+final class HostOfflineReconnectTests: XCTestCase {
+  func testExplicitRetryIsFencedToSelectedHostAndIncarnation() async throws {
+    let socket = FakeLiveSocket()
+    let (session, repo, _) = try await makeSession(
+      apiFactory: { e, t in
+        let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+        api.environmentResult = .failure(RemoteClientError.invalidResponse("offline"))
+        return api
+      },
+      socketFactory: { _ in socket }
+    )
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+
+    let connectionID = ClientConnectionID()
+    session.state.selectedConnectionId = connectionID
+    session.state.webSocket = socket
+    let generation = session.hostIncarnation
+
+    // Correct host + incarnation: one reconnect through the socket ladder.
+    await session.reconnectSelectedHost(connectionID: connectionID, generation: generation)
+    XCTAssertEqual(socket.reconnectNowCount, 1)
+    XCTAssertTrue(session.state.webSocket === socket, "no replacement socket is opened")
+    XCTAssertEqual(session.state.selectedConnectionId, Optional(connectionID), "current thread's host is preserved")
+
+    // Rapid second tap still reaches only the same socket (the socket's own
+    // generation gate dedupes the in-flight pass into one connection).
+    await session.reconnectSelectedHost(connectionID: connectionID, generation: generation)
+    XCTAssertEqual(socket.reconnectNowCount, 2)
+    XCTAssertTrue(session.state.webSocket === socket, "rapid taps never install a second connection")
+
+    // A tap captured for a previous host must not reconnect the new host.
+    await session.reconnectSelectedHost(connectionID: ClientConnectionID(), generation: generation)
+    XCTAssertEqual(socket.reconnectNowCount, 2)
+
+    // A tap from a previous incarnation (host switch / re-pair) is stale.
+    _ = session.state.operationOwner.bumpWorkGeneration()
+    await session.reconnectSelectedHost(connectionID: connectionID, generation: generation)
+    XCTAssertEqual(socket.reconnectNowCount, 2)
+
+    // A retired session is left to the existing re-pair flow.
+    let currentGeneration = session.hostIncarnation
+    session.state.phase = .sessionExpired
+    await session.reconnectSelectedHost(connectionID: connectionID, generation: currentGeneration)
+    XCTAssertEqual(socket.reconnectNowCount, 2)
   }
 }

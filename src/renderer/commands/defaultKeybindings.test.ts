@@ -98,6 +98,40 @@ describe("default keybindings", () => {
     }
   });
 
+  it("registers workspace chat commands without default chords or collisions", () => {
+    const commands = buildCommandRegistry();
+    for (const id of ["thread.nextInWorkspace", "thread.previousInWorkspace"] as const) {
+      const command = commands.find((entry) => entry.id === id);
+      expect(command).toBeDefined();
+      expect(command?.showInPalette).not.toBe(false);
+      expect(command?.showInShortcuts).not.toBe(false);
+      // Bindable/discoverable, but no shipped chord to collide with thread.next/previous.
+      expect(DEFAULT_KEYBINDINGS.keybindings.some((binding) => binding.command === id)).toBe(false);
+    }
+    // Existing Next/Previous chat defaults stay untouched.
+    expect(
+      DEFAULT_KEYBINDINGS.keybindings.filter((binding) => binding.command === "thread.next"),
+    ).toHaveLength(2);
+    expect(
+      DEFAULT_KEYBINDINGS.keybindings.filter((binding) => binding.command === "thread.previous"),
+    ).toHaveLength(2);
+  });
+
+  it("keeps workspace chat commands in the same key routing scope as next/previous chat", () => {
+    const commands = buildCommandRegistry();
+    const whenFor = (id: string) => commands.find((entry) => entry.id === id)?.when;
+    for (const id of ["thread.nextInWorkspace", "thread.previousInWorkspace"] as const) {
+      const when = whenFor(id);
+      expect(when).toBe(whenFor("thread.next"));
+      expect(evaluateWhenClause(when, { hasThread: true })).toBe(true);
+      expect(evaluateWhenClause(when, { hasThread: true, composerFocus: true })).toBe(true);
+      expect(evaluateWhenClause(when, { hasThread: true, editorFocus: true })).toBe(false);
+      expect(evaluateWhenClause(when, { hasThread: true, terminalFocus: true })).toBe(false);
+      expect(evaluateWhenClause(when, { hasThread: true, browserFocus: true })).toBe(false);
+      expect(evaluateWhenClause(when, { hasThread: false })).toBe(false);
+    }
+  });
+
   it("do not collide on any supported platform within a keyspace", () => {
     for (const platform of PLATFORMS) {
       const seen = new Map<string, string>();

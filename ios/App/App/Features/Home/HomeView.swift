@@ -1240,6 +1240,7 @@ struct HomeView: View {
       canStartThread: session.canOperate && !composerExpanded,
       canOpenBrowser: session.currentBrowserMirrorAccess != nil,
       canStepThread: order.count > 1,
+      canStepWorkspaceThread: current.map { visible.contains($0) && visible.count > 1 } ?? false,
       canCycleRecentThreads: current.map { navigationSelection.hasRecentThread(otherThan: $0, visible: visible) } ?? false,
       openSettings: { openSidebarSheet(.settings) }, toggleSidebar: toggleHomeSidebar,
       newThread: { startSplitComposer(initialProjectID: keyboardProjectID) },
@@ -1248,6 +1249,13 @@ struct HomeView: View {
       stepThread: { direction in
         guard let current else { return }
         openKeyboardThread(direction.target(in: order, from: current), replacing: current)
+      },
+      stepWorkspaceThread: { direction in
+        guard let current else { return }
+        let workspaceOrder = HomeThreadListPresentation.keyboardOrder(
+          from: visibleThreads, currentID: current, groupsDone: currentLayout.isSplit, workspaceWide: true
+        )
+        openKeyboardThread(direction.target(in: workspaceOrder, from: current), replacing: current)
       },
       cycleRecentThread: { direction in
         guard let current, keyboardThread?.id.rawValue == current else { return }

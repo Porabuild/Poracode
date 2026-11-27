@@ -1,8 +1,10 @@
 package com.poracode.app.session
 
+import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.protocol.AppLifecycleGate
 import com.poracode.app.protocol.ThreadHydrationCoordinator
 import com.poracode.app.session.catalog.CatalogSyncController
+import com.poracode.app.session.history.loadThreadHistoryTail
 import com.poracode.app.storage.SessionCredentialRepository
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.transport.ForegroundNetworkGate
@@ -10,8 +12,10 @@ import com.poracode.app.transport.RemoteApiGatewayFactory
 import com.poracode.app.transport.RemoteEventSocket
 import com.poracode.app.transport.RemoteEventSocketFactory
 import com.poracode.app.transport.RemoteWebSocketClient
+import com.poracode.app.push.PushOffPageResolution
 import com.poracode.app.push.PushRouteV1
 import com.poracode.app.push.RemoteUserNotificationPresentationCenter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -196,6 +200,8 @@ class AppSession(
     internal fun resyncPendingForTests(): Boolean = resync.pending
     internal fun socketForTests(): RemoteEventSocket? = live.webSocket
     internal fun sessionGenerationForTests(): Int = owner.sessionGeneration
+    /** Simulates an API-incarnation change (e.g. a host switch) for push-guard tests. */
+    internal fun bumpApiIdentityForTests(): Int = owner.bumpApiIdentity()
     internal fun authoritativeRefreshRequiredForTests(): Boolean =
         resync.authoritativeRefreshRequired
 
@@ -217,6 +223,14 @@ class AppSession(
 
     fun clearGlobalError() {
         _state.update { it.copy(globalError = null) }
+    }
+
+    /**
+     * Retry the live socket for the host shown in the thread's offline banner.
+     */
+    fun reconnectSelectedHost(connectionId: ClientConnectionId) {
+        val generation = owner.sessionGeneration
+        reconnectCurrentHostSocket(live.webSocket, _state.value, owner, connectionId, generation)
     }
     fun onLocalNetworkPermissionGranted() = lifecycleCoordinator.onLocalNetworkPermissionGranted()
 
@@ -250,6 +264,69 @@ class AppSession(
         scope.launch { hosts.refreshHostSnapshots() }
     }
     internal suspend fun refreshSnapshotForPush(): Boolean = kotlinx.coroutines.CompletableDeferred<Boolean>().let { result -> live.refreshSnapshot { result.complete(it) } ?: return false; result.await() }
+
+    /**
+     * Bounded, host-scoped exact-ID thread head read for a push target outside
+     * the loaded catalog page. Fence the read to the host and API incarnation.
+     * The route coordinator decides when the returned row may be installed.
+     */
+    internal suspend fun resolvePushOffPageThread(
+        connectionId: ClientConnectionId,
+        desktopId: String,
+        threadId: String,
+    ): PushOffPageResolution {
+        val before = _state.value
+        if (before.hostCatalog.selectedConnectionId != connectionId ||
+            before.profile?.desktopId != desktopId
+        ) return PushOffPageResolution.Stale
+        val apiIdentity = owner.apiIdentity
+        val startedSeq = live.lastSeenSeq?.toLong() ?: 0L
+        val row = try {
+            live.api?.let { client ->
+                val currentCatalog = _state.value.catalog
+                loadThreadHistoryTail(
+                    api = client,
+                    threadId = threadId,
+                    targetTimelineEntryCount = 1,
+                    bounded = currentCatalog.negotiated && !currentCatalog.legacy,
+                    ioDispatcher = ioDispatcher,
+                ).thread.takeIf { it.id == threadId }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        val after = _state.value
+        if (after.hostCatalog.selectedConnectionId != connectionId ||
+            after.profile?.desktopId != desktopId ||
+            !owner.isCurrentApi(apiIdentity)
+        ) return PushOffPageResolution.Stale
+        return if (row == null) PushOffPageResolution.Unavailable
+        else PushOffPageResolution.Found(row, startedSeq)
+    }
+
+    /**
+     * Installs an off-page row through the catalog's scoped ownership and then
+     * opens it. Installing the row first lets [ThreadController.openThread]
+     * resolve terminal presentation from that row. Called only at the resolved
+     * open, after the coordinator's generation check, so a stale read cannot
+     * mutate a newly selected host.
+     */
+    internal fun installPushOffPageRow(
+        row: com.poracode.app.model.RemoteThread,
+        pageStartedSeq: Long,
+        threadId: String,
+    ) {
+        catalog.pinThreadRow(row, pageStartedSeq)
+        openThread(threadId)
+    }
+
+    /** Generic, localized "cannot be opened" outcome on the existing error surface. */
+    internal fun surfacePushUnavailable(message: String) {
+        _state.update { it.copy(globalError = message) }
+    }
+
     fun openThread(id: String) {
         val parts = com.poracode.app.model.CompositeRemoteId(id).decode()
         if (parts == null) {

@@ -174,7 +174,7 @@ export function TerminalSurfaces(props: {
   }
 
   function surfaceProps(
-    tab: TerminalTab & { projectId?: string },
+    tab: TerminalTab & { projectId?: string; worktreePath?: string },
     terminalId: string,
     runActionId?: string,
   ) {
@@ -186,6 +186,19 @@ export function TerminalSurfaces(props: {
     )?.connectionKey;
     return {
       ...(owner ? { outputOwner: owner } : {}),
+      // DevTerminal tab shells (`terminal.toggle` / `terminal.command.run`) are
+      // PTYs with a `shell:<uuid>` id, not a Thread row. Give XTermSurface an
+      // explicit, immutable scope from the TAB's own project/worktree (never the
+      // selected project) so `file:line` output links into that project. Global
+      // and login tabs have no projectId and keep URL-only behavior.
+      ...(tab.projectId
+        ? {
+            projectFileScope: {
+              projectId: tab.projectId,
+              ...(tab.worktreePath ? { worktreePath: tab.worktreePath } : {}),
+            },
+          }
+        : {}),
       ...(runActionId
         ? { initialScrollback: useThreadOutputStore.getState().readTail(terminalId, 100_000) }
         : {}),

@@ -145,7 +145,9 @@ import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
 import { ThreadHostOfflineDock } from "./ThreadHostOfflineDock";
+import { resolveHostOfflineOwner } from "./ThreadHostOfflineDockModel";
 import { useEntityHostOffline } from "@/renderer/hooks/useEntityHostReady";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
@@ -853,9 +855,21 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
     ) : null;
   // Every chat warning lives in the composer's notice stack, including a lost
-  // connection to the thread's host, whichever host that is.
+  // connection to the thread's host, whichever host that is. Derive the owner
+  // from the current thread so the notice and its retry refer to the same leg.
+  // While a paired host is "connecting" the offline flag is false, but the
+  // notice stays visible to show a truthful pending state instead of vanishing
+  // and inviting repeated retries.
   const hostOffline = useEntityHostOffline(thread);
-  const showHostOfflineWarning = hostOffline && !usesTerminalPresentation;
+  const hostOfflineOwner = resolveHostOfflineOwner(thread);
+  const hostOfflineConnectionKey =
+    hostOfflineOwner.kind === "paired" ? hostOfflineOwner.connectionKey : undefined;
+  const hostReconnecting = useRemoteServersStore(
+    (state) =>
+      hostOfflineConnectionKey !== undefined &&
+      state.runtime[hostOfflineConnectionKey]?.status === "connecting",
+  );
+  const showHostOfflineWarning = (hostOffline || hostReconnecting) && !usesTerminalPresentation;
   const project = useAppStore((state) =>
     state.projects.find((candidate) => candidate.id === thread.projectId),
   );
@@ -878,7 +892,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         {runtimeInstallNotice}
         {historyNoticeDock}
         {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
-        {showHostOfflineWarning ? <ThreadHostOfflineDock /> : null}
+        {showHostOfflineWarning ? <ThreadHostOfflineDock owner={hostOfflineOwner} /> : null}
         {resumeUnavailableNotice}
       </>
     ) : null;

@@ -12,6 +12,7 @@ import {
   useDiffTheme,
 } from "../../diffBuildClient";
 import { DiffAnnotationView } from "../../DiffAnnotationView";
+import { FirstDiffHunk, firstDiffHunk } from "./FirstDiffHunk";
 
 export function SingleFileDiff(props: {
   project: Project;
@@ -26,6 +27,7 @@ export function SingleFileDiff(props: {
   const theme = useDiffTheme();
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState<string | null>(null);
   // Every input that restarts the load, folded into one key so the effect
   // consumes the trigger-only values (project id, refresh key) instead of
   // listing them as extra dependencies.
@@ -39,6 +41,7 @@ export function SingleFileDiff(props: {
     setPrevRequestKey(requestKey);
     setLoading(true);
     setDiffFile(null);
+    setPreview(null);
   }
 
   useEffect(() => {
@@ -54,6 +57,7 @@ export function SingleFileDiff(props: {
           staged,
         });
         if (cancelled || activeRequestKeyRef.current !== capturedKey) return;
+        setPreview(firstDiffHunk(result.diff));
         const { oldName, newName } = extractDiffNames(result.diff);
         const results = await buildInWorker([
           {
@@ -85,8 +89,11 @@ export function SingleFileDiff(props: {
       className="absolute inset-0 z-10 overflow-y-auto bg-[var(--content-background)] px-4"
     >
       {loading && (
-        <div className="flex items-center justify-center py-8 text-sm text-muted">
-          <Trans>Loading diff...</Trans>
+        <div aria-busy="true">
+          {preview ? <FirstDiffHunk text={preview} /> : null}
+          <div className="flex items-center justify-center py-8 text-sm text-muted">
+            <Trans>Loading diff...</Trans>
+          </div>
         </div>
       )}
       {!loading && !diffFile && (

@@ -12,6 +12,95 @@ export interface GitDiffSearchLine {
   text: string;
 }
 
+export interface OversizedDiffMatch {
+  readonly side: "old" | "new";
+  readonly line: number;
+  readonly hunk: string;
+  readonly text: string;
+}
+
+/** One bounded oversized scan stops here; the result may be incomplete. */
+export const OVERSIZED_DIFF_MATCH_LIMIT = 250;
+
+export interface OversizedDiffSearchResult {
+  readonly matches: readonly OversizedDiffMatch[];
+  /** True when the scan reached the cap, so more matches may exist. */
+  readonly capped: boolean;
+}
+
+interface PatchLine {
+  text: string;
+  hunk: string;
+  oldLine?: number;
+  newLine?: number;
+}
+
+function* patchLines(diff: string): Generator<PatchLine> {
+  let oldLine = 0;
+  let newLine = 0;
+  let heading = "";
+  let offset = 0;
+  while (offset < diff.length) {
+    const next = diff.indexOf("\n", offset);
+    const end = next < 0 ? diff.length : next;
+    const line = diff.slice(offset, diff[end - 1] === "\r" ? end - 1 : end);
+    offset = end + 1;
+    const header = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (header) {
+      oldLine = Number(header[1]);
+      newLine = Number(header[2]);
+      heading = line;
+      continue;
+    }
+    const marker = line[0];
+    if (!heading || (marker !== " " && marker !== "+" && marker !== "-")) continue;
+    yield {
+      text: line.slice(1),
+      hunk: heading,
+      ...(marker !== "+" ? { oldLine: oldLine++ } : {}),
+      ...(marker !== "-" ? { newLine: newLine++ } : {}),
+    };
+  }
+}
+
+/** Search the patch without building a render model or retaining every line. */
+export async function findOversizedDiffMatches(
+  diff: string,
+  query: string,
+  caseSensitive: boolean,
+  signal: AbortSignal,
+): Promise<OversizedDiffSearchResult> {
+  if (!query) return { matches: [], capped: false };
+  const needle = caseSensitive ? query : query.toLowerCase();
+  const matches: OversizedDiffMatch[] = [];
+  let visited = 0;
+  let capped = false;
+  for (const row of patchLines(diff)) {
+    if (visited++ % 256 === 0) {
+      signal.throwIfAborted();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
+    const text = caseSensitive ? row.text : row.text.toLowerCase();
+    const match = text.indexOf(needle);
+    const line = row.newLine ?? row.oldLine;
+    if (match < 0 || line === undefined || line < 1) continue;
+    const start = Math.max(0, match - 100);
+    const end = Math.min(row.text.length, match + query.length + 100);
+    matches.push({
+      side: row.newLine !== undefined ? "new" : "old",
+      line,
+      hunk: row.hunk.slice(0, 200),
+      text: `${start ? "…" : ""}${row.text.slice(start, end)}${end < row.text.length ? "…" : ""}`,
+    });
+    if (matches.length >= OVERSIZED_DIFF_MATCH_LIMIT) {
+      capped = true;
+      break;
+    }
+  }
+  signal.throwIfAborted();
+  return { matches, capped };
+}
+
 const sectionSnapshots = new WeakMap<Element, { revision: string; lines: GitDiffSearchLine[] }>();
 
 function lineSelector(side: "old" | "new", line: number, split: boolean): string {
@@ -27,28 +116,13 @@ export function gitDiffSearchLines(entry: GitDiffSearchEntry, mode: number): Git
   if (entry.tooLarge) return lines;
   const split =
     mode !== 4 && !(entry.deletions === 0 && (!entry.oldName || entry.oldName === "/dev/null"));
-  let oldLine = 0;
-  let newLine = 0;
-  let inHunk = false;
-  for (const line of entry.rawDiff.split(/\r?\n/)) {
-    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
-    if (hunk) {
-      oldLine = Number(hunk[1]);
-      newLine = Number(hunk[2]);
-      inHunk = true;
-      continue;
+  for (const row of patchLines(entry.rawDiff)) {
+    if (row.oldLine !== undefined && (row.newLine === undefined || split)) {
+      lines.push({ selector: lineSelector("old", row.oldLine, split), text: row.text });
     }
-    if (!inHunk) continue;
-    const marker = line[0];
-    if (marker !== " " && marker !== "+" && marker !== "-") continue;
-    if (marker === "-" || (marker === " " && split)) {
-      lines.push({ selector: lineSelector("old", oldLine, split), text: line.slice(1) });
+    if (row.newLine !== undefined) {
+      lines.push({ selector: lineSelector("new", row.newLine, split), text: row.text });
     }
-    if (marker !== "-") {
-      lines.push({ selector: lineSelector("new", newLine, split), text: line.slice(1) });
-    }
-    if (marker !== "+") oldLine++;
-    if (marker !== "-") newLine++;
   }
   return lines;
 }

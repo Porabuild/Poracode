@@ -526,6 +526,45 @@ describe("RemoteHttpBridgeClient", () => {
     }
   });
 
+  it("admits Stop and approval ahead of queued ordinary bridge traffic", async () => {
+    const harness = createHarness({ maxConcurrent: 8 });
+    const bulk = new AbortController();
+    const stop = new AbortController();
+    const approval = new AbortController();
+    const bulkRequests = Array.from({ length: 8 }, (_, index) =>
+      harness.client.fetch(`https://host.test/api/files/media?index=${index}`, {
+        signal: bulk.signal,
+      }),
+    );
+    const stopping = harness.client.fetch("https://host.test/api/threads/thread/interrupt", {
+      method: "POST",
+      signal: stop.signal,
+    });
+    const approving = harness.client.fetch(
+      "https://host.test/api/threads/thread/requests/resolve",
+      {
+        method: "POST",
+        signal: approval.signal,
+      },
+    );
+    const settled = Promise.allSettled([...bulkRequests, stopping, approving]);
+    try {
+      await vi.waitFor(() => expect(harness.opens).toHaveLength(8));
+      expect(harness.opens[7]?.url).toMatch(/\/interrupt$/);
+      stop.abort();
+      await vi.waitFor(() => expect(harness.opens).toHaveLength(9));
+      expect(harness.opens[8]?.url).toMatch(/\/requests\/resolve$/);
+      expect(harness.opens.map((request) => request.url)).not.toContain(
+        "https://host.test/api/files/media?index=7",
+      );
+    } finally {
+      bulk.abort();
+      stop.abort();
+      approval.abort();
+      await settled;
+    }
+  });
+
   it("aborts a queued bridge request without ever opening it", async () => {
     const harness = createHarness({ maxConcurrent: 1 });
     const p1 = harness.client.fetch("https://host.test/1");

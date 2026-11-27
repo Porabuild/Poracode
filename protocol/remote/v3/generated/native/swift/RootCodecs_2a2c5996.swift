@@ -277,11 +277,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESearchProjectTreeU2ERequest: RemoteRootCodec<ProceduresearchProjectTreeRequest_956459f749> = .init(id: "procedure.searchProjectTree.request", schema: RemoteSchemas.schema_956459f749459347)
+  static let procedureU2ESearchProjectTreeU2ERequest: RemoteRootCodec<ProceduresearchProjectTreeRequest_07862819eb> = .init(id: "procedure.searchProjectTree.request", schema: RemoteSchemas.schema_07862819eb1c2071)
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESearchProjectTreeU2EResult: RemoteRootCodec<ProceduresearchProjectTreeResult_ed3d977334> = .init(id: "procedure.searchProjectTree.result", schema: RemoteSchemas.schema_ed3d9773342dac2c)
+  static let procedureU2ESearchProjectTreeU2EResult: RemoteRootCodec<ProceduresearchProjectTreeResult_3f7d378803> = .init(id: "procedure.searchProjectTree.result", schema: RemoteSchemas.schema_3f7d378803511b06)
 }
 
 public extension RemoteRootCodecs {

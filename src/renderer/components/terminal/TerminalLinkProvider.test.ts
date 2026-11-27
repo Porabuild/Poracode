@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { TerminalLinkProvider } from "./TerminalLinkProvider";
+import type { TerminalFileLinkSource, TerminalFileRef } from "./terminalProjectFileLinks";
+
+type ProbeLink = {
+  range: { start: { x: number; y: number }; end: { x: number; y: number } };
+  text: string;
+  activate: (event: MouseEvent, text: string) => void;
+};
 
 type LinkProviderProbe = {
   _getWindowedLineStrings(lineIndex: number): [string[], number];
+  provideLinks(bufferLineNumber: number, callback: (links: ProbeLink[] | undefined) => void): void;
 };
 
 type Cell = { chars: string; width: number };
@@ -48,7 +56,11 @@ function makeLine(cells: Cell[] | string, isWrapped = false) {
 // `cols` defaults to 80, the conventional terminal width. The hard-break
 // continuation only fires when the line ending in the URL fills the row to
 // exactly `cols`, so the stitching tests set `cols` to that line's width.
-function makeProvider(lines: ReturnType<typeof makeLine>[], cols = 80): LinkProviderProbe {
+function makeProvider(
+  lines: ReturnType<typeof makeLine>[],
+  cols = 80,
+  fileLinkSource?: TerminalFileLinkSource,
+): LinkProviderProbe {
   return new TerminalLinkProvider(
     {
       cols,
@@ -72,7 +84,34 @@ function makeProvider(lines: ReturnType<typeof makeLine>[], cols = 80): LinkProv
       },
     } as never,
     () => undefined,
+    fileLinkSource,
   ) as unknown as LinkProviderProbe;
+}
+
+function collectLinks(provider: LinkProviderProbe, y = 1): ProbeLink[] {
+  let links: ProbeLink[] = [];
+  provider.provideLinks(y, (result) => {
+    links = result ?? [];
+  });
+  return links;
+}
+
+/** A controlled file-link layer: `findRefs` returns fixed refs so the provider's
+ * coordinate mapping, URL precedence and activation can be tested in isolation. */
+function fileSource(refs: TerminalFileRef[]): {
+  source: TerminalFileLinkSource;
+  activated: TerminalFileRef[];
+} {
+  const activated: TerminalFileRef[] = [];
+  return {
+    activated,
+    source: {
+      findRefs: () => refs,
+      activate: (ref) => {
+        activated.push(ref);
+      },
+    },
+  };
 }
 
 describe("TerminalLinkProvider", () => {
@@ -175,5 +214,78 @@ describe("TerminalLinkProvider", () => {
 
     expect(lines.join("")).toBe("Local: http://localhost:5173/");
     expect(lines.join("")).not.toContain("5173/next");
+  });
+});
+
+describe("TerminalLinkProvider project-file links", () => {
+  it("returns a file link alongside a URL link and wires activation", () => {
+    const ref: TerminalFileRef = {
+      start: 0,
+      text: "src/foo.ts:12",
+      path: "src/foo.ts",
+      line: 12,
+    };
+    const stub = fileSource([ref]);
+    const provider = makeProvider(
+      [makeLine("src/foo.ts:12 and https://example.com")],
+      80,
+      stub.source,
+    );
+
+    const links = collectLinks(provider);
+
+    expect(links.map((link) => link.text)).toEqual(["https://example.com", "src/foo.ts:12"]);
+    links[1]!.activate(new MouseEvent("click"), links[1]!.text);
+    expect(stub.activated).toEqual([ref]);
+  });
+
+  it("keeps wrapped HTTP URL precedence: a file ref inside a URL is not double-linked", () => {
+    const ref: TerminalFileRef = {
+      start: 20, // "https://example.com/" is 20 chars; path:line sits inside the URL
+      text: "src/foo.ts:12",
+      path: "src/foo.ts",
+      line: 12,
+    };
+    const stub = fileSource([ref]);
+    const provider = makeProvider([makeLine("https://example.com/src/foo.ts:12")], 80, stub.source);
+
+    const links = collectLinks(provider);
+
+    expect(links.map((link) => link.text)).toEqual(["https://example.com/src/foo.ts:12"]);
+    expect(stub.activated).toEqual([]);
+  });
+
+  it("keeps URL-only behavior when no project file source is configured", () => {
+    const noProject = makeProvider([makeLine("src/foo.ts:12")]);
+    expect(collectLinks(noProject)).toEqual([]);
+
+    const urlOnly = makeProvider([makeLine("see https://example.com now")]);
+    expect(collectLinks(urlOnly).map((link) => link.text)).toEqual(["https://example.com"]);
+  });
+
+  it("maps a soft-wrapped file ref across rows with correct ANSI/wrap coordinates", () => {
+    const ref: TerminalFileRef = {
+      start: 0,
+      text: "src/foo.ts:12",
+      path: "src/foo.ts",
+      line: 12,
+    };
+    const stub = fileSource([ref]);
+    // Line 1 is a soft-wrapped continuation (isWrapped), so the joined text is
+    // "src/foo.ts:12 now"; the link must span both buffer rows.
+    const provider = makeProvider(
+      [makeLine("src/fo"), makeLine("o.ts:12 now", true)],
+      80,
+      stub.source,
+    );
+
+    const links = collectLinks(provider);
+
+    expect(links).toHaveLength(1);
+    expect(links[0]!.text).toBe("src/foo.ts:12");
+    expect(links[0]!.range.start.y).toBe(1);
+    expect(links[0]!.range.end.y).toBe(2);
+    links[0]!.activate(new MouseEvent("click"), links[0]!.text);
+    expect(stub.activated).toEqual([ref]);
   });
 });

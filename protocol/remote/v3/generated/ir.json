@@ -39621,6 +39621,10 @@
               }
             ]
           },
+          "provisional": {
+            "const": true,
+            "type": "boolean"
+          },
           "query": {
             "default": "",
             "type": "string"
@@ -39688,6 +39692,10 @@
                 "x-poracode-unknownFields": "strip"
               },
               "type": "array"
+            },
+            "provisional": {
+              "const": true,
+              "type": "boolean"
             }
           },
           "required": [
@@ -87065,6 +87073,11 @@
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
+            },
+            "position": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             }
           },
           "required": [
@@ -95888,7 +95901,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:6f50d877932513398e6593729906bd53a7df341c22750484060c234612596292",
+  "sourceHash": "sha256:52cb317cf1f13735396c17f15f9302f38c512da8e1a3a0f6518e1e5734d3b100",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

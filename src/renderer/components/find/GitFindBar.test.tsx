@@ -6,7 +6,9 @@ import { GitFindBar } from "./GitFindBar";
 import type { GitDiffSearchEntry } from "./gitDiffSearch";
 
 vi.mock("./FindBar", () => ({
-  FindBar: (props: { ref: React.Ref<HTMLInputElement> }) => <input ref={props.ref} />,
+  FindBar: (props: { ref: React.Ref<HTMLInputElement>; matchCountCapped?: boolean }) => (
+    <input ref={props.ref} data-capped={props.matchCountCapped ? "true" : undefined} />
+  ),
 }));
 const entry: GitDiffSearchEntry = {
   filePath: "file.ts",
@@ -51,6 +53,47 @@ afterEach(() => {
 });
 
 describe("virtualized Git Find navigation", () => {
+  it("shows a bounded hunk preview for a match in an oversized patch", async () => {
+    container.querySelector("table")!.remove();
+    const section = container.firstElementChild!;
+    const assumedScroll = vi.spyOn(section, "scrollIntoView");
+    const view = render(
+      <GitFindBar
+        containerRef={{ current: container }}
+        entries={[
+          {
+            ...entry,
+            tooLarge: true,
+            rawDiff: "@@ -350,2 +350,2 @@\n context\n-ordinary\n+the needle fixture\n",
+          },
+        ]}
+        diffMode={4}
+      />,
+    );
+    await waitFor(() => expect(useGitFindStore.getState().matchCount).toBe(1));
+    expect(view.getByText("file.ts, new line 351")).toBeInTheDocument();
+    expect(view.getByText("the needle fixture")).toBeInTheDocument();
+    expect(assumedScroll).toHaveBeenCalled();
+    // A complete (non-capped) oversized result keeps the normal counter.
+    expect(document.querySelector("input[data-capped='true']")).toBeNull();
+  });
+
+  it("discloses the 250 oversized-match cap while the bounded result is incomplete", async () => {
+    container.querySelector("table")!.remove();
+    const lines = Array.from({ length: 260 }, (_, index) => `+needle ${index}`).join("\n");
+    const view = render(
+      <GitFindBar
+        containerRef={{ current: container }}
+        entries={[{ ...entry, tooLarge: true, rawDiff: `@@ -1,0 +1,260 @@\n${lines}` }]}
+        diffMode={4}
+      />,
+    );
+    await waitFor(() => expect(useGitFindStore.getState().matchCount).toBe(250));
+    expect(document.querySelector("input[data-capped='true']")).toBeTruthy();
+    // The selected preview is preserved for the capped result.
+    expect(view.getByText("file.ts, new line 1")).toBeInTheDocument();
+  });
+
   it("discards offscreen expanded-context matches on refresh even when the patch is unchanged", async () => {
     container.querySelector("[data-line-new-num]")!.setAttribute("data-line-new-num", "20");
     container.querySelector(".diff-line-content-raw")!.textContent = "expanded context";

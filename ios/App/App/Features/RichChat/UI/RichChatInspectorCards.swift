@@ -400,10 +400,41 @@ struct RichChatMediaGallery: View {
 
 struct RichChatStatusView: View {
   let suite: RichChatControllerSuite
+  let session: AppSession
+  @State private var isReconnecting = false
 
   var body: some View {
     VStack(spacing: 0) {
-      if let failure = displayedFailure {
+      if hostOffline {
+        // A lost connection to the host is distinct from a normal history
+        // Refresh: reconnect the live socket, never replay the transcript.
+        HStack(alignment: .center, spacing: 8) {
+          Image(systemName: "exclamationmark.triangle")
+            .foregroundStyle(.orange)
+          Text(RichChatStrings.offline)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+          Button {
+            guard !isConnecting else { return }
+            isReconnecting = true
+            let connectionID = session.selectedConnectionId
+            let generation = session.hostIncarnation
+            Task {
+              await session.reconnectSelectedHost(connectionID: connectionID, generation: generation)
+            }
+          } label: {
+            Text(isConnecting ? TerminalStrings.reconnecting : TerminalStrings.reconnect)
+              .font(.footnote)
+          }
+          .poracodeGlassButtonStyle()
+          .disabled(isConnecting)
+          .fixedSize()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+      } else if let failure = displayedFailure {
         Label(RichChatStrings.failure(failure), systemImage: "exclamationmark.triangle")
           .font(.footnote)
           .foregroundStyle(.red)
@@ -424,6 +455,26 @@ struct RichChatStatusView: View {
         .padding(.vertical, 6)
       }
     }
+    // Bounded pending window: the reconnect re-arms the socket's own ladder;
+    // a late second press must not start a duplicate leg.
+    .task(id: isReconnecting) {
+      guard isReconnecting else { return }
+      try? await Task.sleep(for: .milliseconds(4_000))
+      isReconnecting = false
+    }
+  }
+
+  /// Truthful pending state: a press, or the initial connect attempt. The
+  /// persistent `.reconnecting` socket state is the automatic ladder, so the
+  /// button stays actionable for an explicit retry during its backoff.
+  private var isConnecting: Bool {
+    isReconnecting || session.phase == .connecting
+  }
+
+  private var hostOffline: Bool {
+    guard session.phase != .sessionExpired,
+          session.selectedConnectionId != nil else { return false }
+    return session.socketState != .online
   }
 
   private var displayedFailure: RichChatControllerFailure? {

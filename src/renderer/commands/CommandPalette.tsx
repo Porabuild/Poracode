@@ -274,7 +274,10 @@ function SearchPaletteContent() {
     if (result.kind === "message") {
       revealSearchDestination("thread");
       close();
-      void openConversationSearchHit(result.hit);
+      // Carry the palette text so the focused history window can highlight
+      // the literal match. Direct callers pass no query and behave as before.
+      const searchText = query.trim();
+      void openConversationSearchHit(result.hit, searchText || undefined);
       return;
     }
     if (result.kind === "command" || result.kind === "action") {

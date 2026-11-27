@@ -19,6 +19,7 @@ import {
   type RemoteHttpBridgePortEnvelope,
 } from "@/shared/remote/httpBridgeProtocol";
 import { readBridge } from "@/renderer/bridge";
+import { classifyRemoteRequestPriority } from "@/shared/remote/requestScheduler";
 
 /**
  * Renderer half of the off-main remote HTTP bridge (V4 F8).
@@ -71,7 +72,18 @@ const DEFAULT_BRIDGE_CLIENT_MAX_CONCURRENT = Math.max(
   REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW - 8,
 );
 
+function isBridgeControlRequest(method: RemoteHttpBridgeMethod, url: string): boolean {
+  if (method !== "POST") return false;
+  try {
+    return classifyRemoteRequestPriority(method, new URL(url).pathname) === "control";
+  } catch {
+    // Main still validates the actual URL at the admission boundary.
+    return false;
+  }
+}
+
 interface BridgeSlotWaiter {
+  readonly control: boolean;
   readonly resolve: () => void;
   readonly reject: (error: Error) => void;
   readonly cleanup: () => void;
@@ -292,6 +304,7 @@ export class RemoteHttpBridgeClient {
   private portSubscription: (() => void) | null = null;
   private readonly randomUuid: () => string;
   private readonly maxConcurrent: number;
+  private readonly maxOrdinaryConcurrent: number;
   private activeSlots = 0;
   private readonly slotQueue: BridgeSlotWaiter[] = [];
 
@@ -302,13 +315,17 @@ export class RemoteHttpBridgeClient {
       1,
       Math.floor(deps.maxConcurrent ?? DEFAULT_BRIDGE_CLIENT_MAX_CONCURRENT),
     );
+    // This queue serves all paired hosts in one window. An individual client's
+    // scheduler can reserve control capacity without reserving any bridge slots.
+    const controlReserve = Math.min(4, Math.floor(this.maxConcurrent / 8));
+    this.maxOrdinaryConcurrent = this.maxConcurrent - controlReserve;
   }
 
-  private acquireSlot(signal?: AbortSignal): (() => void) | Promise<() => void> {
+  private acquireSlot(control: boolean, signal?: AbortSignal): (() => void) | Promise<() => void> {
     if (signal?.aborted) {
       return Promise.reject(cancelledError());
     }
-    if (this.activeSlots < this.maxConcurrent && this.slotQueue.length === 0) {
+    if (this.hasSlot(control) && this.slotQueue.length === 0) {
       this.activeSlots += 1;
       return this.makeSlotReleaser();
     }
@@ -321,6 +338,7 @@ export class RemoteHttpBridgeClient {
         reject(cancelledError());
       };
       const waiter: BridgeSlotWaiter = {
+        control,
         resolve: () => resolve(this.makeSlotReleaser()),
         reject,
         cleanup: () => signal?.removeEventListener("abort", onAbort),
@@ -328,7 +346,25 @@ export class RemoteHttpBridgeClient {
       };
       signal?.addEventListener("abort", onAbort, { once: true });
       this.slotQueue.push(waiter);
+      this.drainSlots();
     });
+  }
+
+  private hasSlot(control: boolean): boolean {
+    return this.activeSlots < (control ? this.maxConcurrent : this.maxOrdinaryConcurrent);
+  }
+
+  private drainSlots(): void {
+    while (this.hasSlot(true) && this.slotQueue.length > 0) {
+      const controlIndex = this.slotQueue.findIndex((waiter) => waiter.control);
+      if (controlIndex < 0 && !this.hasSlot(false)) return;
+      const [next] = this.slotQueue.splice(Math.max(0, controlIndex), 1);
+      if (!next || next.settled) continue;
+      next.settled = true;
+      next.cleanup();
+      this.activeSlots += 1;
+      next.resolve();
+    }
   }
 
   private makeSlotReleaser(): () => void {
@@ -337,14 +373,7 @@ export class RemoteHttpBridgeClient {
       if (released) return;
       released = true;
       this.activeSlots = Math.max(0, this.activeSlots - 1);
-      while (this.activeSlots < this.maxConcurrent && this.slotQueue.length > 0) {
-        const next = this.slotQueue.shift()!;
-        if (next.settled) continue;
-        next.settled = true;
-        next.cleanup();
-        this.activeSlots += 1;
-        next.resolve();
-      }
+      this.drainSlots();
     };
   }
 
@@ -358,7 +387,7 @@ export class RemoteHttpBridgeClient {
     if (!isHeaderBudgetWithinBounds(headers)) {
       throw unreachableError(new Error("Remote request header budget exceeded."));
     }
-    const acquired = this.acquireSlot(signal);
+    const acquired = this.acquireSlot(isBridgeControlRequest(method, url), signal);
     const releaseSlot = typeof acquired === "function" ? acquired : await acquired;
     if (signal?.aborted) {
       releaseSlot();

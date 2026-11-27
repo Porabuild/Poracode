@@ -2,6 +2,8 @@ package com.poracode.app.push
 
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostRecord
+import com.poracode.app.model.RemoteThread
+import com.poracode.app.model.ThreadConfig
 import com.poracode.app.protocol.ProtocolConstants
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -192,6 +194,111 @@ class PushRouteCoordinatorTest {
         assertEquals(3L, fixture.coordinator.generationForTests())
     }
 
+    @Test
+    fun offPageHitOpensWithTheExactIdRow() = runBlocking {
+        val fixture = Fixture(selected = connectionB)
+        val row = threadRow("thread-beyond-page")
+        fixture.session.preparation = {
+            PushPreparation.Open(it, offPageRow = row, pageStartedSeq = 42L)
+        }
+        assertTrue(
+            fixture.coordinator.route(
+                route(connectionB, "desktop-shared", "thread-beyond-page"),
+            ),
+        )
+        // The resolved row is carried to the open so it can be installed there.
+        assertEquals(listOf(row), fixture.session.openedRows)
+        assertEquals(listOf(connectionB), fixture.session.opened.map { it.clientConnectionId })
+        assertTrue(fixture.session.unavailableShown.isEmpty())
+    }
+
+    @Test
+    fun notFoundShowsGenericUnavailableOutcomeWithoutOpening() = runBlocking {
+        val fixture = Fixture(selected = connectionB)
+        fixture.session.preparation = { PushPreparation.Unavailable }
+        assertFalse(
+            fixture.coordinator.route(route(connectionB, "desktop-shared", "thread-gone")),
+        )
+        assertTrue(fixture.session.opened.isEmpty())
+        assertTrue(fixture.session.openedRows.isEmpty())
+        assertEquals(listOf(Unit), fixture.session.unavailableShown)
+    }
+
+    @Test
+    fun supersedingTapSuppressesTheStaleUnavailableOutcome() = runBlocking {
+        val fixture = Fixture(selected = connectionA)
+        val gate = CompletableDeferred<Unit>()
+        fixture.session.gate(connectionA, gate)
+        fixture.session.preparation = { PushPreparation.Unavailable }
+        val inFlight = async {
+            fixture.coordinator.route(route(connectionA, "desktop-shared", "thread-a"))
+        }
+        yield()
+        // A cross-host tap while the unavailable prepare is in flight takes ownership.
+        assertFalse(
+            fixture.coordinator.route(route(connectionB, "desktop-shared", "thread-b")),
+        )
+        assertNotNull(fixture.coordinator.pendingConfirmation.value)
+        gate.complete(Unit)
+        assertFalse(inFlight.await())
+        // The superseded read must not surface an outcome for the old route.
+        assertTrue(fixture.session.unavailableShown.isEmpty())
+        assertTrue(fixture.session.opened.isEmpty())
+    }
+
+    @Test
+    fun supersedingTapBlocksTheOffPageRowInstall() = runBlocking {
+        val fixture = Fixture(selected = connectionA)
+        val gate = CompletableDeferred<Unit>()
+        fixture.session.gate(connectionA, gate)
+        val row = threadRow("thread-a")
+        fixture.session.preparation = {
+            PushPreparation.Open(it, offPageRow = row, pageStartedSeq = 7L)
+        }
+        val inFlight = async {
+            fixture.coordinator.route(route(connectionA, "desktop-shared", "thread-a"))
+        }
+        yield()
+        assertFalse(
+            fixture.coordinator.route(route(connectionB, "desktop-shared", "thread-b")),
+        )
+        gate.complete(Unit)
+        assertFalse(inFlight.await())
+        // A stale exact-ID read can never install its row into the newly selected host.
+        assertTrue(fixture.session.opened.isEmpty())
+        assertTrue(fixture.session.openedRows.isEmpty())
+        assertTrue(fixture.coordinator.confirmPending())
+        assertEquals(listOf(connectionB), fixture.session.opened.map { it.clientConnectionId })
+    }
+
+    @Test
+    fun unknownHostFailsClosedWithoutPreparingOrSurfacingAnOutcome() = runBlocking {
+        val fixture = Fixture(selected = connectionA)
+        // Even a session that would fail every prepare must never be consulted.
+        fixture.session.preparation = { PushPreparation.Unavailable }
+        assertFalse(
+            fixture.coordinator.route(
+                route("44444444-4444-4444-8444-444444444444", "desktop-shared", "thread-x"),
+            ),
+        )
+        assertTrue(fixture.session.prepared.isEmpty())
+        assertTrue(fixture.session.opened.isEmpty())
+        assertTrue(fixture.session.unavailableShown.isEmpty())
+    }
+
+    private fun threadRow(id: String) = RemoteThread(
+        id = id,
+        projectId = "p1",
+        title = "Off-page thread",
+        agentKind = "codex",
+        config = ThreadConfig(),
+        status = "idle",
+        attention = "none",
+        presentationMode = "gui",
+        createdAt = "2026-01-01T00:00:00.000Z",
+        updatedAt = "2026-01-01T00:00:00.000Z",
+    )
+
     private fun route(connection: String, desktop: String, thread: String) = PushRouteV1(
         clientConnectionId = connection,
         desktopId = desktop,
@@ -246,20 +353,29 @@ class PushRouteCoordinatorTest {
     private inner class FakeRouteSession : PushRouteSession {
         val prepared = mutableListOf<PushRouteV1>()
         val opened = mutableListOf<PushRouteV1>()
+        val openedRows = mutableListOf<RemoteThread?>()
+        val unavailableShown = mutableListOf<Unit>()
+        /** How a prepare resolves; default: a plain in-page open. */
+        var preparation: (PushRouteV1) -> PushPreparation = { PushPreparation.Open(it) }
         private val gates = mutableMapOf<String, CompletableDeferred<Unit>>()
 
         fun gate(connection: String, deferred: CompletableDeferred<Unit>) {
             gates[connection] = deferred
         }
 
-        override suspend fun prepare(route: PushRouteV1): PushRouteV1? {
+        override suspend fun prepare(route: PushRouteV1): PushPreparation {
             gates[route.clientConnectionId]?.await()
             prepared += route
-            return route
+            return preparation(route)
         }
 
-        override fun open(prepared: PushRouteV1) {
-            opened += prepared
+        override fun open(prepared: PushPreparation.Open) {
+            opened += prepared.route
+            openedRows += prepared.offPageRow
+        }
+
+        override fun showUnavailable() {
+            unavailableShown += Unit
         }
     }
 }

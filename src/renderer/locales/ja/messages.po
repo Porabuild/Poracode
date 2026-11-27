@@ -210,6 +210,8 @@ msgstr "{0}の{time}"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} authenticated."
@@ -464,6 +466,18 @@ msgstr "{0}が使用されました"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Idle"
 msgstr "{0}、アイドル状態"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, new line {1}"
+msgstr "{0}, 新しい行 {1}"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, old line {1}"
+msgstr "{0}, 古い行 {1}"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
@@ -1497,6 +1511,11 @@ msgstr "コンテキストウィンドウを追加"
 msgid "Add credentials before this thread can run."
 msgstr "このスレッドを実行する前に認証情報を追加してください。"
 
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Add credentials for {0} in Settings"
+msgstr "設定で {0} の資格情報を追加"
+
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "フォールバックを追加"
@@ -2044,10 +2063,6 @@ msgid "An agent is fixing this PR."
 msgstr "エージェントがこのPRを修正しています。"
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "An environment variable on this machine keeps both options off."
-#~ msgstr "このマシンの環境変数により、両オプションはオフのままになります。"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "An environment variable on this machine keeps telemetry off."
 msgstr "このマシンの環境変数により、テレメトリはオフのままです。"
 
@@ -2066,17 +2081,6 @@ msgstr "調査担当が根本原因を突き止め、修正担当が回帰テス
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "An MCP server with this name already exists."
 msgstr "この名前のMCPサーバーはすでに存在します。"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Anonymous feature-use events. No prompts, code, or location."
-#~ msgstr "匿名の機能利用イベント。プロンプト、コード、位置情報は含みません。"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Anonymous product analytics"
-#~ msgstr "匿名のプロダクト分析"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -2361,6 +2365,10 @@ msgstr "このメモリに加えて、プロバイダ独自のメモリを書か
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
 msgstr "必要に応じて確認"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Assistant"
+msgstr "アシスタント"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
@@ -2897,10 +2905,6 @@ msgstr "親フォルダーを参照します"
 #: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Browse full library"
 msgstr "ライブラリ全体を参照"
-
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Browse Ollama library"
-#~ msgstr "Ollama ライブラリを参照"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
@@ -4712,6 +4716,7 @@ msgid "Confused"
 msgstr "困惑"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -4790,6 +4795,7 @@ msgstr "接続中..."
 #: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
@@ -5387,11 +5393,6 @@ msgstr "対象範囲"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Coverage across reported currencies"
 msgstr "報告された通貨全体のカバー範囲"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Crash diagnostics with personal data removed."
-#~ msgstr "個人データを含まないクラッシュ診断。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -6847,11 +6848,6 @@ msgstr "{0} をダウンロードしました。"
 msgid "Downloading"
 msgstr "ダウンロード中"
 
-#. placeholder {0}: run.tag
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Downloading {0}…"
-#~ msgstr "{0} をダウンロードしています…"
-
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
@@ -7543,6 +7539,10 @@ msgstr "毎時"
 msgid "Every hour at {0} minutes past"
 msgstr "毎時{0}分"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Exact match"
+msgstr "完全一致"
+
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Exactly what is collected, and how to turn it off."
 msgstr "収集される内容とオフにする方法。"
@@ -7953,12 +7953,6 @@ msgstr "お気に入り"
 #: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "お気に入り"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
-#~ msgstr "ランダムなインストール ID に紐づく機能利用イベント。プロンプト、コード、位置情報は含みません。"
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
@@ -10996,6 +10990,10 @@ msgstr "大文字と小文字を区別"
 msgid "Match your system, or force light or dark."
 msgstr "システムに合わせたり、明暗を強制したりできます。"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Matched message in history"
+msgstr "履歴内の一致したメッセージ"
+
 #: src/renderer/components/common/effortLabel.ts
 msgid "Max"
 msgstr "最大"
@@ -11366,6 +11364,10 @@ msgstr "メッセージ操作"
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Message search unavailable"
 msgstr "メッセージ検索を利用できません"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Message text unavailable"
+msgstr "メッセージのテキストを表示できません"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
@@ -12122,6 +12124,10 @@ msgstr "次のカテゴリ"
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "次のチャット"
+
+#: src/renderer/commands/registry.ts
+msgid "Next chat in workspace"
+msgstr "ワークスペース内の次のチャット"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
@@ -12966,18 +12972,9 @@ msgstr "選択したホストで Ollama に接続できません。そのホス�
 msgid "Ollama model download progress"
 msgstr "Ollama モデルのダウンロード進行状況"
 
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Ollama model tag"
-#~ msgstr "Ollama モデルタグ"
-
 #: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
 msgid "Ollama models"
 msgstr "Ollama モデル"
-
-#. placeholder {0}: props.hostLabel
-#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
-#~ msgid "Ollama on {0}"
-#~ msgstr "{0} の Ollama"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 msgid "Ollama on {machineHostLabel}"
@@ -13782,6 +13779,7 @@ msgstr "ペアリング済みデバイス"
 msgid "Pairing access"
 msgstr "ペアリングの権限"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "ペアリングの期限が切れました。再接続するにはもう一度ペアリングしてください。"
@@ -14256,10 +14254,6 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode は、実行中のコンピュータ操作のターンのためにこの Mac のロックを一時的に解除し、作業中はすべてのディスプレイを覆い、ターンが終わると再びロックします。この Mac でキーを押したりポインタを動かしたりすると、すぐにロックされます。インストールには一度だけ管理者の承認が必要です。組織が管理している Mac では、事前に IT 部門に確認してください。"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-#~ msgstr "Poracode は匿名の利用分析とクラッシュレポートを送信できます。プロンプト、コード、ファイル名、ターミナル出力は含みません。"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 msgid "Poracode can send product analytics and crash reports."
 msgstr "Poracode はプロダクト分析とクラッシュレポートを送信できます。"
 
@@ -14332,10 +14326,6 @@ msgstr "Poracode のみ"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode はプロバイダをまたいで好みと修正を覚えます。取り込みはターン終了後に始まります。1 日 1 回の処理でまとめます。繰り返した作業から学んだスキルは、承認するまで提案のままです。"
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-#~ msgstr "オンにしない限り、Poracode は何も送信しません。プロンプト、コード、ファイル名は決して含みません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14521,6 +14511,7 @@ msgstr "システムのスリープを防ぐ"
 #: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FirstDiffHunk.tsx
 msgid "Preview"
 msgstr "プレビュー"
 
@@ -14541,6 +14532,10 @@ msgstr "前のカテゴリ"
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
 msgstr "前のチャット"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous chat in workspace"
+msgstr "ワークスペース内の前のチャット"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
@@ -15269,6 +15264,7 @@ msgstr "最近更新"
 msgid "Recents"
 msgstr "履歴"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Reconnect"
 msgstr "再接続"
@@ -15293,6 +15289,10 @@ msgstr "ターミナルに再接続中…"
 #: src/renderer/components/devices/LiveDevicePreview.tsx
 msgid "Reconnecting to the device…"
 msgstr "デバイスに再接続しています…"
+
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
+msgid "Reconnecting to the server…"
+msgstr "サーバーに再接続中…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
@@ -16303,6 +16303,10 @@ msgstr "管理者で再試行してください"
 msgid "Return to app"
 msgstr "アプリに戻る"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Return to conversation"
+msgstr "会話に戻る"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Reusable guidance delivered across supported agents."
 msgstr "サポートされているすべてのエージェントに届く再利用可能なガイダンス。"
@@ -17080,12 +17084,6 @@ msgstr "一番下までスクロール"
 msgid "Scroll to prompt: {preview}"
 msgstr "プロンプトまでスクロール: {preview}"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
-#~ msgstr "サニタイズ済みのクラッシュ診断を Sentry に送信します。ネイティブクラッシュダンプは別の選択です。"
-
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK インストール済み"
@@ -17298,6 +17296,10 @@ msgstr "検索…"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "ファイルを検索中…"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Searching large diffs…"
+msgstr "大きな差分を検索中…"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Searching saved messages…"
@@ -17660,6 +17662,7 @@ msgstr "このセッションの開始時に確定されます — プラグイ�
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -18058,6 +18061,7 @@ msgstr "補助モデル"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "サインイン"
@@ -18075,6 +18079,10 @@ msgstr "サインインが必要です"
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "ペアリング済みのデスクトップでサインインしてから、この状態を更新してください。"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Sign in on the paired desktop, then refresh."
+msgstr "ペアリング済みのデスクトップでサインインしてから、更新してください。"
+
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -18088,6 +18096,7 @@ msgstr "サインインが必要です"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in to {0}"
 msgstr "{0} にサインイン"
 
@@ -19023,12 +19032,20 @@ msgid "Switch to the next chat"
 msgstr "次のチャットに切り替え"
 
 #: src/renderer/commands/registry.ts
+msgid "Switch to the next chat in this workspace"
+msgstr "このワークスペース内の次のチャットに切り替え"
+
+#: src/renderer/commands/registry.ts
 msgid "Switch to the next tab"
 msgstr "次のタブに切り替え"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous chat"
 msgstr "前のチャットに切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat in this workspace"
+msgstr "このワークスペース内の前のチャットに切り替え"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous tab"
@@ -21134,6 +21151,8 @@ msgstr "回答を入力…"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to authenticate {0}."
@@ -23046,6 +23065,10 @@ msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプ�
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
 msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプト}} · {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "You"
+msgstr "あなた"
 
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "You coded across {count} connected environments this week"

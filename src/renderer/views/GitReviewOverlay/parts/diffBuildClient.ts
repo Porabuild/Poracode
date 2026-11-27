@@ -15,11 +15,14 @@ export type DiffBuildResult = DiffBuildResponse["results"][number];
 let worker: Worker | null = null;
 let nextId = 0;
 const WORKER_RESPONSE_TIMEOUT_MS = 1_500;
+const SMALL_BROWSER_DIFF_TEXT_LIMIT = 96 * 1024;
 const pending = new Map<
   number,
   {
-    resolve: (results: DiffBuildResponse["results"]) => void;
-    fallback: () => DiffBuildResponse["results"];
+    resolve: (
+      results: DiffBuildResponse["results"] | PromiseLike<DiffBuildResponse["results"]>,
+    ) => void;
+    fallback: () => Promise<DiffBuildResponse["results"]>;
     timeout: ReturnType<typeof setTimeout>;
   }
 >();
@@ -91,23 +94,40 @@ function buildOnMainThread(
   });
 }
 
+async function buildFallback(
+  items: DiffBuildItem[],
+  theme: "light" | "dark",
+): Promise<DiffBuildResponse["results"]> {
+  const results: DiffBuildResponse["results"] = [];
+  for (const item of items) {
+    // Give the selected diff's loading state and other input time to paint.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    results.push(...buildOnMainThread([item], theme));
+  }
+  return results;
+}
+
 export function buildInWorker(
   items: DiffBuildItem[],
   theme?: "light" | "dark",
 ): Promise<DiffBuildResponse["results"]> {
   const resolvedTheme = theme ?? "dark";
-  // Browser-hosted clients can fail to start a module worker before it posts a
-  // response. Diffs are opened one at a time there, so use the same tested
-  // synchronous builder. Electron retains the worker path.
-  if (
-    typeof Worker === "undefined" ||
-    (hasAnyClientBridge() && readClientRuntime().host === "browser")
-  ) {
-    return Promise.resolve(buildOnMainThread(items, resolvedTheme));
+  const only = items.length === 1 ? items[0] : undefined;
+  const browser = hasAnyClientBridge() && readClientRuntime().host === "browser";
+  if (browser && only) {
+    const textLength =
+      only.diff.length + (only.oldContent?.length ?? 0) + (only.newContent?.length ?? 0);
+    // A single render model is cheaper to build locally than to transfer
+    // back from the worker. For a large selection, yield before building so
+    // the first hunk and pending input can be handled in the meantime.
+    return textLength <= SMALL_BROWSER_DIFF_TEXT_LIMIT
+      ? Promise.resolve(buildOnMainThread(items, resolvedTheme))
+      : buildFallback(items, resolvedTheme);
   }
+  if (typeof Worker === "undefined") return buildFallback(items, resolvedTheme);
   return new Promise((resolve) => {
     const id = nextId++;
-    const fallback = () => buildOnMainThread(items, resolvedTheme);
+    const fallback = () => buildFallback(items, resolvedTheme);
     const timeout = setTimeout(() => {
       const build = pending.get(id);
       if (!build) return;
@@ -115,7 +135,18 @@ export function buildInWorker(
       build.resolve(build.fallback());
     }, WORKER_RESPONSE_TIMEOUT_MS);
     pending.set(id, { resolve, fallback, timeout });
-    getWorker().postMessage({ id, items, theme: resolvedTheme } satisfies DiffBuildRequest);
+    try {
+      getWorker().postMessage({
+        id,
+        items,
+        theme: resolvedTheme,
+        // Browser batches transfer text models without eagerly generated HTML.
+        ...(browser ? { fastTemplates: false } : {}),
+      } satisfies DiffBuildRequest);
+    } catch {
+      // Some paired sites or browsers refuse module workers at construction.
+      failPendingWorkerBuilds();
+    }
   });
 }
 

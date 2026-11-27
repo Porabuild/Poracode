@@ -254,6 +254,10 @@ protocol SessionLiveSocket: AnyObject {
     /// before one exists / for sockets without the declaration surface.
     func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations?
 
+    /// Generation-safe, user-triggered reconnect through the socket's own
+    /// ladder. Default no-op for sockets without a live reconnect surface.
+    func reconnectNow() async
+
     // Browser Mirror multiplexing. Declared as requirements so calls through
     // `any SessionLiveSocket` dispatch to the conformer, with defaults below keeping
     // every existing conformance source-compatible.
@@ -266,6 +270,8 @@ protocol SessionLiveSocket: AnyObject {
 /// Defaults for sockets that do not carry browser traffic: no sink, no sends, generation zero.
 extension SessionLiveSocket {
     func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations? { nil }
+
+    func reconnectNow() async {}
 
     /// Sockets without an event-stream cursor ignore the epoch.
     func start(lastSeenSeq: Int?, lastSeenEpoch _: String?) async {
@@ -361,6 +367,10 @@ final class RemoteWebSocketClientBox: SessionLiveSocket {
 
     func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations? {
         await client.upgradeDeclarations
+    }
+
+    func reconnectNow() async {
+        await client.reconnectNow()
     }
 
     func wraps(_ raw: RemoteWebSocketClient) -> Bool {

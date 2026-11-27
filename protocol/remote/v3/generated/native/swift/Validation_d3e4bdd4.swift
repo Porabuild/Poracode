@@ -5,10 +5,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_ed3d9773342dac2c = RemoteSchema(type: "object", required: Set(["entries"]), properties: ["entries": RemoteSchemas.schema_bdb4eecbb625c500], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_ed6b68dea9d34806 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_93257696078720dd, RemoteSchemas.schema_1bf6be0f4d6a5060], unknownPolicy: .strip)
 }
 

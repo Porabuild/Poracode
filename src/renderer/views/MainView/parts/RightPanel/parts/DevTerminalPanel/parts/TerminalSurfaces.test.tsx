@@ -16,6 +16,7 @@ const { state } = vi.hoisted(() => ({
       {
         outputSource?: (listener: TerminalFeedListener) => () => void;
         outputOwner?: string;
+        projectFileScope?: { projectId: string; worktreePath?: string };
         initialScrollback?: string;
         preferDomRenderer?: boolean;
         resizeTerminalOnFit?: boolean;
@@ -49,6 +50,7 @@ vi.mock("@/renderer/components/terminal/XTermSurface", async () => {
         terminalId: string;
         outputSource?: (listener: TerminalFeedListener) => () => void;
         outputOwner?: string;
+        projectFileScope?: { projectId: string; worktreePath?: string };
         initialScrollback?: string;
         preferDomRenderer?: boolean;
         resizeTerminalOnFit?: boolean;
@@ -336,5 +338,52 @@ describe("TerminalSurfaces", () => {
       themeBackgroundVar: "--background",
       touchScrollEnabled: true,
     });
+  });
+
+  it("passes the tab's own immutable project scope for a DevTerminal tab shell (main + split)", () => {
+    useAppStore.setState({ projects: [managedProject] as never });
+    const worktreeTab: DevTerminalTab = {
+      ...tabA,
+      worktreePath: "/repo/.poracode/worktrees/feature",
+      splitId: "shell:a-split",
+    };
+    render(
+      <TerminalSurfaces
+        tabs={[worktreeTab]}
+        selectedTabId={worktreeTab.id}
+        activeTab={worktreeTab}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+      />,
+    );
+
+    const expected = {
+      projectId: "project-1",
+      worktreePath: "/repo/.poracode/worktrees/feature",
+    };
+    expect(state.surfaceProps.get(worktreeTab.id)?.projectFileScope).toEqual(expected);
+    // The split shell shares the tab's scope, not the selected project.
+    expect(state.surfaceProps.get("shell:a-split")?.projectFileScope).toEqual(expected);
+  });
+
+  it("keeps a global/login tab URL-only (no project scope)", () => {
+    const globalTab = {
+      id: "shell:global",
+      title: "~",
+      createdAt: "2026-05-11T00:00:00.000Z",
+    };
+    render(
+      <TerminalSurfaces
+        tabs={[globalTab]}
+        selectedTabId={globalTab.id}
+        activeTab={globalTab}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+      />,
+    );
+
+    expect(state.surfaceProps.get(globalTab.id)?.projectFileScope).toBeUndefined();
   });
 });

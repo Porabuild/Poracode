@@ -154,4 +154,41 @@ describe("bounded historical reads", () => {
     });
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
+
+  it("exposes the located item with its canonical position while preserving the plain detail return", async () => {
+    const detail = {
+      item: {
+        id: "command/id",
+        type: "command_execution",
+        state: "completed",
+        streams: { command_output: "Stored" },
+      },
+      position: 220,
+    };
+    const fetchImpl = vi.fn<RemoteFetch>(async () => Response.json(detail));
+    const client = new RemoteDesktopClient("https://host.test", "private-token", fetchImpl);
+    await expect(client.threadHistoryLocatedItem("thread space", "command/id")).resolves.toEqual(
+      detail,
+    );
+    await expect(client.threadHistoryItem("thread space", "command/id")).resolves.toEqual(
+      detail.item,
+    );
+    for (const [url, init] of fetchImpl.mock.calls) {
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer private-token");
+      expect(String(url)).toContain("thread%20space/history/items/command%2Fid");
+    }
+  });
+
+  it("parses an older item-detail response that has no position", async () => {
+    const item = {
+      id: "command",
+      type: "command_execution",
+      state: "completed",
+      streams: {},
+    };
+    const fetchImpl = vi.fn<RemoteFetch>(async () => Response.json({ item }));
+    const client = new RemoteDesktopClient("https://host.test", "token", fetchImpl);
+    await expect(client.threadHistoryLocatedItem("thread", "command")).resolves.toEqual({ item });
+    await expect(client.threadHistoryItem("thread", "command")).resolves.toEqual(item);
+  });
 });

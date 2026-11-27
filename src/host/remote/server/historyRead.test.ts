@@ -430,6 +430,28 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     ).toBe("serialized-exact");
   });
 
+  it("reports the item's canonical transcript position outside the stored item", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "First" }] } }),
+      item(1, { type: "user_message", payload: { content: [{ kind: "text", text: "Second" }] } }),
+      item(2, { type: "user_message", payload: { content: [{ kind: "text", text: "Third" }] } }),
+    ]);
+    const response = await invoke(
+      handleHistoryItemDetails as unknown as (call: never) => Promise<void>,
+      "http://host/api/threads/thread-1/history/items/item-001?notices=v1",
+      { threadId: "thread-1", itemId: "item-001" },
+    );
+    expect(response.statusCode).toBe(200);
+    const detail = JSON.parse(response.body) as {
+      item: { id: string };
+      position?: number;
+    };
+    expect(detail.item.id).toBe("item-001");
+    expect(detail.position).toBe(1);
+    // Position lives outside the stored item; older readers ignore the field.
+    expect(detail.item).not.toHaveProperty("position");
+  });
+
   it("lists the thread's prompts without reading transcript bodies", async () => {
     await dbReplaceThreadRuntimeItems("thread-1", [
       item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "First" }] } }),

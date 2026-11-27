@@ -82,6 +82,15 @@ function pathHitsIgnoredName(path: string, ignored: Set<string>): boolean {
   return false;
 }
 
+function applyResidualPatterns(
+  entries: ProjectTreeEntry[],
+  patterns: readonly string[],
+): ProjectTreeEntry[] {
+  if (patterns.length === 0) return entries;
+  const exclude = compileGlobMatcher(expandDirectoryGlobs([...patterns]));
+  return entries.filter((entry) => !exclude(entry.path));
+}
+
 /**
  * Self-contained search-index subsystem extracted from `ProjectTreeService`.
  * Holds its own bounded LRU cache and talks to the outside world through the
@@ -135,11 +144,48 @@ export class ProjectSearchIndex {
         return { entries: nativeEntries };
       }
     }
+    // Keep the native helper's single result path when it is available. An
+    // early subset is useful only when this search would build a JS index.
+    if (payload.provisional) {
+      const entries = await this.provisionalFileMatches(payload, query, config);
+      if (entries.length > 0) return { entries, provisional: true };
+    }
 
     const { entries } = await this.getOrBuildSearchIndex(payload.projectLocation, config);
     return {
       entries: this.rankEntries(entries, query, payload.limit, payload.entryType),
     };
+  }
+
+  private async provisionalFileMatches(
+    payload: SearchProjectTreePayload,
+    query: string,
+    config: SearchConfigPayload,
+  ): Promise<ProjectTreeEntry[]> {
+    const literalFilenameTerm = /^[\p{L}\p{N}._-]{2,80}$/u;
+    if (
+      !config.useIgnoreFiles ||
+      payload.entryType !== "file" ||
+      !literalFilenameTerm.test(query)
+    ) {
+      return [];
+    }
+    const key = `${JSON.stringify(getLocationIdentity(payload.projectLocation))}:${cacheKeyForSearchConfig(config)}`;
+    const now = Date.now();
+    const indexedAt = this.cache.get(key)?.createdAt;
+    if (indexedAt !== undefined && now - indexedAt < CACHE_TTL_MS) return [];
+    const { ignoreNames, residualPatterns } = partitionExcludePatterns(config.excludePatterns);
+    const entries = await this.buildIndexFromGit(
+      payload.projectLocation,
+      new Set([".git", ...ignoreNames]),
+      `:(icase,glob)**/*${query}*`,
+    );
+    return this.rankEntries(
+      applyResidualPatterns(entries ?? [], residualPatterns),
+      query,
+      payload.limit,
+      "file",
+    );
   }
 
   private async tryNativeSearchTree(
@@ -240,9 +286,7 @@ export class ProjectSearchIndex {
       raw = await this.buildIndexFromWalk(location, ignoreSet);
     }
 
-    if (residualPatterns.length === 0) return raw;
-    const exclude = compileGlobMatcher(expandDirectoryGlobs(residualPatterns));
-    return raw.filter((entry) => !exclude(entry.path));
+    return applyResidualPatterns(raw, residualPatterns);
   }
 
   /**
@@ -253,10 +297,17 @@ export class ProjectSearchIndex {
   private async buildIndexFromGit(
     location: ProjectLocation,
     ignoreSet: Set<string>,
+    pathspec?: string,
   ): Promise<ProjectTreeEntry[] | undefined> {
     let raw: string;
     try {
-      raw = await execGit(location, ["ls-files", "--cached", "--others", "--exclude-standard"]);
+      raw = await execGit(location, [
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        ...(pathspec === undefined ? [] : ["--", pathspec]),
+      ]);
     } catch {
       return undefined;
     }

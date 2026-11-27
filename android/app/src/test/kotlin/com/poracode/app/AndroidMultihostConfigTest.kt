@@ -57,7 +57,8 @@ class AndroidMultihostConfigTest {
         val resourceRoot = projectFile("app/src/main/res")
         val required = allNames(resourceRoot.resolve("values/strings.xml"))
             .filter { it.startsWith("push_") }.toSet()
-        assertEquals(21, required.size)
+        assertEquals(22, required.size)
+        assertTrue("Missing push_route_unavailable", "push_route_unavailable" in required)
         val locales = listOf(
             "de", "es", "fr", "ja", "ko", "pl", "pt-rBR", "ru", "tr", "uk", "vi", "zh-rCN",
         )

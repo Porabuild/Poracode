@@ -2,6 +2,7 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DiffFile, DiffView } from "@git-diff-view/react";
 import {
+  findOversizedDiffMatches,
   gitDiffSearchLines,
   readGitDiffSearchLines,
   type GitDiffSearchEntry,
@@ -17,6 +18,39 @@ const entry: GitDiffSearchEntry = {
   oldName: "file.ts",
   deletions: 1,
 };
+
+it("stops an oversized patch lookup when its query is replaced", async () => {
+  const controller = new AbortController();
+  const pending = findOversizedDiffMatches(
+    "@@ -100 +100 @@\n+possible result\n",
+    "possible",
+    false,
+    controller.signal,
+  );
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+});
+
+it("discloses the 250-match cap on an oversized patch", async () => {
+  const controller = new AbortController();
+  const lines = Array.from({ length: 260 }, (_, index) => `+needle ${index}`).join("\n");
+  const result = await findOversizedDiffMatches(
+    `@@ -1,0 +1,260 @@\n${lines}`,
+    "needle",
+    false,
+    controller.signal,
+  );
+  expect(result.matches).toHaveLength(250);
+  expect(result.capped).toBe(true);
+  const small = await findOversizedDiffMatches(
+    "@@ -1 +1 @@\n+needle\n",
+    "needle",
+    false,
+    controller.signal,
+  );
+  expect(small.matches).toHaveLength(1);
+  expect(small.capped).toBe(false);
+});
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
     () =>

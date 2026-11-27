@@ -476,6 +476,13 @@ final class UnifiedThreadPresentationTests: XCTestCase {
     XCTAssertEqual(HomeThreadStep.next.target(in: order, from: ungrouped.id), current.id)
     XCTAssertEqual(HomeThreadStep.previous.target(in: order, from: current.id), ungrouped.id)
     XCTAssertNil(HomeThreadStep.next.target(in: order, from: differentHost.id))
+
+    let workspaceOrder = HomeThreadListPresentation.keyboardOrder(
+      from: [current, ungrouped, differentHost, differentProject, grouped],
+      currentID: current.id, workspaceWide: true)
+    XCTAssertEqual(workspaceOrder, [current.id, grouped.id, ungrouped.id, differentHost.id, differentProject.id])
+    XCTAssertEqual(HomeThreadStep.next.target(in: workspaceOrder, from: ungrouped.id), differentHost.id)
+    XCTAssertEqual(HomeThreadStep.previous.target(in: workspaceOrder, from: current.id), differentProject.id)
   }
 
   func testHomeWorktreeCollapsedStatusPrefersFinishedThenWorking() {

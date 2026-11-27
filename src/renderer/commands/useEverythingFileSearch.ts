@@ -13,6 +13,7 @@ interface CompletedSearch {
   attempt: number;
   entries: ProjectTreeEntry[];
   failed: boolean;
+  provisional: boolean;
 }
 
 export function useEverythingFileSearch(input: {
@@ -54,27 +55,47 @@ export function useEverythingFileSearch(input: {
         }
       : undefined;
   const requestKey = payload ? JSON.stringify([project?.id, payload]) : null;
-  const search = useEffectEvent(() => readBridge().searchProjectTree(payload!));
+  const createSearch = useEffectEvent(() => {
+    const request = payload!;
+    return (provisional: boolean) =>
+      readBridge().searchProjectTree({ ...request, ...(provisional ? { provisional: true } : {}) });
+  });
 
   useEffect(() => {
     if (requestKey === null) return;
     let cancelled = false;
     const handle = window.setTimeout(() => {
-      void search()
-        .then((result) => {
+      const search = createSearch();
+      void (async () => {
+        try {
+          const publish = (result: Awaited<ReturnType<typeof search>>) => {
+            if (cancelled) return;
+            setCompleted({
+              key: requestKey,
+              attempt,
+              entries: result.entries.filter((entry) => entry.type === "file"),
+              failed: false,
+              provisional: result.provisional === true,
+            });
+          };
+          const initial = await search(true);
           if (cancelled) return;
-          setCompleted({
+          publish(initial);
+          if (initial.provisional) publish(await search(false));
+        } catch {
+          if (cancelled) return;
+          setCompleted((latest) => ({
             key: requestKey,
             attempt,
-            // Older hosts ignore the additive entryType field.
-            entries: result.entries.filter((entry) => entry.type === "file"),
-            failed: false,
-          });
-        })
-        .catch(() => {
-          if (!cancelled)
-            setCompleted({ key: requestKey, attempt, entries: EMPTY_ENTRIES, failed: true });
-        });
+            entries:
+              latest?.key === requestKey && latest.attempt === attempt
+                ? latest.entries
+                : EMPTY_ENTRIES,
+            failed: true,
+            provisional: false,
+          }));
+        }
+      })();
     }, 120);
     return () => {
       cancelled = true;
@@ -90,7 +111,7 @@ export function useEverythingFileSearch(input: {
       : null;
   return {
     entries: current?.entries ?? EMPTY_ENTRIES,
-    loading: requestKey !== null && current === null,
+    loading: requestKey !== null && (current === null || current.provisional),
     failed: current?.failed ?? false,
     retry: () => setAttempt((value) => value + 1),
   };

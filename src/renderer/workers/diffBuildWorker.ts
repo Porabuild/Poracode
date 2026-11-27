@@ -1,8 +1,5 @@
 import { DiffFile, highlighter, setEnableFastDiffTemplate } from "@git-diff-view/core";
 
-// Pre-render HTML templates for fast rendering via dangerouslySetInnerHTML
-setEnableFastDiffTemplate(true);
-
 export interface DiffBuildItem {
   key: string;
   diff: string;
@@ -13,7 +10,12 @@ export interface DiffBuildItem {
   newContent?: string;
 }
 
-export type DiffBuildRequest = { id: number; items: DiffBuildItem[]; theme?: "light" | "dark" };
+export type DiffBuildRequest = {
+  id: number;
+  items: DiffBuildItem[];
+  theme?: "light" | "dark";
+  fastTemplates?: boolean;
+};
 export type DiffBuildResponse = {
   id: number;
   results: Array<{
@@ -27,7 +29,8 @@ export type DiffBuildResponse = {
 };
 
 self.onmessage = (e: MessageEvent<DiffBuildRequest>) => {
-  const { id, items, theme = "dark" } = e.data;
+  const { id, items, theme = "dark", fastTemplates = true } = e.data;
+  setEnableFastDiffTemplate(fastTemplates);
   const results = items.map((item) => {
     const data = {
       newFile: {

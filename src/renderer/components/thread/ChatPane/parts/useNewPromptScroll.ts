@@ -23,6 +23,9 @@ export function useNewPromptScroll({
   const bottomToken = useAppStore((state) => state.chatScrollToBottomTokens[threadId] ?? 0);
   const anchorId = useAppStore((state) => state.chatPromptAnchorIds[threadId] ?? null);
   const latestPromptId = useAppStore((state) => {
+    // Streaming updates still notify this selector. A settled transcript has
+    // no prompt jump to resolve, so do not rescan its history for every delta.
+    if (!state.chatScrollToPromptRequests[threadId]) return null;
     const items = state.runtimeItemsByIdByThread[threadId];
     return (
       entries.findLast(
@@ -39,7 +42,7 @@ export function useNewPromptScroll({
   const pendingAnimation = useRef<string | null>(anchorId);
   const restoringAnchor = useRef(anchorId !== null);
   const animationFrame = useRef<number | null>(null);
-  const anchorIndex = entries.findIndex((entry) => entry.id === anchorId);
+  const anchorIndex = anchorId === null ? -1 : entries.findIndex((entry) => entry.id === anchorId);
 
   const cancelAnimation = useCallback(() => {
     pendingRequest.current = undefined;

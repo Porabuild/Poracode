@@ -11,6 +11,8 @@ export interface FindBarProps {
   onToggleCaseSensitive: () => void;
   /** Total number of matches across the searched surface. */
   matchCount: number;
+  /** True while a bounded result is incomplete (e.g. an oversized scan hit its cap). */
+  matchCountCapped?: boolean;
   /** Zero-based index of the active match, or -1 when there are none. */
   currentIndex: number;
   onNext: () => void;
@@ -33,6 +35,7 @@ export const FindBar = forwardRef<HTMLInputElement, FindBarProps>(function FindB
     caseSensitive,
     onToggleCaseSensitive,
     matchCount,
+    matchCountCapped = false,
     currentIndex,
     onNext,
     onPrev,
@@ -51,9 +54,13 @@ export const FindBar = forwardRef<HTMLInputElement, FindBarProps>(function FindB
   ) : matchCount === 0 ? (
     t`No results`
   ) : (
-    <Trans>
-      <AnimatedNumber value={currentIndex + 1} /> of {matchCount}
-    </Trans>
+    <>
+      <Trans>
+        <AnimatedNumber value={currentIndex + 1} /> of {matchCount}
+      </Trans>
+      {/* The existing counter discloses a bounded, possibly incomplete result. */}
+      {matchCountCapped ? "+" : null}
+    </>
   );
 
   return (

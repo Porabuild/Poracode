@@ -17,6 +17,7 @@ struct NativeHomeCommands: ViewModifier {
   let canStartThread: Bool
   let canOpenBrowser: Bool
   let canStepThread: Bool
+  let canStepWorkspaceThread: Bool
   let canCycleRecentThreads: Bool
   let openSettings: () -> Void
   let toggleSidebar: () -> Void
@@ -24,6 +25,7 @@ struct NativeHomeCommands: ViewModifier {
   let openSearch: () -> Void
   let openBrowser: () -> Void
   let stepThread: (HomeThreadStep) -> Void
+  let stepWorkspaceThread: (HomeThreadStep) -> Void
   let cycleRecentThread: (HomeThreadStep) -> Void
 
   func body(content: Content) -> some View {
@@ -39,6 +41,8 @@ struct NativeHomeCommands: ViewModifier {
       "browser.toggle": .init(enabled: allowsActions && canOpenBrowser) { _ in openBrowser() },
       "thread.next": .init(enabled: allowsActions && canStepThread) { _ in stepThread(.next) },
       "thread.previous": .init(enabled: allowsActions && canStepThread) { _ in stepThread(.previous) },
+      "thread.nextInWorkspace": .init(enabled: allowsActions && canStepWorkspaceThread) { _ in stepWorkspaceThread(.next) },
+      "thread.previousInWorkspace": .init(enabled: allowsActions && canStepWorkspaceThread) { _ in stepWorkspaceThread(.previous) },
       "thread.recent.next": .init(enabled: allowsActions && canCycleRecentThreads) { _ in cycleRecentThread(.next) },
       "thread.recent.previous": .init(enabled: allowsActions && canCycleRecentThreads) { _ in cycleRecentThread(.previous) },
     ])
