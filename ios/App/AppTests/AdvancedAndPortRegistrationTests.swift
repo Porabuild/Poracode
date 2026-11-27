@@ -255,6 +255,11 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(switcher.contains("beginRename(host)"))
     XCTAssertTrue(switcher.contains("session.renameHost(host.connectionId, label: label)"))
     XCTAssertTrue(switcher.contains("ToolbarItem(placement: .bottomBar)"))
+    let trailingSpacer = try XCTUnwrap(
+      switcher.range(of: "ToolbarSpacer(.flexible, placement: .bottomBar)"))
+    let addItem = try XCTUnwrap(switcher.range(of: "addHostToolbarItem\n"))
+    XCTAssertLessThan(trailingSpacer.lowerBound, addItem.lowerBound)
+    XCTAssertTrue(switcher.contains("if #available(iOS 26.0, *) {\n            list.toolbar {"))
     XCTAssertTrue(switcher.contains("Button(HostStrings.addHost, systemImage: \"plus\")"))
     XCTAssertTrue(switcher.contains("native-e2e.connections.add"))
     XCTAssertTrue(switcher.contains("hostSection(showsEmptyAction: false)"))
