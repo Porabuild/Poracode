@@ -13,7 +13,11 @@ import {
 } from "@/shared/remote/clientEnvironments";
 import { endpointUrl } from "@/shared/remote/clientTypes";
 import type { RemoteImageRefValue } from "@/shared/remote";
-import type { RemoteDesktopClient, RemoteDesktopClientOptions } from "@/shared/remote/client";
+import {
+  isRefusedRefreshGrantError,
+  type RemoteDesktopClient,
+  type RemoteDesktopClientOptions,
+} from "@/shared/remote/client";
 import { electronCertFingerprintProbe } from "./certFingerprintProbe";
 import { mainProcessFetch } from "./mainProcessFetch";
 import {
@@ -627,9 +631,14 @@ export function createEnvironmentClientForPairing(input: EnvironmentClientInput)
   };
   client.setTokenLifecycle({
     accessToken: () => (isCurrent() ? childAccessToken : undefined),
-    refreshToken: () => api.refreshTokenForSubject(grantSubject),
+    refreshToken: () => (isCurrent() ? api.refreshTokenForSubject(grantSubject) : undefined),
     onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
     runExclusive: (run) => runSharedRefresh(custody, run),
+    onUnauthorized: (refreshFailure) => {
+      if (!isCurrent() || !isRefusedRefreshGrantError(refreshFailure)) return;
+      (api.forgetRefreshToken ?? forgetRefreshTokenForSubject)(grantSubject);
+      void api.deleteRefreshTokenFromVault(grantSubject).catch(() => undefined);
+    },
   });
   return { client, parentAuthority, childGrantSubject: grantSubject, childGrantKey, grantOwner };
 }

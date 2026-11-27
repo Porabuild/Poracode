@@ -38,6 +38,9 @@ export interface RemoteServerEventSocketEntry {
   dispose?: () => void;
   /** Re-baselines the current connection's interested threads, or only the given ones. */
   recoverInterestedThreads?: (onlyThreadIds?: ReadonlySet<string>) => Promise<boolean>;
+  /** Runs the next reconnect attempt now instead of waiting out the backoff
+   * (rate-limited; a no-op while an attempt or a socket is in flight). */
+  nudge?: () => void;
 }
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();

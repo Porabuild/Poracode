@@ -18,6 +18,8 @@ import okhttp3.WebSocket
  */
 class WsClientState {
     val listenerRef = AtomicReference<RemoteEventSocket.Listener?>(null)
+    val lastPublished = AtomicReference<RemoteWebSocketClient.ConnectionState?>(null)
+    val failedBeforeSuspend = AtomicBoolean(false)
     val socketRef = AtomicReference<WebSocket?>(null)
     /** Narrow, cursor-bypass sink for browser-mirror server frames. */
     val browserSink = AtomicReference<WsRawFrameSink?>(null)
@@ -75,6 +77,7 @@ class WsClientState {
     var connectJob: Job? = null
 
     fun publish(state: RemoteWebSocketClient.ConnectionState, detail: String? = null) {
+        lastPublished.set(state)
         listenerRef.get()?.onStateChanged(state, detail)
     }
 

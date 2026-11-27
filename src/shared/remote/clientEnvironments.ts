@@ -5,7 +5,7 @@ import {
   ENVIRONMENT_PARENT_TICKET_PARAM,
 } from "@/shared/environments";
 import { readBoundedResponseBody } from "@/shared/http";
-import { RemoteClientError } from "./clientErrors";
+import { DEFINITIVE_GRANT_REJECTION_CODES, RemoteClientError } from "./clientErrors";
 import { RemoteDesktopClient } from "./client";
 import {
   DEFAULT_REMOTE_RESPONSE_MAX_BYTES,
@@ -48,18 +48,6 @@ export function isRemoteEnvironmentNeedsRepairError(error: unknown): boolean {
       error.code === REMOTE_ENVIRONMENT_CHILD_NEEDS_REPAIR)
   );
 }
-
-/**
- * OAuth grant rejections a token endpoint returns for an unknown, expired, or
- * revoked grant. Only these (plus a bare 401 from a directly dialed authority)
- * are definite evidence; a proxy's markerless 401 uses `invalid_access_token`
- * or `missing_environment_authorization` and is never in this set.
- */
-const DEFINITIVE_GRANT_REJECTION_CODES: ReadonlySet<string> = new Set([
-  "invalid_grant",
-  "invalid_refresh_token",
-  "refresh_token_reused",
-]);
 
 /**
  * True only for definite evidence that the PARENT authority rejected its own

@@ -21,11 +21,37 @@ export interface CheckpointRuntimeItem {
   parentItemId?: string;
 }
 
+const MESSAGE_ITEM_TYPES: ReadonlySet<string> = new Set(["assistant_message", "user_message"]);
+const normalizedMessagePayloads = new WeakMap<object, object>();
+
+/**
+ * The item's payload when it has the expected type. Message payloads always
+ * carry a `content` array by contract; an older prompt-only user row or a
+ * malformed host/provider payload without one (seen on a resumed stream's
+ * `item.started`) reads as empty content instead of crashing every reader of
+ * the chat. The stored history is never rewritten, and the normalized copy is
+ * stable per stored payload so memoized readers keep their identity.
+ */
 export function getRuntimeItemPayload<T>(
   item: CheckpointRuntimeItem,
   expectedType: string,
 ): T | undefined {
-  return item.type === expectedType ? (item.payload as T | undefined) : undefined;
+  if (item.type !== expectedType) return undefined;
+  const payload = item.payload;
+  if (
+    !MESSAGE_ITEM_TYPES.has(expectedType) ||
+    payload === null ||
+    typeof payload !== "object" ||
+    Array.isArray((payload as { content?: unknown }).content)
+  ) {
+    return payload as T | undefined;
+  }
+  let normalized = normalizedMessagePayloads.get(payload);
+  if (!normalized) {
+    normalized = { ...payload, content: [] };
+    normalizedMessagePayloads.set(payload, normalized);
+  }
+  return normalized as T;
 }
 
 export function isToolLikeItem(item: CheckpointRuntimeItem): boolean {

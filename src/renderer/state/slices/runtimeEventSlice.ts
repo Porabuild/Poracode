@@ -237,23 +237,17 @@ export interface RuntimeEventSlice {
   upsertThreadFileCheckpointTurn(threadId: string, checkpoint: FileCheckpointTurn): void;
 }
 
-const legacyUserMessagePayloads = new WeakMap<object, object>();
-
-/** Read older prompt-only user rows without rewriting the stored history. */
+/** Read older prompt-only user rows without rewriting the stored history; the
+ * shared accessor supplies their stable empty-content copy. */
 export function getRuntimeItemPayload<T>(
   item: CheckpointRuntimeItem,
   expectedType: string,
 ): T | undefined {
   const payload = readRuntimeItemPayload<unknown>(item, expectedType);
-  if (expectedType !== "user_message") return payload as T | undefined;
-  if (!payload || typeof payload !== "object") return undefined;
-  if (Array.isArray((payload as { content?: unknown }).content)) return payload as T;
-
-  const cached = legacyUserMessagePayloads.get(payload);
-  if (cached) return cached as T;
-  const safePayload = { ...payload, content: [] };
-  legacyUserMessagePayloads.set(payload, safePayload);
-  return safePayload as T;
+  if (expectedType === "user_message" && (!payload || typeof payload !== "object")) {
+    return undefined;
+  }
+  return payload as T | undefined;
 }
 
 /**

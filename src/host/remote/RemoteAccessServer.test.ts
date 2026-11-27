@@ -4955,6 +4955,13 @@ describe("RemoteAccessServer", () => {
       }),
     });
     expect(rotated.status).toBe(200);
+    // The client received the new pair and used it, so the old token is spent.
+    const rotatedTokens = (await rotated.json()) as { accessToken: string };
+    const used = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${rotatedTokens.accessToken}` },
+    });
+    expect(used.status).toBe(200);
 
     const replay = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
       method: "POST",

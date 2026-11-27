@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { installRemoteServerLifecycle } from "@/renderer/state/remoteServers/lifecycle";
+import { installRemoteConnectionWatchdog } from "@/renderer/state/remoteServers/connectionWatchdog";
 
 export type RemoteServerConnectionState = {
   /** Saved servers finished hydrating (or failed to) and the first connect pass started. */
@@ -59,6 +60,13 @@ export function useRemoteServerConnection({
           )
         : undefined,
     [connectAll, verifyConnections, autoConnect],
+  );
+
+  // The status invariant's safety net: no host stays "connecting" without an
+  // attempt that can still settle it.
+  useEffect(
+    () => (autoConnect ? installRemoteConnectionWatchdog(useRemoteServersStore) : undefined),
+    [autoConnect],
   );
 
   return { checked, initialConnectSettled };

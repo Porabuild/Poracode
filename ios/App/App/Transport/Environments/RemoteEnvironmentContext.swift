@@ -17,17 +17,24 @@ struct RemoteEnvironmentContext: Sendable {
     let parentAuthorizationToken: @Sendable () async -> String?
     /// Mints the parent environment-bound WS upgrade ticket.
     let mintParentWebSocketTicket: @Sendable () async throws -> String
+    private let mintParentWebSocketTicketWithTimeout: @Sendable (TimeInterval?) async throws -> String
 
     init(
         environmentId: String,
         expectedChildDesktopId: String?,
         parentAuthorizationToken: @escaping @Sendable () async -> String?,
-        mintParentWebSocketTicket: @escaping @Sendable () async throws -> String
+        mintParentWebSocketTicket: @escaping @Sendable () async throws -> String,
+        mintParentWebSocketTicketWithTimeout: @escaping @Sendable (TimeInterval?) async throws -> String
     ) {
         self.environmentId = environmentId
         self.expectedChildDesktopId = expectedChildDesktopId
         self.parentAuthorizationToken = parentAuthorizationToken
         self.mintParentWebSocketTicket = mintParentWebSocketTicket
+        self.mintParentWebSocketTicketWithTimeout = mintParentWebSocketTicketWithTimeout
+    }
+
+    func mintParentTicket(timeout: TimeInterval? = nil) async throws -> String {
+        try await mintParentWebSocketTicketWithTimeout(timeout)
     }
 
     /// Context that always fails closed: used when an endpoint is known to be
@@ -38,6 +45,9 @@ struct RemoteEnvironmentContext: Sendable {
             expectedChildDesktopId: nil,
             parentAuthorizationToken: { nil },
             mintParentWebSocketTicket: {
+                throw EnvironmentTransportError.parentNotPaired()
+            },
+            mintParentWebSocketTicketWithTimeout: { _ in
                 throw EnvironmentTransportError.parentNotPaired()
             }
         )
@@ -57,6 +67,9 @@ struct RemoteEnvironmentContext: Sendable {
                 await authorityStore.token(for: parentConnectionId)
             },
             mintParentWebSocketTicket: {
+                throw EnvironmentTransportError.parentTicketMissing()
+            },
+            mintParentWebSocketTicketWithTimeout: { _ in
                 throw EnvironmentTransportError.parentTicketMissing()
             }
         )

@@ -20,6 +20,8 @@ final class SessionPool {
     }
 
     private var slots: [SessionPoolKey: Slot] = [:]
+    /// Host keys whose last socket state was `.failed` when stopped for background suspend.
+    private var offlineBeforeSuspend: Set<SessionPoolKey> = []
     /// Synchronous background gate. Incremented before any await on background.
     private(set) var backgroundGeneration: UInt64 = 0
     private(set) var isBackgroundGated = false
@@ -62,7 +64,8 @@ final class SessionPool {
         api: any SessionRemoteAPI,
         workGeneration: Int,
         lastSeenSeq: Int,
-        lastSeenEpoch: String? = nil
+        lastSeenEpoch: String? = nil,
+        startsOffline: Bool = false
     ) async -> SessionLease? {
         guard workGeneration == host.state.workGeneration else { return nil }
         guard !isBackgroundGated else { return nil }
@@ -130,7 +133,16 @@ final class SessionPool {
             await socket.stop()
             return nil
         }
-        await socket.start(lastSeenSeq: lastSeenSeq, lastSeenEpoch: lastSeenEpoch)
+        if let offlineState = RemoteSocketStatePolicy.stateAfterResume(
+            failedBeforeSuspend: startsOffline
+        ) {
+            host.recordSocketState(offlineState, for: key)
+        }
+        await socket.start(
+            lastSeenSeq: lastSeenSeq,
+            lastSeenEpoch: lastSeenEpoch,
+            startsOffline: startsOffline
+        )
         guard isCurrent(socket, for: lease) else {
             await socket.stop()
             return nil
@@ -138,7 +150,11 @@ final class SessionPool {
         return lease
     }
 
-    func startForCurrentHost(api: any SessionRemoteAPI, workGeneration: Int) async {
+    func startForCurrentHost(
+        api: any SessionRemoteAPI,
+        workGeneration: Int,
+        resumingFromBackground: Bool = false
+    ) async {
         guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
         let key = currentKey()
         let seq = host.state.lastSeenSeq
@@ -152,6 +168,9 @@ final class SessionPool {
             slot.cache = cache
             slots[key] = slot
             if let socket = slot.socket, !slot.needsSelectedReconnect {
+                if resumingFromBackground {
+                    offlineBeforeSuspend.remove(key)
+                }
                 host.state.webSocket = socket
                 if case .host(let id) = key, let cachedState = host.state.hostSocketStates[id] {
                     host.recordSocketState(cachedState, for: key)
@@ -160,7 +179,10 @@ final class SessionPool {
                 await socket.setThreadItemInterests(cache.interests)
                 guard isCurrent(socket, for: lease) else { return }
                 await evictToPolicy()
-                await startOtherHostsIfPossible(workGeneration: workGeneration)
+                await startOtherHostsIfPossible(
+                    workGeneration: workGeneration,
+                    resumingFromBackground: resumingFromBackground
+                )
                 return
             }
         } else {
@@ -171,15 +193,23 @@ final class SessionPool {
                 cache: cache
             )
         }
-        _ = await startSocket(
+        let startsOffline = resumingFromBackground && offlineBeforeSuspend.contains(key)
+        let lease = await startSocket(
             key: key,
             api: api,
             workGeneration: workGeneration,
             lastSeenSeq: seq,
-            lastSeenEpoch: epoch
+            lastSeenEpoch: epoch,
+            startsOffline: startsOffline
         )
+        if lease != nil, startsOffline {
+            offlineBeforeSuspend.remove(key)
+        }
         await evictToPolicy()
-        await startOtherHostsIfPossible(workGeneration: workGeneration)
+        await startOtherHostsIfPossible(
+            workGeneration: workGeneration,
+            resumingFromBackground: resumingFromBackground
+        )
     }
 
     /// Synchronous gate: bump every lease generation and close the start gate.
@@ -193,6 +223,13 @@ final class SessionPool {
     }
 
     func stopAll() async {
+        await stopAllSockets(clearOfflineBeforeSuspend: true)
+    }
+
+    private func stopAllSockets(clearOfflineBeforeSuspend: Bool) async {
+        if clearOfflineBeforeSuspend {
+            offlineBeforeSuspend.removeAll()
+        }
         let sockets = slots.values.compactMap(\.socket)
         for key in slots.keys {
             slots[key]?.generation &+= 1
@@ -221,7 +258,24 @@ final class SessionPool {
               backgroundGeneration == capturedBackgroundGeneration,
               host.state.workGeneration == capturedWorkGeneration
         else { return }
-        await stopAll()
+        offlineBeforeSuspend.formUnion(currentFailedKeysBeforeSuspend())
+        await stopAllSockets(clearOfflineBeforeSuspend: false)
+    }
+
+    private func currentFailedKeysBeforeSuspend() -> Set<SessionPoolKey> {
+        var failed: Set<SessionPoolKey> = []
+        for (id, state) in host.state.hostSocketStates {
+            if case .failed = state {
+                failed.insert(.host(id))
+            }
+        }
+        let selected = currentKey()
+        if slots[selected]?.socket != nil || host.state.webSocket != nil,
+           case .failed = host.state.socketState
+        {
+            failed.insert(selected)
+        }
+        return failed
     }
 
     func handleForeground(
@@ -236,23 +290,47 @@ final class SessionPool {
         guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
         if startLiveSession {
             if let api = host.state.api {
-                await startForCurrentHost(api: api, workGeneration: workGeneration)
+                await startForCurrentHost(
+                    api: api,
+                    workGeneration: workGeneration,
+                    resumingFromBackground: true
+                )
             }
-            await startOtherHostsIfPossible(workGeneration: workGeneration)
+            await startOtherHostsIfPossible(
+                workGeneration: workGeneration,
+                resumingFromBackground: true
+            )
+            if workGeneration == host.state.workGeneration, !isBackgroundGated {
+                offlineBeforeSuspend.removeAll()
+            }
             return
         }
         let selected = currentKey()
         if let socket = slots[selected]?.socket {
+            offlineBeforeSuspend.remove(selected)
             await socket.resumeFromForeground()
         } else if let api = host.state.api {
-            await startForCurrentHost(api: api, workGeneration: workGeneration)
+            await startForCurrentHost(
+                api: api,
+                workGeneration: workGeneration,
+                resumingFromBackground: true
+            )
         }
         for key in allowedKeys() where key != selected {
             guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
-            if let socket = slots[key]?.socket { await socket.resumeFromForeground() }
+            if let socket = slots[key]?.socket {
+                offlineBeforeSuspend.remove(key)
+                await socket.resumeFromForeground()
+            }
             if slots[key]?.catalogNeedsResync == true { refreshSecondaryCatalog(for: key, resync: true) }
         }
-        await startOtherHostsIfPossible(workGeneration: workGeneration)
+        await startOtherHostsIfPossible(
+            workGeneration: workGeneration,
+            resumingFromBackground: true
+        )
+        if workGeneration == host.state.workGeneration, !isBackgroundGated {
+            offlineBeforeSuspend.removeAll()
+        }
     }
 
     /// Keeps the selected host's cached reconnect cursor at the highest seq the
@@ -338,6 +416,7 @@ final class SessionPool {
         slots[key]?.catalogRefresh.cancelCurrent()
         slots[key]?.generation &+= 1
         slots[key] = nil
+        offlineBeforeSuspend.remove(key)
         if currentKey() == key {
             host.state.webSocket = nil
             // Unpair / host removal drops this host's replayed state with it.
@@ -523,7 +602,10 @@ final class SessionPool {
         await socket?.stop()
     }
 
-    private func startOtherHostsIfPossible(workGeneration: Int) async {
+    private func startOtherHostsIfPossible(
+        workGeneration: Int,
+        resumingFromBackground: Bool = false
+    ) async {
         for key in allowedKeys() where key != currentKey() {
             guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
             guard case .host(let id) = key, slots[key]?.socket == nil,
@@ -535,10 +617,18 @@ final class SessionPool {
                   slots[key]?.socket == nil else { continue }
             let api = host.deps.makeAPI(record.httpBaseURL, token)
             let cursor = secondaryCursor(for: key)
-            _ = await startSocket(
-                key: key, api: api, workGeneration: workGeneration,
-                lastSeenSeq: cursor.appliedSeq, lastSeenEpoch: cursor.epoch
+            let startsOffline = resumingFromBackground && offlineBeforeSuspend.contains(key)
+            let lease = await startSocket(
+                key: key,
+                api: api,
+                workGeneration: workGeneration,
+                lastSeenSeq: cursor.appliedSeq,
+                lastSeenEpoch: cursor.epoch,
+                startsOffline: startsOffline
             )
+            if lease != nil, startsOffline {
+                offlineBeforeSuspend.remove(key)
+            }
         }
     }
 }

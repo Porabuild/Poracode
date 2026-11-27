@@ -397,14 +397,14 @@ actor RemoteAPIClient: PushRemoteAPI {
         _ = try GeneratedRemoteV3Contract.interruptResponse(response)
     }
 
-    func websocketTicket() async throws -> String {
-        let ticket = try await mintChildWebSocketTicket()
+    func websocketTicket(timeout: TimeInterval? = nil) async throws -> String {
+        let ticket = try await mintChildWebSocketTicket(timeout: timeout)
         guard let environment else { return ticket }
         // Mint the parent upgrade ticket for exactly this child ticket. No
         // single cached parent ticket: concurrent event/terminal upgrades each
         // get their own association. A missing mint fails closed; the ticket
         // is never cached and never replayed.
-        let parentTicket = try await environment.mintParentWebSocketTicket()
+        let parentTicket = try await environment.mintParentTicket(timeout: timeout)
         await EnvironmentParentTicketStore.shared.store(
             parentTicket: parentTicket,
             childTicket: ticket
@@ -412,10 +412,11 @@ actor RemoteAPIClient: PushRemoteAPI {
         return ticket
     }
 
-    private func mintChildWebSocketTicket() async throws -> String {
+    private func mintChildWebSocketTicket(timeout: TimeInterval? = nil) async throws -> String {
         let data = try await requestData(
             path: ProtocolConstants.websocketTicketPath,
-            method: "POST"
+            method: "POST",
+            timeout: timeout
         )
         let canonical = try GeneratedRemoteV3Contract.websocketTicketResponse(data)
         let result = try JSONDecoding.decode(RemoteWebSocketTicketResult.self, from: canonical)

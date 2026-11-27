@@ -6,6 +6,7 @@ import {
 } from "@/shared/remote/protocol";
 import { environmentAdvertisesBoundedCatalogChanges } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { REMOTE_SOCKET_POLICY } from "@/shared/remote/socketPolicy";
 
 /** Connection-local, never persisted: a reconnect must revalidate support. */
 export interface TerminalConnectionCapabilities {
@@ -57,8 +58,14 @@ export async function prepareTerminalConnection(
   initialCapabilities?: TerminalConnectionCapabilities,
 ): Promise<{ ticket: string; capabilities: TerminalConnectionCapabilities }> {
   const [ticket, capabilities] = await Promise.all([
-    client.websocketTicket(),
-    initialCapabilities ?? client.environment().then(terminalCapabilitiesFromEnvironment),
+    // A reconnect attempt is bounded by the socket connect deadline, so a
+    // ladder retry started while the network was down cannot hold the next
+    // attempt for a full request deadline once it returns.
+    client.websocketTicket(REMOTE_SOCKET_POLICY.connectTimeoutMs),
+    initialCapabilities ??
+      client
+        .environment({ timeoutMs: REMOTE_SOCKET_POLICY.connectTimeoutMs })
+        .then(terminalCapabilitiesFromEnvironment),
   ]);
   return { ticket, capabilities };
 }

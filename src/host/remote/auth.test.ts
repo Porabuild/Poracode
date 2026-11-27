@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -311,14 +311,14 @@ describe("RemoteAuthStore", () => {
     expect(refreshed.refreshToken).toBeTruthy();
     expect(refreshed.refreshToken).not.toBe(token.refreshToken);
     expect(refreshed.scopes).toEqual(["session:read"]);
-    // The rotated-out refresh token is dead on its next use…
-    expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
-      RemoteHttpError,
-    );
-    // …and the new pair authenticates.
+    // The new pair authenticates…
     expect(store.authenticateBearerToken(refreshed.accessToken, ["session:read"]).scopes).toEqual([
       "session:read",
     ]);
+    // …and once it is in use the rotated-out refresh token is dead.
+    expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+      RemoteHttpError,
+    );
     const again = store.refreshAccessToken({ refreshToken: refreshed.refreshToken! });
     expect(again.refreshToken).toBeTruthy();
   });
@@ -329,7 +329,10 @@ describe("RemoteAuthStore", () => {
     const token = store.exchangePairingCredential({ credential: pairing.credential });
     const refreshed = store.refreshAccessToken({ refreshToken: token.refreshToken! });
     const [session] = store.listAccessSessions();
+    // The real client received and used the new pair…
+    store.authenticateBearerToken(refreshed.accessToken, ["session:read"]);
 
+    // …so presenting the old refresh token again is reuse.
     let caught: unknown;
     try {
       store.refreshAccessToken({ refreshToken: token.refreshToken! });
@@ -392,6 +395,142 @@ describe("RemoteAuthStore", () => {
     expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
       RefreshTokenReuseError,
     );
+  });
+
+  describe("lost refresh responses", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("re-rotates instead of revoking when the client retries before using the new pair", () => {
+      const store = new RemoteAuthStore();
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      // The host rotated, but the response never reached the client.
+      const lost = store.refreshAccessToken({ refreshToken: token.refreshToken! });
+
+      const retried = store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      expect(retried.sessionId).toBe(token.sessionId);
+      expect(retried.refreshToken).not.toBe(lost.refreshToken);
+      expect(store.authenticateBearerToken(retried.accessToken).sessionId).toBe(token.sessionId);
+      // The pair nobody received is gone, and presenting its refresh token is reuse.
+      expect(() => store.authenticateBearerToken(lost.accessToken)).toThrow(RemoteHttpError);
+      expect(() => store.refreshAccessToken({ refreshToken: lost.refreshToken! })).toThrow(
+        RefreshTokenReuseError,
+      );
+      // The retried pair keeps rotating normally.
+      expect(store.refreshAccessToken({ refreshToken: retried.refreshToken! }).sessionId).toBe(
+        token.sessionId,
+      );
+    });
+
+    it("survives repeated lost responses for the same presented token", () => {
+      const store = new RemoteAuthStore();
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      const third = store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      expect(store.authenticateBearerToken(third.accessToken).sessionId).toBe(token.sessionId);
+    });
+
+    it("treats the retry as reuse once the new pair was used", () => {
+      const store = new RemoteAuthStore();
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      const received = store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      store.issueWebSocketTicket({ accessToken: received.accessToken });
+
+      expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+        RefreshTokenReuseError,
+      );
+    });
+
+    it("treats the retry as reuse once the new refresh token was rotated", () => {
+      const store = new RemoteAuthStore();
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      const received = store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      store.refreshAccessToken({ refreshToken: received.refreshToken! });
+
+      expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+        RefreshTokenReuseError,
+      );
+    });
+
+    it("keeps the replay window when a replayed rotation cannot be persisted", () => {
+      let failWrites = false;
+      const store = new RemoteAuthStore({
+        onPersistedStateChanged: () => {
+          if (failWrites) throw new Error("EIO: simulated auth file write failure");
+        },
+      });
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      store.refreshAccessToken({ refreshToken: token.refreshToken! }); // response lost
+
+      failWrites = true;
+      expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+        "simulated auth file write failure",
+      );
+      failWrites = false;
+
+      // The client retries the same token once the disk recovers: still a
+      // re-rotation, never a reuse revoke.
+      const retried = store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      expect(store.authenticateBearerToken(retried.accessToken).sessionId).toBe(token.sessionId);
+    });
+
+    it("drops the replay window when the session is revoked", () => {
+      const store = new RemoteAuthStore();
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      expect(store.revokeAccessSession(token.sessionId!)).toBe(true);
+
+      expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+        RemoteHttpError,
+      );
+    });
+
+    it("does not stretch the window with repeated unused replays", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-27T00:00:00.000Z"));
+      const store = new RemoteAuthStore();
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      store.refreshAccessToken({ refreshToken: token.refreshToken! });
+      vi.setSystemTime(new Date("2026-11-27T20:00:00.000Z"));
+      store.refreshAccessToken({ refreshToken: token.refreshToken! });
+
+      // Measured from the first rotation, not the latest replay.
+      vi.setSystemTime(new Date("2026-11-28T00:00:01.000Z"));
+      expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+        RefreshTokenReuseError,
+      );
+    });
+
+    it("closes the replay window after a day", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-27T00:00:00.000Z"));
+      const store = new RemoteAuthStore();
+      const token = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      store.refreshAccessToken({ refreshToken: token.refreshToken! });
+
+      vi.setSystemTime(new Date("2026-11-28T00:00:01.000Z"));
+      expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+        RefreshTokenReuseError,
+      );
+    });
   });
 
   it("rejects unknown refresh tokens", () => {
@@ -546,9 +685,9 @@ describe("RemoteAuthStore", () => {
       }).credential,
     });
     const retiredEphemeralRefresh = ephemeral.refreshToken!;
-    expect(store.refreshAccessToken({ refreshToken: retiredEphemeralRefresh }).sessionId).toBe(
-      ephemeral.sessionId,
-    );
+    const rotatedEphemeral = store.refreshAccessToken({ refreshToken: retiredEphemeralRefresh });
+    expect(rotatedEphemeral.sessionId).toBe(ephemeral.sessionId);
+    store.authenticateBearerToken(rotatedEphemeral.accessToken);
 
     // Reuse inside this process still carries the session family id, exactly
     // like a durable rotation, so the caller can revoke it.

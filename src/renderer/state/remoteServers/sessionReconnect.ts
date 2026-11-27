@@ -6,7 +6,7 @@ import { setAgentVisionSocketSender } from "@/renderer/browser/agentVisionStream
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
-import { RemoteClientError } from "@/shared/remote/client";
+import { RemoteClientError, isRemoteTransportFailure } from "@/shared/remote/client";
 import { REMOTE_SOCKET_POLICY } from "@/shared/remote/socketPolicy";
 import { REMOTE_BROWSER_FORWARD_VERSION } from "@/shared/remote/protocol";
 import { REMOTE_MEMORY_CATALOG_VERSION } from "@/shared/memory";
@@ -60,6 +60,7 @@ import {
   listRemoteServerEventSocketDesktopIds,
   remoteServerHostSession,
 } from "./eventSocketRegistry";
+import { hasLiveRemoteServerEventSocket } from "./eventSocketLiveness";
 import { notePairedItemInterestCoverage } from "./pairedItemInterests";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import {
@@ -171,12 +172,23 @@ interface InFlightConnectionAttempt {
 }
 let hydrationInFlight: Promise<void> | null = null;
 const connectInFlightByKey = new Map<string, InFlightConnectionAttempt>();
+
+/** Connections waiting to retry a pass that could not read their saved
+ * credentials (a transient vault failure must not end the ladder). */
+const credentialRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** A connect pass (descriptor, snapshot, socket start) is running for this connection. */
+export function isRemoteConnectAttemptInFlight(connectionKey: string): boolean {
+  return connectInFlightByKey.has(connectionKey);
+}
 const connectSeqByKey = new Map<string, number>();
 
 export function __resetConnectAllForTest(): void {
   hydrationInFlight = null;
   connectInFlightByKey.clear();
   connectSeqByKey.clear();
+  for (const timer of credentialRetryTimers.values()) clearTimeout(timer);
+  credentialRetryTimers.clear();
 }
 
 export interface SessionReconnectActionDeps extends RemoteServersStoreApi {
@@ -211,19 +223,17 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
    * not forced must not downgrade it to "connecting" or re-snapshot it. */
   const isLiveConnection = (server: RemoteServerRecord): boolean => {
     const connectionKey = remoteConnectionKey(server);
-    if (get().runtime[connectionKey]?.status !== "online") return false;
-    const entry = getRemoteServerEventSocketEntry(connectionKey);
-    const socket = entry?.socket;
     return (
-      entry?.serverKey === server.endpoint &&
-      socket !== null &&
-      socket !== undefined &&
-      typeof socket.send === "function" &&
-      (socket.readyState === undefined || socket.readyState === 1)
+      get().runtime[connectionKey]?.status === "online" &&
+      getRemoteServerEventSocketEntry(connectionKey)?.serverKey === server.endpoint &&
+      hasLiveRemoteServerEventSocket(connectionKey)
     );
   };
 
-  const setServersConnecting = (servers: readonly RemoteServerRecord[]) => {
+  const setServersConnecting = (
+    servers: readonly RemoteServerRecord[],
+    options: { readonly keepKnownFailure?: boolean } = {},
+  ) => {
     if (servers.length === 0) return;
     set((state) => {
       const runtime = { ...state.runtime };
@@ -233,6 +243,16 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         // direct pairing of that child has its own row.
         const connectionKey = remoteConnectionKey(server);
         const current = state.runtime[connectionKey];
+        // An automatic pass (mount, tab switch, network change) retries an
+        // offline or failed host in the background: it stays offline until
+        // the attempt proves otherwise, instead of flipping to "connecting"
+        // for a full request deadline on every pass.
+        if (
+          options.keepKnownFailure === true &&
+          (current?.status === "offline" || current?.status === "error")
+        ) {
+          continue;
+        }
         runtime[connectionKey] = {
           status: "connecting",
           projects: current?.projects ?? state.lastKnownProjects[connectionKey] ?? [],
@@ -275,7 +295,12 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       if (!current) return;
       server = current;
     } catch (error) {
-      if (canContinue()) setRemoteServerFailure(connectionKey, "error", friendlyError(error));
+      if (!canContinue()) return;
+      // The saved credentials could not be read right now (an IndexedDB
+      // hiccup or timeout). That is no refusal: stay offline and keep
+      // retrying the pass, so nobody has to press Reconnect.
+      setRemoteServerFailure(connectionKey, "offline", friendlyError(error));
+      scheduleCredentialRetry(connectionKey);
       return;
     }
     if (server.transport?.kind === "environment") {
@@ -336,7 +361,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     // in flight — one RTT saved per cold connect. Environment failures
     // keep their classification below; the concurrent refreshServer owns
     // visible snapshot errors either way.
-    const environmentPromise = clientForServer(server).environment();
+    const environmentPromise = clientForServer(server).environment({
+      timeoutMs: REMOTE_SOCKET_POLICY.connectTimeoutMs,
+    });
     const refreshPromise = get().refreshServer(connectionKey);
     try {
       const environment = await environmentPromise;
@@ -431,7 +458,17 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         setRemoteServerFailure(connectionKey, "error", friendlyError(error));
         return;
       }
-      // refreshServer above owns other visible connection errors.
+      // An unreachable host answers neither read. Report it once the short
+      // reachability probe gives up instead of holding "connecting" for the
+      // snapshot's full request deadline; a later snapshot success still
+      // marks it online. refreshServer owns every other visible error.
+      if (
+        isRemoteTransportFailure(error) &&
+        get().runtime[connectionKey]?.status === "connecting" &&
+        !hasLiveRemoteServerEventSocket(connectionKey)
+      ) {
+        setRemoteServerFailure(connectionKey, "offline", sharedMsg("remote.server.unreachable"));
+      }
     }
     await refreshPromise;
     if (!canContinue()) return;
@@ -512,11 +549,27 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       const { [persistedKey]: _finished, ...hostUpdateRestarts } = state.hostUpdateRestarts;
       return { hostUpdateRestarts };
     });
+    // A slow restart is not the end: hand the host back to the normal
+    // reconnect ladder (it stays offline until a socket is live) instead of
+    // waiting for the user to press Reconnect.
+    if (outcome.type !== "terminal-error") void connectServerEntry(persistedKey, false);
+  };
+
+  const scheduleCredentialRetry = (connectionKey: string): void => {
+    if (credentialRetryTimers.has(connectionKey)) return;
+    const timer = setTimeout(() => {
+      credentialRetryTimers.delete(connectionKey);
+      if (!get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey)) return;
+      if (get().runtime[connectionKey]?.status === "online") return;
+      void connectServerEntry(connectionKey, false);
+    }, REMOTE_SOCKET_POLICY.reconnectMaxMs);
+    credentialRetryTimers.set(connectionKey, timer);
   };
 
   const connectServerEntry = (
     connectionKey: string,
     forceTransportReconnect: boolean,
+    explicit = false,
   ): Promise<void> => {
     const existing = connectInFlightByKey.get(connectionKey);
     if (existing && (!forceTransportReconnect || existing.force)) {
@@ -537,7 +590,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       invalidateRemoteServerRefresh(connectionKey);
       closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
     }
-    setServersConnecting([server]);
+    setServersConnecting([server], { keepKnownFailure: !explicit });
     const attempt: InFlightConnectionAttempt = {
       force: forceTransportReconnect,
       promise: connectServer(
@@ -600,6 +653,10 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
           entry &&
           (entry.connecting || entry.reconnectTimer !== null)
         ) {
+          // Returning to the app is fresh evidence: run the ladder's next
+          // attempt now rather than waiting out a backoff the suspended page
+          // could not count down, without flipping the status.
+          entry.nudge?.();
           continue;
         }
         toReconnect.push(key);
@@ -615,7 +672,8 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       if (!server) return;
       connectSeqByKey.set(connectionKey, (connectSeqByKey.get(connectionKey) ?? 0) + 1);
       connectInFlightByKey.delete(connectionKey);
-      await connectServerEntry(connectionKey, true);
+      // A user-initiated reconnect shows "connecting" even from offline.
+      await connectServerEntry(connectionKey, true, true);
     },
 
     removeServer: (
@@ -642,6 +700,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       }
 
       const removeRecord = (server: RemoteServerRecord | undefined, key: string) => {
+        const credentialRetry = credentialRetryTimers.get(key);
+        if (credentialRetry !== undefined) clearTimeout(credentialRetry);
+        credentialRetryTimers.delete(key);
         connectSeqByKey.set(key, (connectSeqByKey.get(key) ?? 0) + 1);
         connectInFlightByKey.delete(key);
         disposeDirectImageSession(key);

@@ -23,15 +23,25 @@ import com.poracode.app.storage.LegacySourceBytes
 import com.poracode.app.storage.MultiHostCredentialRepository
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.transport.ForegroundNetworkGate
+import com.poracode.app.transport.RemoteApiGateway
 import com.poracode.app.transport.RemoteEventSocket
+import com.poracode.app.transport.RemoteWebSocketClient
 import java.io.File
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -362,7 +372,7 @@ class MultiHostSessionTest {
         advanceUntilIdle()
 
         assertEquals(
-            com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Online,
+            RemoteWebSocketClient.ConnectionState.Online,
             session.state.value.hostCatalog.connectionStates[second.connectionId],
         )
         val secondarySocket = sockets.sockets.last()
@@ -372,9 +382,614 @@ class MultiHostSessionTest {
         assertTrue(session.state.value.hostCatalog.connectionStates.isEmpty())
 
         secondarySocket.emitState(
-            com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Online,
+            RemoteWebSocketClient.ConnectionState.Online,
         )
         assertTrue(session.state.value.hostCatalog.connectionStates.isEmpty())
+    }
+
+    @Test
+    fun failedSecondaryBeforeBackgroundRestoresFailedOnForegroundUntilOnline() = runTest {
+        val catalog = HostCatalog(
+            registry = HostRegistryStore(File(temporary.newFolder("offline-bg-fg"), "hosts")),
+            vault = InMemoryHostVault(),
+            legacySource = EmptyLegacySource,
+        )
+        val first = HostRecord(id(1), profile(1), 1_001L)
+        val second = HostRecord(id(2), profile(2), 1_002L)
+        catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+        catalog.add(second, "token-2", catalog.begin(HostOperationKind.Add))
+        catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+        val secondaryEndpoint = profile(2).httpBaseUrl
+        var holdSecondaryReconnect = true
+        val delegateSecondarySocket = FakeSocket()
+        val secondarySocket = object : RemoteEventSocket by delegateSecondarySocket {
+            override fun resumeFromForeground() {
+                if (delegateSecondarySocket.destroyed) return
+                delegateSecondarySocket.suspended = false
+                if (holdSecondaryReconnect) {
+                    delegateSecondarySocket.emitState(RemoteWebSocketClient.ConnectionState.Connecting)
+                } else {
+                    delegateSecondarySocket.resumeFromForeground()
+                }
+            }
+        }
+        val session = AppSession(
+            credentials = HostCatalogCredentialRepository(catalog),
+            scope = this,
+            apiFactory = { endpoint, token -> FakeApiGateway(endpoint, token) },
+            socketFactory = { api ->
+                if ((api as? FakeApiGateway)?.endpoint == secondaryEndpoint) {
+                    secondarySocket
+                } else {
+                    FakeSocket()
+                }
+            },
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+            networkGate = ForegroundNetworkGate(),
+        )
+
+        session.bootstrap()
+        advanceUntilIdle()
+        session.onAppForeground()
+        advanceUntilIdle()
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Online,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        // Secondary goes Failed (Offline) before going to background.
+        delegateSecondarySocket.emitState(RemoteWebSocketClient.ConnectionState.Failed)
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Failed,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        session.onAppBackground()
+        advanceUntilIdle()
+        assertTrue(session.state.value.hostCatalog.connectionStates.isEmpty())
+
+        // On return to foreground, secondary restores Failed (never null/Kept ready,
+        // never Connecting…) while its reconnect attempt is still in flight or fails.
+        session.onAppForeground()
+        advanceUntilIdle()
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Failed,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        // Pre-ready failure keeps it Failed (listener must also still have a valid lease).
+        delegateSecondarySocket.emitState(RemoteWebSocketClient.ConnectionState.Failed)
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Failed,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        // Only when a live connection actually succeeds does it transition to Online.
+        holdSecondaryReconnect = false
+        delegateSecondarySocket.emitState(RemoteWebSocketClient.ConnectionState.Online)
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Online,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+    }
+
+    @Test
+    fun secondaryWarmupFailureBeforeReadyPublishesFailedIntoConnectionStates() = runTest {
+        val server = MockWebServer()
+        server.start()
+        val wsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val catalog = HostCatalog(
+                registry = HostRegistryStore(File(temporary.newFolder("warmup-fail"), "hosts")),
+                vault = InMemoryHostVault(),
+                legacySource = EmptyLegacySource,
+            )
+            val first = HostRecord(id(1), profile(1), 1_001L)
+            val second = HostRecord(id(2), profile(2), 1_002L)
+            catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+            catalog.add(second, "token-2", catalog.begin(HostOperationKind.Add))
+            catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+            // Close immediately before `ready` on initial upgrade attempt.
+            server.enqueue(
+                MockResponse().withWebSocketUpgrade(
+                    object : okhttp3.WebSocketListener() {
+                        override fun onOpen(
+                            webSocket: okhttp3.WebSocket,
+                            response: okhttp3.Response,
+                        ) {
+                            webSocket.close(1001, "offline")
+                        }
+                    },
+                ),
+            )
+            val gate = ForegroundNetworkGate()
+            val ticketGate = CompletableDeferred<Unit>()
+            var attempt = 0
+            val baseSecondaryApi = FakeApiGateway(profile(2).httpBaseUrl, "token-2")
+            val secondaryApi = object : RemoteApiGateway by baseSecondaryApi {
+                override suspend fun websocketTicket(): String {
+                    attempt += 1
+                    if (attempt >= 2) {
+                        ticketGate.await()
+                    }
+                    return "ticket-2"
+                }
+
+                override fun websocketUrl(
+                    ticket: String,
+                    lastSeenSeq: Int?,
+                    threadItemInterests: List<String>?,
+                ): String {
+                    val base = server.url("/ws").toString().replace("http://", "ws://")
+                    return "$base?ticket=$ticket&lastSeenSeq=${lastSeenSeq ?: 0}"
+                }
+            }
+            val http = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build()
+            val session = AppSession(
+                credentials = HostCatalogCredentialRepository(catalog),
+                scope = this,
+                apiFactory = { endpoint, token ->
+                    if (endpoint == profile(2).httpBaseUrl) secondaryApi
+                    else FakeApiGateway(endpoint, token)
+                },
+                socketFactory = { api ->
+                    if (api === secondaryApi) {
+                        RemoteWebSocketClient(
+                            api = api,
+                            scope = wsScope,
+                            endpoint = null,
+                            httpClient = http,
+                            networkGate = gate,
+                        )
+                    } else {
+                        FakeSocket()
+                    }
+                },
+                ioDispatcher = StandardTestDispatcher(testScheduler),
+                networkGate = gate,
+            )
+
+            session.bootstrap()
+            advanceUntilIdle()
+            session.onAppForeground()
+            advanceUntilIdle()
+
+            val deadlineMs = System.currentTimeMillis() + 5_000L
+            while (
+                session.state.value.hostCatalog.connectionStates[second.connectionId] !=
+                RemoteWebSocketClient.ConnectionState.Failed &&
+                System.currentTimeMillis() < deadlineMs
+            ) {
+                Thread.sleep(20)
+            }
+            assertEquals(
+                RemoteWebSocketClient.ConnectionState.Failed,
+                session.state.value.hostCatalog.connectionStates[second.connectionId],
+            )
+            ticketGate.cancel()
+        } finally {
+            wsScope.cancel()
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun reachableSecondaryRemainsOnlineAfterBackgroundAndForeground() = runTest {
+        val catalog = HostCatalog(
+            registry = HostRegistryStore(File(temporary.newFolder("reachable-bg-fg"), "hosts")),
+            vault = InMemoryHostVault(),
+            legacySource = EmptyLegacySource,
+        )
+        val first = HostRecord(id(1), profile(1), 1_001L)
+        val second = HostRecord(id(2), profile(2), 1_002L)
+        catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+        catalog.add(second, "token-2", catalog.begin(HostOperationKind.Add))
+        catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+        val session = AppSession(
+            credentials = HostCatalogCredentialRepository(catalog),
+            scope = this,
+            apiFactory = { endpoint, token -> FakeApiGateway(endpoint, token) },
+            socketFactory = { FakeSocket() },
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+            networkGate = ForegroundNetworkGate(),
+        )
+
+        session.bootstrap()
+        advanceUntilIdle()
+        session.onAppForeground()
+        advanceUntilIdle()
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Online,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        session.onAppBackground()
+        advanceUntilIdle()
+        assertTrue(session.state.value.hostCatalog.connectionStates.isEmpty())
+
+        session.onAppForeground()
+        advanceUntilIdle()
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Online,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+    }
+
+    @Test
+    fun missingCredentialsEarlyReturnInWarmSecondaryClearsRestoredOfflineState() = runTest {
+        val catalog = HostCatalog(
+            registry = HostRegistryStore(File(temporary.newFolder("missing-creds-r1"), "hosts")),
+            vault = InMemoryHostVault(),
+            legacySource = EmptyLegacySource,
+        )
+        val first = HostRecord(id(1), profile(1), 1_001L)
+        val second = HostRecord(id(2), profile(2), 1_002L)
+        catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+        catalog.add(second, "token-2", catalog.begin(HostOperationKind.Add))
+        catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+        val delegate = HostCatalogCredentialRepository(catalog)
+        var returnNullForSecond = false
+        val repository = object : MultiHostCredentialRepository by delegate {
+            override suspend fun credentialsFor(id: ClientConnectionId): SessionCredentials? =
+                if (returnNullForSecond && id == second.connectionId) null
+                else delegate.credentialsFor(id)
+        }
+        val secondarySocket = FakeSocket()
+        val pool = SessionPool()
+        var foreground = true
+        var uiState = AppSession.UiState()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val controller = HostSessionController(
+            repository = repository,
+            scope = this,
+            ioDispatcher = dispatcher,
+            owner = SessionOperationOwner(),
+            pool = pool,
+            apiFactory = { endpoint, token -> FakeApiGateway(endpoint, token) },
+            socketFactory = { secondarySocket },
+            isForeground = { foreground },
+            hasEndpointPermission = { true },
+            state = { uiState },
+            updateState = { transform -> uiState = transform(uiState) },
+            installSelected = { credentials ->
+                pool.updatePolicy(
+                    credentials.profile.let { first.connectionId },
+                    listOf(first.connectionId, second.connectionId),
+                )
+            },
+            installEmpty = {},
+        )
+
+        controller.reconcileSelected()
+        advanceUntilIdle()
+        secondarySocket.emitState(RemoteWebSocketClient.ConnectionState.Failed)
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Failed,
+            uiState.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        foreground = false
+        controller.onBackground()
+        assertTrue(uiState.hostCatalog.connectionStates.isEmpty())
+
+        // Simulate missing pool slot + transient null credentials on foreground warm-up.
+        pool.forget(SessionPoolKey.Host(second.connectionId))
+        returnNullForSecond = true
+        foreground = true
+        controller.onForeground()
+        // Immediately restored before warmSecondary executes.
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Failed,
+            uiState.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        advanceUntilIdle()
+        // Early return on credentialsFor == null clears both connectionStates and saved offline id.
+        assertNull(uiState.hostCatalog.connectionStates[second.connectionId])
+
+        foreground = false
+        controller.onBackground()
+        foreground = true
+        controller.onForeground()
+        advanceUntilIdle()
+        assertNull(uiState.hostCatalog.connectionStates[second.connectionId])
+    }
+
+    @Test
+    fun sessionExpiredSecondarySurvivesBackgroundAndForegroundWithoutConnecting() = runTest {
+        val catalog = HostCatalog(
+            registry = HostRegistryStore(File(temporary.newFolder("expired-bg-fg"), "hosts")),
+            vault = InMemoryHostVault(),
+            legacySource = EmptyLegacySource,
+        )
+        val first = HostRecord(id(1), profile(1), 1_001L)
+        val second = HostRecord(id(2), profile(2), 1_002L)
+        catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+        catalog.add(second, "token-2", catalog.begin(HostOperationKind.Add))
+        catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+        val secondaryEndpoint = profile(2).httpBaseUrl
+        var holdReconnect = true
+        val delegateSecondarySocket = FakeSocket()
+        val secondarySocket = object : RemoteEventSocket by delegateSecondarySocket {
+            override fun resumeFromForeground() {
+                if (delegateSecondarySocket.destroyed) return
+                delegateSecondarySocket.suspended = false
+                if (holdReconnect) {
+                    delegateSecondarySocket.emitState(RemoteWebSocketClient.ConnectionState.Connecting)
+                } else {
+                    delegateSecondarySocket.resumeFromForeground()
+                }
+            }
+        }
+        val session = AppSession(
+            credentials = HostCatalogCredentialRepository(catalog),
+            scope = this,
+            apiFactory = { endpoint, token -> FakeApiGateway(endpoint, token) },
+            socketFactory = { api ->
+                if ((api as? FakeApiGateway)?.endpoint == secondaryEndpoint) {
+                    secondarySocket
+                } else {
+                    FakeSocket()
+                }
+            },
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+            networkGate = ForegroundNetworkGate(),
+        )
+
+        session.bootstrap()
+        advanceUntilIdle()
+        session.onAppForeground()
+        advanceUntilIdle()
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Online,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        delegateSecondarySocket.emitState(
+            RemoteWebSocketClient.ConnectionState.SessionExpired,
+            "expired",
+        )
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.SessionExpired,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        session.onAppBackground()
+        advanceUntilIdle()
+        assertTrue(session.state.value.hostCatalog.connectionStates.isEmpty())
+
+        val seenStates = mutableListOf<RemoteWebSocketClient.ConnectionState?>()
+        val collector = backgroundScope.launch {
+            session.state.collect { state ->
+                seenStates.add(state.hostCatalog.connectionStates[second.connectionId])
+            }
+        }
+        runCurrent()
+        seenStates.clear()
+
+        session.onAppForeground()
+        advanceUntilIdle()
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.SessionExpired,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+        assertFalse(RemoteWebSocketClient.ConnectionState.Connecting in seenStates)
+        assertFalse(RemoteWebSocketClient.ConnectionState.Reconnecting in seenStates)
+
+        holdReconnect = false
+        delegateSecondarySocket.emitState(RemoteWebSocketClient.ConnectionState.Online)
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Online,
+            session.state.value.hostCatalog.connectionStates[second.connectionId],
+        )
+        collector.cancel()
+    }
+
+    @Test
+    fun listenerRebindDeliversSecondaryStateOnceAndRejectsStaleListener() = runTest {
+        val catalog = HostCatalog(
+            registry = HostRegistryStore(File(temporary.newFolder("rebind-once"), "hosts")),
+            vault = InMemoryHostVault(),
+            legacySource = EmptyLegacySource,
+        )
+        val first = HostRecord(id(1), profile(1), 1_001L)
+        val second = HostRecord(id(2), profile(2), 1_002L)
+        catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+        catalog.add(second, "token-2", catalog.begin(HostOperationKind.Add))
+        catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+        val delegate = FakeSocket()
+        val boundListeners = mutableListOf<RemoteEventSocket.Listener>()
+        val secondarySocket = object : RemoteEventSocket by delegate {
+            override fun setListener(listener: RemoteEventSocket.Listener?) {
+                delegate.setListener(listener)
+                if (listener != null) boundListeners.add(listener)
+            }
+
+            override fun resumeFromForeground() {
+                if (delegate.destroyed) return
+                delegate.suspended = false
+            }
+        }
+        val pool = SessionPool()
+        var foreground = true
+        var uiState = AppSession.UiState()
+        val deliveredSecondaryStates = mutableListOf<RemoteWebSocketClient.ConnectionState?>()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val controller = HostSessionController(
+            repository = HostCatalogCredentialRepository(catalog),
+            scope = this,
+            ioDispatcher = dispatcher,
+            owner = SessionOperationOwner(),
+            pool = pool,
+            apiFactory = { endpoint, token -> FakeApiGateway(endpoint, token) },
+            socketFactory = { secondarySocket },
+            isForeground = { foreground },
+            hasEndpointPermission = { true },
+            state = { uiState },
+            updateState = { transform ->
+                val prev = uiState
+                val next = transform(prev)
+                uiState = next
+                if (next.hostCatalog.connectionStates != prev.hostCatalog.connectionStates) {
+                    deliveredSecondaryStates.add(next.hostCatalog.connectionStates[second.connectionId])
+                }
+            },
+            installSelected = {
+                pool.updatePolicy(first.connectionId, listOf(first.connectionId, second.connectionId))
+            },
+            installEmpty = {},
+        )
+
+        controller.reconcileSelected()
+        advanceUntilIdle()
+        assertEquals(1, boundListeners.size)
+        val initialListener = boundListeners[0]
+
+        foreground = false
+        controller.onBackground()
+        foreground = true
+        controller.onForeground()
+        advanceUntilIdle()
+        assertEquals(2, boundListeners.size)
+        val reboundListener = boundListeners[1]
+        assertTrue(reboundListener !== initialListener)
+        deliveredSecondaryStates.clear()
+
+        // Stale pre-background listener is rejected (0 deliveries).
+        initialListener.onStateChanged(RemoteWebSocketClient.ConnectionState.Failed, null)
+        assertTrue(deliveredSecondaryStates.isEmpty())
+
+        // Rebound listener delivers Failed exactly once.
+        delegate.emitState(RemoteWebSocketClient.ConnectionState.Failed)
+        assertEquals(
+            listOf(RemoteWebSocketClient.ConnectionState.Failed),
+            deliveredSecondaryStates,
+        )
+
+        // Second background/foreground cycle rebinds again without duplicating deliveries.
+        foreground = false
+        controller.onBackground()
+        foreground = true
+        controller.onForeground()
+        advanceUntilIdle()
+        assertEquals(3, boundListeners.size)
+        deliveredSecondaryStates.clear()
+
+        reboundListener.onStateChanged(RemoteWebSocketClient.ConnectionState.Online, null)
+        assertTrue(deliveredSecondaryStates.isEmpty())
+
+        delegate.emitState(RemoteWebSocketClient.ConnectionState.Online)
+        assertEquals(
+            listOf(RemoteWebSocketClient.ConnectionState.Online),
+            deliveredSecondaryStates,
+        )
+    }
+
+    @Test
+    fun savedOfflineEntryIsPrunedWhenLruHasNoSecondaryAndDoesNotClampLater() = runTest {
+        val catalog = HostCatalog(
+            registry = HostRegistryStore(File(temporary.newFolder("prune-no-sec"), "hosts")),
+            vault = InMemoryHostVault(),
+            legacySource = EmptyLegacySource,
+        )
+        val first = HostRecord(id(1), profile(1), 1_001L)
+        val second = HostRecord(id(2), profile(2), 1_002L)
+        catalog.add(first, "token-1", catalog.begin(HostOperationKind.Add))
+        catalog.add(second, "token-2", catalog.begin(HostOperationKind.Add))
+        catalog.select(first.connectionId, catalog.begin(HostOperationKind.Select))
+
+        val delegateRepo = HostCatalogCredentialRepository(catalog)
+        var omitSecondaryFromLru = false
+        val repository = object : MultiHostCredentialRepository by delegateRepo {
+            override suspend fun catalogSnapshot(): HostCatalogSnapshot {
+                val base = delegateRepo.catalogSnapshot()
+                return if (!omitSecondaryFromLru) base
+                else base.copy(
+                    document = base.document.copy(lru = listOf(first.connectionId)),
+                )
+            }
+        }
+
+        val delegateSocket = FakeSocket()
+        var holdReconnect = false
+        val secondarySocket = object : RemoteEventSocket by delegateSocket {
+            override fun start(lastSeenSeq: Int?, lastSeenEpoch: String?) {
+                if (holdReconnect) {
+                    delegateSocket.started = true
+                    delegateSocket.suspended = false
+                    delegateSocket.emitState(RemoteWebSocketClient.ConnectionState.Connecting)
+                } else {
+                    delegateSocket.start(lastSeenSeq, lastSeenEpoch)
+                }
+            }
+        }
+        val pool = SessionPool()
+        var foreground = true
+        var uiState = AppSession.UiState()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val controller = HostSessionController(
+            repository = repository,
+            scope = this,
+            ioDispatcher = dispatcher,
+            owner = SessionOperationOwner(),
+            pool = pool,
+            apiFactory = { endpoint, token -> FakeApiGateway(endpoint, token) },
+            socketFactory = { secondarySocket },
+            isForeground = { foreground },
+            hasEndpointPermission = { true },
+            state = { uiState },
+            updateState = { transform -> uiState = transform(uiState) },
+            installSelected = {
+                pool.updatePolicy(
+                    first.connectionId,
+                    if (omitSecondaryFromLru) listOf(first.connectionId)
+                    else listOf(first.connectionId, second.connectionId),
+                )
+            },
+            installEmpty = {},
+        )
+
+        // Start with second as secondary in Failed state, then suspend to background.
+        controller.reconcileSelected()
+        advanceUntilIdle()
+        delegateSocket.emitState(RemoteWebSocketClient.ConnectionState.Failed)
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Failed,
+            uiState.hostCatalog.connectionStates[second.connectionId],
+        )
+
+        foreground = false
+        controller.onBackground()
+
+        // Catalog updates so second remains a retained host but LRU has no secondary.
+        omitSecondaryFromLru = true
+        foreground = true
+        controller.refreshCatalog()
+        advanceUntilIdle()
+        assertNull(uiState.hostCatalog.connectionStates[second.connectionId])
+        controller.onForeground()
+        advanceUntilIdle()
+        assertNull(uiState.hostCatalog.connectionStates[second.connectionId])
+
+        // When second later becomes secondary again, its stale Failed entry was pruned
+        // and no longer clamps Connecting to Failed.
+        omitSecondaryFromLru = false
+        holdReconnect = true
+        controller.reconcileSelected()
+        advanceUntilIdle()
+        assertEquals(
+            RemoteWebSocketClient.ConnectionState.Connecting,
+            uiState.hostCatalog.connectionStates[second.connectionId],
+        )
     }
 
     @Test

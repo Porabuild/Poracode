@@ -35,6 +35,7 @@ class WsConnectionLoop(
     private val frameRouter: WsFrameRouter,
     private val handleSessionExpired: (String) -> Unit,
     private val networkGate: ForegroundNetworkGate = ForegroundNetworkGate.shared,
+    private val connectTimeoutMs: Long = RemoteSocketPolicy.CONNECT_TIMEOUT_MS,
 ) {
     fun launchConnect() {
         state.connectJob?.cancel()
@@ -46,10 +47,29 @@ class WsConnectionLoop(
     fun forceReconnect(reason: String) {
         if (state.stopped.get() || state.suspended.get() || state.sessionExpired.get()) return
         val gen = state.generationGate.beginForceReconnect()
+        val wasReady = state.readyReceived.get()
         state.readyReceived.set(false)
         state.tearDownSocket()
-        state.publish(RemoteWebSocketClient.ConnectionState.Reconnecting, reason)
+        if (wasReady) {
+            state.publish(RemoteWebSocketClient.ConnectionState.Reconnecting, reason)
+        } else {
+            state.publish(RemoteWebSocketClient.ConnectionState.Failed, reason)
+        }
         scheduleReconnect(reason, unauthorized = false, gen = gen)
+    }
+
+    /** User-initiated reconnect: clears sticky offline state, resets backoff, and connects immediately. */
+    fun explicitReconnect() {
+        if (state.stopped.get() || state.suspended.get() || state.sessionExpired.get()) return
+        state.generationGate.beginForceReconnect()
+        state.reconnectJob?.cancel()
+        state.reconnectJob = null
+        state.backoff.reset()
+        state.readyReceived.set(false)
+        state.tearDownSocket()
+        state.failedBeforeSuspend.set(false)
+        state.lastPublished.set(null)
+        launchConnect()
     }
 
     fun scheduleReconnect(reason: String, unauthorized: Boolean, gen: Int) {
@@ -91,7 +111,9 @@ class WsConnectionLoop(
         state.readyReceived.set(false)
         state.upgradeDeclaredNotices.set(null)
         state.upgradeDeclaredCatalogChanges.set(null)
-        state.publish(RemoteWebSocketClient.ConnectionState.Connecting)
+        if (state.lastPublished.get() != RemoteWebSocketClient.ConnectionState.Failed) {
+            state.publish(RemoteWebSocketClient.ConnectionState.Connecting)
+        }
 
         try {
             val ticket = api.websocketTicket()
@@ -208,7 +230,11 @@ class WsConnectionLoop(
                             ) {
                                 return
                             }
+                            val wasReady = state.readyReceived.get()
                             state.tearDownSocket()
+                            if (!wasReady) {
+                                state.publish(RemoteWebSocketClient.ConnectionState.Failed, "closed $code")
+                            }
                             scheduleReconnect("closed $code", unauthorized = false, gen = gen)
                         }
                     }
@@ -283,7 +309,7 @@ class WsConnectionLoop(
                     state.socketRef.compareAndSet(null, socket)
                     state.connectTimeoutJob?.cancel()
                     state.connectTimeoutJob = scope.launch {
-                        delay(RemoteSocketPolicy.CONNECT_TIMEOUT_MS)
+                        delay(connectTimeoutMs)
                         if (state.generationGate.decision(
                                 gen,
                                 SocketGenerationGate.CallbackKind.ConnectTimeout,

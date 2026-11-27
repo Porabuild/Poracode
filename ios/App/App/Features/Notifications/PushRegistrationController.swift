@@ -484,7 +484,10 @@ actor PushRegistrationController {
         environmentId: "",
         expectedChildDesktopId: nil,
         parentAuthorizationToken: { token },
-        mintParentWebSocketTicket: { throw EnvironmentTransportError.parentTicketMissing() }
+        mintParentWebSocketTicket: { throw EnvironmentTransportError.parentTicketMissing() },
+        mintParentWebSocketTicketWithTimeout: { _ in
+          throw EnvironmentTransportError.parentTicketMissing()
+        }
       )
     }
     // No usable authority: a fail-closed context (no dial, no header) rather

@@ -31,6 +31,8 @@ import {
   connectionRefreshSubject,
   forgetRefreshTokenForSubject,
   rememberRefreshToken,
+  rememberRefreshTokenForSubject,
+  remoteEnvironmentRefreshSubject,
 } from "./refreshTokens";
 import {
   startRemoteServerEventStream,
@@ -514,11 +516,46 @@ describe("remote event socket session (V5 2.1)", () => {
     await startRemoteServerEventStream(deps);
     await flushAsync(30);
 
-    // A held grant means the next attempt can recover (its refresh may win):
-    // no terminal state, the session stays installed for the slow retry.
-    expect(deps.setRemoteServerFailure).not.toHaveBeenCalled();
+    // A held grant can still recover, so the session stays installed Offline.
+    expect(deps.setRemoteServerFailure).toHaveBeenCalledWith(
+      DESKTOP_ID,
+      "offline",
+      expect.any(String),
+    );
     expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).not.toBeUndefined();
     forgetRefreshTokenForSubject(connectionRefreshSubject(DESKTOP_ID));
+  });
+
+  it("keeps retrying a refused environment child that holds its own grant", async () => {
+    const { deps, store } = makeHarness();
+    const server: StartRemoteServerEventStreamDeps["server"] = {
+      ...deps.server,
+      transport: { kind: "environment", parentConnectionId: "parent-1", environmentId: "env-1" },
+    };
+    store.servers = [server];
+    store.clientFactory = () =>
+      ({
+        websocketTicket: async () => {
+          throw new RemoteClientError("Temporary refusal.", 401, "unauthorized");
+        },
+      }) as unknown as RemoteDesktopClient;
+    const subject = remoteEnvironmentRefreshSubject("parent-1", "env-1");
+    rememberRefreshTokenForSubject(subject, "child-grant");
+
+    try {
+      await startRemoteServerEventStream({ ...deps, server });
+
+      expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).toMatchObject({
+        reconnectTimer: expect.anything(),
+      });
+      expect(deps.setRemoteServerFailure).toHaveBeenCalledWith(
+        DESKTOP_ID,
+        "offline",
+        expect.any(String),
+      );
+    } finally {
+      forgetRefreshTokenForSubject(subject);
+    }
   });
 
   it("advances the resume cursor only after frames are applied", async () => {

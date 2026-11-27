@@ -15,8 +15,8 @@ import {
 /**
  * Cross-realm custody of one refresh grant. Every renderer realm of this origin
  * (main window, side-chat windows, PWA tabs) holds its own copy of each grant
- * and bearer, but the host accepts each refresh grant exactly once and revokes
- * the whole session family on reuse. A refresh therefore runs under a Web Lock
+ * and bearer. The host rotates each refresh grant and can revoke the session
+ * family on reuse. A refresh therefore runs under a Web Lock
  * per grant, starts from the copy in the shared vault (adopting a rotation
  * another realm already committed instead of spending the grant again), and
  * commits its own rotation with a compare-and-set before the lock is released.
@@ -48,6 +48,9 @@ export class SharedCredentialRefusedError extends Error {
     this.name = "SharedCredentialRefusedError";
   }
 }
+
+/** Backoff for re-landing a rotated grant after a failed vault write. */
+const SUCCESSOR_COMMIT_RETRY_DELAYS_MS = [250, 1_000, 3_000] as const;
 
 /** Grant ciphertext observed inside the current exclusive section, per subject. */
 const observedGrants = new Map<string, VaultSlotCiphertext | null>();
@@ -126,12 +129,14 @@ export async function commitSharedRefresh(
   // This realm switches to its rotation at once; the shared copy is committed
   // below, still inside the exclusive section.
   custody.apply(pair, false);
+  const isCurrent = () =>
+    custody.isCurrent() && custody.current().refreshToken === tokens.refreshToken;
   try {
-    const outcome = await commitSharedCredential({
+    const successor = {
       subject: custody.subject,
       expected,
       refreshToken: tokens.refreshToken,
-      isCurrent: () => custody.isCurrent(),
+      isCurrent,
       ...(custody.bearerConnectionKey !== undefined
         ? {
             bearer: {
@@ -140,24 +145,29 @@ export async function commitSharedRefresh(
             },
           }
         : {}),
-    });
-    // A removal or re-pair retired this custody while it committed: the
-    // successor owns the grant now.
-    if (!custody.isCurrent()) return;
+    };
+    let outcome = await commitSharedCredential(successor);
+    // A second realm may otherwise read the spent grant as soon as we release
+    // the lock. Hold it until the successor is durable or the old slot is retired.
+    for (const delayMs of SUCCESSOR_COMMIT_RETRY_DELAYS_MS) {
+      if (outcome !== "failed" || !isCurrent()) break;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      if (!isCurrent()) return;
+      outcome = await commitSharedCredential(successor);
+    }
+    if (!isCurrent()) return;
     if (outcome === "committed") {
       custody.apply(pair, true);
     } else if (outcome === "conflict") {
-      // Another writer replaced the grant while this exchange ran; its copy is
-      // the shared one now.
+      // Another writer replaced the grant while this exchange ran.
       await adoptSharedCredential(custody);
     } else if (outcome === "failed") {
-      // The vault still holds the grant this exchange just spent, and any realm
-      // replaying it would revoke every session: remove it so they fail closed.
+      // Remove the spent grant while leaving this realm's new pair usable.
       await commitSharedCredential({
         subject: custody.subject,
         expected,
         refreshToken: undefined,
-        isCurrent: () => custody.isCurrent(),
+        isCurrent,
       });
     }
   } catch (error) {

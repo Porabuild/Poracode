@@ -19,13 +19,16 @@ import { defaultClientMetadata, type RemoteTokenSnapshot } from "./clientTypes";
 const tokenRefreshes = new Map<string, Promise<RemoteTokenSnapshot>>();
 
 export abstract class RemoteClientAuth extends RemoteClientTransport {
-  async environment(): Promise<RemoteEnvironmentDescriptor> {
+  async environment(
+    options: { readonly timeoutMs?: number } = {},
+  ): Promise<RemoteEnvironmentDescriptor> {
+    const init = options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {};
     let raw: unknown;
     try {
-      raw = await this.requestJson("/.well-known/poracode/environment");
+      raw = await this.requestJson("/.well-known/poracode/environment", init);
     } catch (error) {
       if (!(error instanceof RemoteClientError) || error.status !== 404) throw error;
-      raw = await this.requestJson("/.well-known/lightcode/environment");
+      raw = await this.requestJson("/.well-known/lightcode/environment", init);
     }
     // Pre-parse the protocol version with a loose schema so a mismatch (the
     // literal in the strict schema would otherwise dump a JSON ZodError) yields

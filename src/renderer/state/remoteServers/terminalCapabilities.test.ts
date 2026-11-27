@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { REMOTE_SOCKET_POLICY } from "@/shared/remote/socketPolicy";
 import {
   createTerminalFeedConnections,
   prepareTerminalConnection,
@@ -27,6 +28,16 @@ it("opts in at the newest advertised version this build supports", () => {
   expect(terminalCapabilitiesFromEnvironment(environment())).toEqual({});
   // Nothing advertised intersects this build's supported set.
   expect(terminalCapabilitiesFromEnvironment(environment([3, 4]))).toEqual({});
+});
+
+it("bounds reconnect handshake reads by the socket connect deadline", async () => {
+  const readEnvironment = vi.fn<RemoteDesktopClient["environment"]>(async () => environment([2]));
+  const websocketTicket = vi.fn<RemoteDesktopClient["websocketTicket"]>(async () => "ticket");
+  await prepareTerminalConnection({ environment: readEnvironment, websocketTicket });
+  expect(websocketTicket).toHaveBeenCalledWith(REMOTE_SOCKET_POLICY.connectTimeoutMs);
+  expect(readEnvironment).toHaveBeenCalledWith({
+    timeoutMs: REMOTE_SOCKET_POLICY.connectTimeoutMs,
+  });
 });
 
 it("reuses a freshly fetched initial descriptor without a duplicate request", async () => {

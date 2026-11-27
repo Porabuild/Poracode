@@ -498,8 +498,9 @@ describe("cold pairing recovery", () => {
       if (action === "connectAll") await useRemoteServersStore.getState().connectAll();
       else await useRemoteServersStore.getState().reconnectServer(PARENT_KEY);
       expect(created).toHaveLength(0);
+      // An unreadable vault is retried, never a terminal state.
       expect(useRemoteServersStore.getState().runtime[PARENT_KEY]).toMatchObject({
-        status: "error",
+        status: "offline",
         message: "The saved remote credentials could not be confirmed.",
       });
       failure.mockRestore();

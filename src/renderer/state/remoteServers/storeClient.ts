@@ -4,10 +4,10 @@ import { msg as sharedMsg } from "@/shared/messages";
 import {
   isRemoteBoundedReadProtocolError,
   isRemoteTransportFailure,
-  isUnauthorizedRemoteError,
+  isRefusedRefreshGrantError,
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
-import { remoteServerFailureMessage } from "./failureMessage";
+import { isRecoverableAuthFailure, remoteServerFailureMessage } from "./failureMessage";
 import { i18n } from "@/renderer/i18n/i18n";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { environmentSessionForServer } from "./environmentSessions";
@@ -39,6 +39,10 @@ import {
 } from "./sharedCredentials";
 import { noteDesktopTokenCommitted } from "./tokenVault";
 import { SessionRenewal } from "./sessionRenewal";
+import {
+  deferTransportFailureToLiveEventSocket,
+  nudgeRemoteServerEventSocket,
+} from "./eventSocketLiveness";
 import type { RemoteClientFactory, RemoteServerRecord, RemoteServersState } from "./types";
 import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
 
@@ -99,13 +103,20 @@ export function createRemoteServerClientBindings(
     // prose is English-only: the caller's localized fallback is the message,
     // and the host stays reachable (error, never offline).
     const protocolViolation = isRemoteBoundedReadProtocolError(error);
-    const message = protocolViolation ? fallback : remoteServerFailureMessage(error, fallback);
+    // A 401 the held grant can still repair is a reconnect, not "pair again".
+    const server = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
+    const recoverableAuth = !protocolViolation && isRecoverableAuthFailure(error, server);
+    const message = protocolViolation
+      ? fallback
+      : recoverableAuth
+        ? sharedMsg("remote.server.unreachable")
+        : remoteServerFailureMessage(error, fallback);
+    const transportFailure =
+      !protocolViolation && (isRemoteTransportFailure(error) || recoverableAuth);
     toast.danger(message);
-    setRemoteServerFailure(
-      desktopId,
-      !protocolViolation && isRemoteTransportFailure(error) ? "offline" : "error",
-      message,
-    );
+    if (transportFailure && deferTransportFailureToLiveEventSocket(desktopId)) return;
+    setRemoteServerFailure(desktopId, transportFailure ? "offline" : "error", message);
+    if (recoverableAuth) nudgeRemoteServerEventSocket(desktopId);
   };
 
   const persistAccessToken = (connectionKey: string, accessToken: string): void => {
@@ -271,17 +282,12 @@ export function createRemoteServerClientBindings(
         return commitSharedRefresh(custody, tokens);
       },
       runExclusive: (run) => runSharedRefresh(custody, run),
-      // A 401 the refresh path could not repair: only a REFUSED grant (401/403
-      // from the grant endpoint) is dead — transport-class refresh failures
-      // (429, network) are retryable and must keep the grant. A dead grant
-      // never recovers by retrying (the host revoked the family or rebuilt its
-      // auth state), so drop it from memory and the vault and stop reporting
-      // it as a usable connection: the reconnect ladder would otherwise loop
-      // "Pairing expired" forever, which reads as the app endlessly
-      // reconnecting.
       onUnauthorized: (refreshFailure) => {
         if (!isCurrent()) return;
-        if (!isUnauthorizedRemoteError(refreshFailure)) return;
+        // Only the token endpoint's definite refusal proves the grant dead. A
+        // proxy/origin 401 or 403, a timeout, a vault read failure or a lost
+        // response keeps the grant: the ladder's next attempt can still renew.
+        if (!isRefusedRefreshGrantError(refreshFailure)) return;
         forgetRefreshTokenForSubject(subject);
         void deleteRefreshTokenFromVault(subject).catch(() => undefined);
         setRemoteServerFailure(server.desktopId, "error", sharedMsg("remote.session.expired"));
@@ -337,7 +343,7 @@ export function createRemoteServerClientBindings(
           return (await requireClient(connectionKey).refreshTokens()) !== null;
         } catch (error) {
           // A refused grant is dead (re-pair); anything else is retried.
-          if (isUnauthorizedRemoteError(error)) return false;
+          if (isRefusedRefreshGrantError(error)) return false;
           throw error;
         }
       }, "remote");
@@ -363,6 +369,10 @@ export function createRemoteServerClientBindings(
       if (restore) await restore;
       const result = await invoke(requireClient(desktopId));
       const status = get().runtime[desktopId]?.status;
+      // With a socket session whose live channel is down, a successful request
+      // is evidence to retry the socket now, not proof of a live connection:
+      // the socket's activation marks the host online.
+      if (status === "offline" && nudgeRemoteServerEventSocket(desktopId)) return result;
       if (status === "error" || status === "offline") {
         set((state) => {
           const current = state.runtime[desktopId];
@@ -391,7 +401,10 @@ export function createRemoteServerClientBindings(
         throw error;
       }
       const message = sharedMsg("remote.server.unreachable");
-      if (get().runtime[desktopId]?.status !== "connecting") {
+      if (
+        get().runtime[desktopId]?.status !== "connecting" &&
+        !deferTransportFailureToLiveEventSocket(desktopId)
+      ) {
         setRemoteServerFailure(desktopId, "offline", message);
       }
       throw new Error(message, { cause: error });

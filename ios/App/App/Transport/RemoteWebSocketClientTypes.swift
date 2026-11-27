@@ -54,3 +54,46 @@ extension RemoteWebSocketClient {
         case failed(String)
     }
 }
+
+/// Pure connection-state transition rules shared by `RemoteWebSocketClient` and tests.
+enum RemoteSocketStatePolicy {
+    /// Failure before the `ready` frame reports `.failed(reason)` (Offline);
+    /// only a connection that had reached `ready` reports `.reconnecting`.
+    static func stateAfterFailure(
+        wasReady: Bool,
+        reason: String
+    ) -> RemoteWebSocketClient.ConnectionState {
+        wasReady ? .reconnecting : .failed(reason)
+    }
+
+    /// Automatic retries of a `.failed` host keep reporting Offline instead of
+    /// flipping back to `.connecting` or `.reconnecting` (including session-expired
+    /// retries).
+    static func shouldPublishConnecting(
+        last: RemoteWebSocketClient.ConnectionState?
+    ) -> Bool {
+        if case .failed = last { return false }
+        return true
+    }
+
+    /// State published at the start of a connect attempt, or `nil` when the
+    /// existing `.failed` state should stay visible until readiness or failure.
+    static func initialStateForAttempt(
+        last: RemoteWebSocketClient.ConnectionState?,
+        sessionExpired: Bool
+    ) -> RemoteWebSocketClient.ConnectionState? {
+        guard shouldPublishConnecting(last: last) else {
+            return nil
+        }
+        return sessionExpired ? .reconnecting : .connecting
+    }
+
+    /// Baseline `lastPublishedState` restored on `resumeFromForeground()`.
+    /// Preserves `.failed` across background suspension so an unreachable host
+    /// stays Offline instead of flipping to `.connecting` for the connect timeout.
+    static func stateAfterResume(
+        failedBeforeSuspend: Bool
+    ) -> RemoteWebSocketClient.ConnectionState? {
+        failedBeforeSuspend ? .failed("offline before suspend") : nil
+    }
+}

@@ -1,7 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import type { Thread, Project, TerminalSize } from "@/shared/contracts";
-import { friendlyError } from "@/shared/messages";
+import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import {
   REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
   REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
@@ -40,6 +40,10 @@ import {
   remoteServerSnapshotSeq,
   remoteThreadAppliedSeq,
 } from "./eventSocketRegistry";
+import {
+  deferTransportFailureToLiveEventSocket,
+  nudgeRemoteServerEventSocket,
+} from "./eventSocketLiveness";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import {
   clearRemoteServerRefreshTimer,
@@ -73,7 +77,7 @@ import {
 } from "./catalog/boundedHistory";
 import { REMOTE_SHELL_THREAD_PAGE_LIMIT } from "./pairing";
 import { remoteConnectionKey } from "./types";
-import { remoteServerFailureMessage } from "./failureMessage";
+import { isRecoverableAuthFailure, remoteServerFailureMessage } from "./failureMessage";
 import type {
   OpenRemoteThread,
   RemoteServerRecord,
@@ -148,9 +152,19 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     preserveThreadIds: ReadonlySet<string>,
     servedThreadIds: ReadonlySet<string>,
   ): void => {
+    // Same rule as the full snapshot: with the event socket session down, a
+    // read success nudges the socket and leaves the host offline until the
+    // socket's activation marks it online.
+    const keepOffline =
+      get().runtime[connectionKey]?.status === "offline" &&
+      nudgeRemoteServerEventSocket(connectionKey);
     set((state) => {
       const current = state.runtime[connectionKey];
       if (!current) return state;
+      if (keepOffline && current.status === "offline") {
+        if (current.threads === rows) return state;
+        return { runtime: { ...state.runtime, [connectionKey]: { ...current, threads: rows } } };
+      }
       if (
         current.threads === rows &&
         current.status === "online" &&
@@ -622,12 +636,24 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
                 JSON.stringify(current.agentStatuses.wsl) === JSON.stringify(agentStatuses.wsl)
               ? current.agentStatuses
               : agentStatuses;
-        const nextRuntime: RemoteServerRuntime =
-          current?.status === "online" &&
-          current.message === undefined &&
-          projects === current.projects &&
-          threads === current.threads &&
-          nextAgentStatuses === current.agentStatuses
+        // A host whose event socket session is down stays offline on a
+        // snapshot success: the read nudges the socket, whose activation marks
+        // the host online, so a blocked live channel never flaps the status.
+        const keepOffline =
+          current?.status === "offline" && nudgeRemoteServerEventSocket(desktopId);
+        const nextRuntime: RemoteServerRuntime = keepOffline
+          ? {
+              status: "offline",
+              ...(current.message !== undefined ? { message: current.message } : {}),
+              projects,
+              threads,
+              ...(nextAgentStatuses ? { agentStatuses: nextAgentStatuses } : {}),
+            }
+          : current?.status === "online" &&
+              current.message === undefined &&
+              projects === current.projects &&
+              threads === current.threads &&
+              nextAgentStatuses === current.agentStatuses
             ? current
             : {
                 status: "online",
@@ -690,12 +716,25 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // connection's read contract, not the host being offline, and its SDK
         // prose is English-only: surface the localized catalog message instead.
         const protocolViolation = isRemoteBoundedReadProtocolError(error);
+        // A 401 while the refresh grant is still held is a renewal that has
+        // not landed yet (a lost or failed refresh), never "pair again": the
+        // socket ladder's next ticket mint renews it.
+        const recoverableAuth = !protocolViolation && isRecoverableAuthFailure(error, server);
+        const retryable =
+          !protocolViolation && (isRemoteTransportFailure(error) || recoverableAuth);
+        // A failed snapshot read while the event socket is open is a slow or
+        // dropped request, not proof the host is gone: let the socket decide.
+        if (retryable && deferTransportFailureToLiveEventSocket(desktopId)) {
+          return;
+        }
         const current = cached();
         setRuntime({
-          status: protocolViolation || !isRemoteTransportFailure(error) ? "error" : "offline",
+          status: retryable ? "offline" : "error",
           message: protocolViolation
             ? i18n._(msg`The remote catalog read failed.`)
-            : remoteServerFailureMessage(error, i18n._(msg`Connection failed.`)),
+            : recoverableAuth
+              ? sharedMsg("remote.server.unreachable")
+              : remoteServerFailureMessage(error, i18n._(msg`Connection failed.`)),
           projects: current?.projects ?? [],
           threads: current?.threads ?? [],
           // A failed read says nothing about installed agents; later
@@ -704,6 +743,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           ...(current?.agentStatuses ? { agentStatuses: current.agentStatuses } : {}),
         });
         syncDesktopBrowserBridgeClient(get());
+        if (recoverableAuth) nudgeRemoteServerEventSocket(desktopId);
       }
     },
   };

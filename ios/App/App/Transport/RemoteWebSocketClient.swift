@@ -34,6 +34,8 @@ actor RemoteWebSocketClient {
     var stopped = true
     /// True while the session is unauthorized; reconnect uses the 60s floor.
     private var sessionExpired = false
+    private var lastPublishedState: ConnectionState?
+    private var failedBeforeSuspend = false
     private var pendingPingId: String?
     /// Wall-clock time (ms) of the last inbound frame on the current socket.
     private var lastInboundAtMs: Double?
@@ -75,7 +77,11 @@ actor RemoteWebSocketClient {
     /// Declarations of the actual upgrade attempt, or nil before one exists.
     var upgradeDeclarations: RemoteSocketUpgradeDeclarations? { lastUpgradeDeclarations }
 
-    func start(lastSeenSeq: Int?, lastSeenEpoch: String? = nil) {
+    func start(
+        lastSeenSeq: Int?,
+        lastSeenEpoch: String? = nil,
+        startsOffline: Bool = false
+    ) {
         // Always establish a baseline. `nil` → 0 (replay-from-start), never omit on wire.
         // A cached cursor keeps the event-stream epoch it is bound to.
         cursor = EventStreamCursor(
@@ -87,6 +93,10 @@ actor RemoteWebSocketClient {
         sessionExpired = false
         resyncSuspended = false
         readyReceived = false
+        lastPublishedState = RemoteSocketStatePolicy.stateAfterResume(
+            failedBeforeSuspend: startsOffline
+        )
+        failedBeforeSuspend = false
         backoff.reset()
         generationGate.invalidate()
         launchConnect()
@@ -96,6 +106,7 @@ actor RemoteWebSocketClient {
         stopped = true
         sessionExpired = false
         resyncSuspended = false
+        failedBeforeSuspend = false
         generationGate.invalidate()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -108,6 +119,13 @@ actor RemoteWebSocketClient {
     }
 
     func suspendForBackground() {
+        if !suspended {
+            if case .failed = lastPublishedState {
+                failedBeforeSuspend = true
+            } else {
+                failedBeforeSuspend = false
+            }
+        }
         suspended = true
         generationGate.invalidate()
         reconnectTask?.cancel()
@@ -118,15 +136,25 @@ actor RemoteWebSocketClient {
         connectTask = nil
         tearDownSocket()
         readyReceived = false
-        Task { await publish(.suspended) }
+        Task {
+            guard suspended, !stopped else { return }
+            await publish(.suspended)
+        }
     }
 
     func resumeFromForeground() {
         // Clear suspended before resyncSuspended guard so resumeAfterResync can reconnect.
         guard !stopped else { return }
+        let wasSuspended = suspended
         suspended = false
         guard !resyncSuspended else { return }
         backoff.reset()
+        if wasSuspended {
+            lastPublishedState = RemoteSocketStatePolicy.stateAfterResume(
+                failedBeforeSuspend: failedBeforeSuspend
+            )
+            failedBeforeSuspend = false
+        }
         launchConnect()
     }
 
@@ -207,10 +235,17 @@ actor RemoteWebSocketClient {
         let gen = generationGate.invalidate()
         tearDownSocket()
         readyReceived = false
-        await publish(sessionExpired ? .reconnecting : .connecting)
+        if let initialState = RemoteSocketStatePolicy.initialStateForAttempt(
+            last: lastPublishedState,
+            sessionExpired: sessionExpired
+        ) {
+            await publish(initialState)
+        }
 
         do {
-            let ticket = try await api.websocketTicket()
+            let ticket = try await api.websocketTicket(
+                timeout: RemoteSocketPolicy.connectTimeoutMs / 1000
+            )
             guard generationGate.isCurrent(gen), !stopped, !suspended, !resyncSuspended else { return }
 
             // Always send a baseline seq (≥ 0). Never omit after we have a cursor.
@@ -344,6 +379,12 @@ actor RemoteWebSocketClient {
         // Soft retry with unauthorized floor — avoids hot loops while keeping the token.
         await scheduleReconnect(minimumDelayMs: RemoteSocketPolicy.unauthorizedReconnectMs)
     }
+
+    #if DEBUG
+    func handleTextForTesting(_ text: String) async {
+        await handleText(text)
+    }
+    #endif
 
     private func handleText(_ text: String) async {
         guard let data = text.data(using: .utf8) else { return }
@@ -502,22 +543,32 @@ actor RemoteWebSocketClient {
 
     private func forceReconnect(reason: String) async {
         guard !stopped, !suspended, !resyncSuspended else { return }
+        let wasReady = readyReceived
         // Invalidate generation so cancelled receive/health callbacks cannot schedule a second reconnect.
         _ = generationGate.beginForceReconnect()
         readyReceived = false
         tearDownSocket()
-        await publish(.reconnecting)
+        await publish(RemoteSocketStatePolicy.stateAfterFailure(wasReady: wasReady, reason: reason))
         await scheduleReconnect(minimumDelayMs: 0)
-        _ = reason
     }
 
     /// Explicit user-triggered reconnect from an in-thread offline banner.
-    /// Reuses the generation-safe force-reconnect ladder (which keeps the
-    /// event-stream cursor, transcript, draft and pending requests), so rapid
-    /// taps dedupe to one connection attempt and automatic reconnect stays in
-    /// place. Auth is never touched.
+    /// Clears any prior `.failed` state and launches a fresh attempt immediately
+    /// (keeping the event-stream cursor, transcript, draft and pending requests),
+    /// so rapid taps dedupe to one connection attempt and automatic reconnect stays
+    /// in place. Auth is never touched.
     func reconnectNow() async {
-        await forceReconnect(reason: "user requested reconnect")
+        guard !stopped, !suspended, !resyncSuspended else { return }
+        _ = generationGate.beginForceReconnect()
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        readyReceived = false
+        tearDownSocket()
+        backoff.reset()
+        sessionExpired = false
+        lastPublishedState = nil
+        failedBeforeSuspend = false
+        launchConnect()
     }
 
     private func scheduleReconnect(minimumDelayMs: Double) async {
@@ -567,6 +618,7 @@ actor RemoteWebSocketClient {
     }
 
     private func publish(_ state: ConnectionState) async {
+        lastPublishedState = state
         await delegate?.webSocket(self, didChange: state)
     }
 }
