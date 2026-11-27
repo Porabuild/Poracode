@@ -322,11 +322,20 @@ describe("ThreadDocksPanel cards", () => {
           expect(Math.abs(right - chevronRights[0]!)).toBeLessThanOrEqual(0.5);
         }
 
-        // Collapsed Context window and Usage cards display circular SVG rings.
+        // Both collapsed cards display rings with the same visible diameter.
         const contextCard = screen.getByRole("region", { name: "Context window" });
         const usageCard = screen.getByRole("region", { name: "Agent usage" });
-        expect(contextCard.querySelector('[data-context-ring="true"]')).not.toBeNull();
-        expect(usageCard.querySelectorAll("svg circle").length).toBeGreaterThanOrEqual(4);
+        const contextTrack = contextCard.querySelector<SVGCircleElement>(
+          "[data-context-ring] circle",
+        )!;
+        const usageTracks = usageCard.querySelectorAll<SVGCircleElement>('svg[width="18"] circle');
+        expect(usageTracks.length).toBeGreaterThanOrEqual(4);
+        const strokeWidth = (track: SVGCircleElement) =>
+          parseFloat(getComputedStyle(track).strokeWidth) * track.getScreenCTM()!.a;
+        const outerDiameter = (track: SVGCircleElement) =>
+          track.getBoundingClientRect().width + strokeWidth(track);
+        expect(outerDiameter(contextTrack)).toBeCloseTo(outerDiameter(usageTracks[0]!), 1);
+        expect(strokeWidth(contextTrack)).toBeCloseTo(strokeWidth(usageTracks[0]!), 1);
 
         // Expanding Thread info, Context window, and Usage adds a hairline body divider.
         fireEvent.click(screen.getByRole("button", { name: "Thread info" }));

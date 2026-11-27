@@ -59,7 +59,7 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
               className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums"
               title={summary.detail}
             >
-              <ContextUsageRing percent={summary.percent} size={16} />
+              <ContextUsageRing percent={summary.percent} />
               <span className={percentClassName}>{summary.percent}%</span>
               <span className="sr-only">{summary.detail}</span>
             </span>
@@ -68,7 +68,7 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
               className="ml-auto inline-flex min-w-0 items-center gap-1.5 text-[11px] tabular-nums text-muted"
               title={summary.detail}
             >
-              <ContextUsageRing percent={undefined} size={16} />
+              <ContextUsageRing percent={undefined} />
               <span className="truncate">{summary.detail}</span>
             </span>
           ) : (
@@ -76,7 +76,7 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
               className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] text-muted"
               title={summary.detail}
             >
-              <ContextUsageRing percent={undefined} size={16} />
+              <ContextUsageRing percent={undefined} />
               <span aria-hidden="true">—</span>
               <span className="sr-only">{summary.detail}</span>
             </span>

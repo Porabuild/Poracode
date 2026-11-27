@@ -25,6 +25,7 @@ import {
 import { pickUsageRings } from "@/renderer/components/providers/usageProviders";
 import { usageToneColor } from "@/renderer/components/providers/usageTone";
 import {
+  THREAD_DOCK_SUMMARY_RING_SIZE,
   ThreadDockBody,
   ThreadDockCollapseButton,
   ThreadDockHeader,
@@ -267,7 +268,7 @@ export function ThreadAgentUsageDock({ usage }: { usage: ReturnType<typeof useTh
               <ProviderUsageCircle
                 kind={reported.providerId}
                 windows={reported.windows}
-                size={18}
+                size={THREAD_DOCK_SUMMARY_RING_SIZE}
                 showProviderIcon={false}
                 ringGroup={selectedRingGroup}
               />
