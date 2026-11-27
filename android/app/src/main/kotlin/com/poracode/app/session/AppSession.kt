@@ -1,8 +1,10 @@
 package com.poracode.app.session
 
+import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.protocol.AppLifecycleGate
 import com.poracode.app.protocol.ThreadHydrationCoordinator
 import com.poracode.app.session.catalog.CatalogSyncController
+import com.poracode.app.session.history.loadThreadHistoryTail
 import com.poracode.app.storage.SessionCredentialRepository
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.transport.ForegroundNetworkGate
@@ -13,6 +15,7 @@ import com.poracode.app.transport.RemoteWebSocketClient
 import com.poracode.app.push.PushOffPageResolution
 import com.poracode.app.push.PushRouteV1
 import com.poracode.app.push.RemoteUserNotificationPresentationCenter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -223,16 +226,11 @@ class AppSession(
     }
 
     /**
-     * Explicit in-thread offline-banner retry. Captures the current selected
-     * host and incarnation at tap time and re-triggers that host's live socket
-     * through the lifecycle's generation-safe reconnect ladder. Auth, the
-     * current thread, cached text, draft and pending requests are untouched.
+     * Retry the live socket for the host shown in the thread's offline banner.
      */
-    fun reconnectSelectedHost() {
-        val snapshot = _state.value
-        val connectionId = snapshot.hostCatalog.selectedConnectionId ?: return
-        if (snapshot.sessionExpired) return
-        live.reconnectSelectedHost(connectionId, owner.sessionGeneration)
+    fun reconnectSelectedHost(connectionId: ClientConnectionId) {
+        val generation = owner.sessionGeneration
+        reconnectCurrentHostSocket(live.webSocket, _state.value, owner, connectionId, generation)
     }
     fun onLocalNetworkPermissionGranted() = lifecycleCoordinator.onLocalNetworkPermissionGranted()
 
@@ -269,16 +267,44 @@ class AppSession(
 
     /**
      * Bounded, host-scoped exact-ID thread head read for a push target outside
-     * the loaded catalog page. Delegates to the thread controller, which fences
-     * the result against a host/profile switch and an API-incarnation change
-     * during the read; the row is never installed here.
+     * the loaded catalog page. Fence the read to the host and API incarnation.
+     * The route coordinator decides when the returned row may be installed.
      */
     internal suspend fun resolvePushOffPageThread(
-        connectionId: com.poracode.app.model.ClientConnectionId,
+        connectionId: ClientConnectionId,
         desktopId: String,
         threadId: String,
-    ): PushOffPageResolution =
-        threads.resolvePushOffPageThread(connectionId, desktopId, threadId)
+    ): PushOffPageResolution {
+        val before = _state.value
+        if (before.hostCatalog.selectedConnectionId != connectionId ||
+            before.profile?.desktopId != desktopId
+        ) return PushOffPageResolution.Stale
+        val apiIdentity = owner.apiIdentity
+        val startedSeq = live.lastSeenSeq?.toLong() ?: 0L
+        val row = try {
+            live.api?.let { client ->
+                val currentCatalog = _state.value.catalog
+                loadThreadHistoryTail(
+                    api = client,
+                    threadId = threadId,
+                    targetTimelineEntryCount = 1,
+                    bounded = currentCatalog.negotiated && !currentCatalog.legacy,
+                    ioDispatcher = ioDispatcher,
+                ).thread.takeIf { it.id == threadId }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        val after = _state.value
+        if (after.hostCatalog.selectedConnectionId != connectionId ||
+            after.profile?.desktopId != desktopId ||
+            !owner.isCurrentApi(apiIdentity)
+        ) return PushOffPageResolution.Stale
+        return if (row == null) PushOffPageResolution.Unavailable
+        else PushOffPageResolution.Found(row, startedSeq)
+    }
 
     /**
      * Installs an off-page row through the catalog's scoped ownership and then

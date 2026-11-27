@@ -67,31 +67,33 @@ class HostOfflineReconnectTest {
             controller.startWebSocket(client)
             val socket = h.sockets.sockets.single()
             val generation = h.owner.sessionGeneration
+            fun retry(connectionId: ClientConnectionId, sessionGeneration: Int) =
+                reconnectCurrentHostSocket(controller.webSocket, h.state.value, h.owner, connectionId, sessionGeneration)
 
             // Correct host + incarnation: one reconnect on the current socket,
             // no replacement connection (thread/cached text/requests preserved).
-            controller.reconnectSelectedHost(HOST_A, generation)
+            retry(HOST_A, generation)
             assertEquals(1, socket.forceReconnectCount)
             assertEquals(1, h.sockets.sockets.size)
 
             // Rapid second tap hits the same socket's generation-safe ladder;
             // no second connection object is created.
-            controller.reconnectSelectedHost(HOST_A, generation)
+            retry(HOST_A, generation)
             assertEquals(2, socket.forceReconnectCount)
             assertEquals(1, h.sockets.sockets.size)
 
             // A tap captured for a previous host is rejected.
-            controller.reconnectSelectedHost(HOST_B, generation)
+            retry(HOST_B, generation)
             assertEquals(2, socket.forceReconnectCount)
 
             // A host switch bumps the incarnation; the stale token is rejected.
             h.owner.bumpSessionGeneration()
-            controller.reconnectSelectedHost(HOST_A, generation)
+            retry(HOST_A, generation)
             assertEquals(2, socket.forceReconnectCount)
 
             // A retired session is left to the re-pair flow.
             h.state.value = h.state.value.copy(sessionExpired = true)
-            controller.reconnectSelectedHost(HOST_A, h.owner.sessionGeneration)
+            retry(HOST_A, h.owner.sessionGeneration)
             assertEquals(2, socket.forceReconnectCount)
         } finally {
             h.scope.cancel()

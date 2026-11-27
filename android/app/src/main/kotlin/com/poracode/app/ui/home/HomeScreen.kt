@@ -61,7 +61,6 @@ import com.poracode.app.storage.HomeShortcut
 import com.poracode.app.storage.HomeWorkspaceHostInput
 import com.poracode.app.storage.HomeWorkspacePreferences
 import com.poracode.app.storage.PinnedSettingsShortcut
-import com.poracode.app.transport.RemoteWebSocketClient
 import com.poracode.app.ui.GitSummaryResolver
 import com.poracode.app.ui.components.rememberPredictiveBackModifier
 import com.poracode.app.ui.richchat.RichChatComposerDraftStore
@@ -78,8 +77,7 @@ internal fun HomeScreen(
     onRefreshModelVisibility: () -> Unit,
     threads: List<HostPresentation.UnifiedThreadItem>,
     onRefresh: () -> Unit,
-    /** Explicit retry of the selected host's live connection from the in-thread banner. */
-    onReconnect: () -> Unit,
+    onReconnect: (ClientConnectionId) -> Unit,
     onUnpair: () -> Unit,
     onOpenThread: (String) -> Unit,
     onCloseThread: () -> Unit,
@@ -162,10 +160,7 @@ internal fun HomeScreen(
     var moveInFlight by remember { mutableStateOf(false) }
     var moveFailed by remember { mutableStateOf(false) }
     val moveOpenThreadToWorktree: (Boolean) -> Unit = { bringChanges ->
-        val item = threads.firstOrNull {
-            it.id == state.openThreadId || it.thread.id == state.openThreadId ||
-                it.id == selectedPresentedThreadId
-        }
+        val item = findOpenHomeThread(state, threads, selectedPresentedThreadId)
         val target = openProjectTarget(state)
         if (item != null && target != null && !moveInFlight) {
             moveInFlight = true
@@ -285,21 +280,8 @@ internal fun HomeScreen(
             enabled = !layout.isSplit && state.openThreadId != null,
             onBack = onCloseThread,
         )
-        val openItem = threads.firstOrNull {
-            it.id == state.openThreadId || it.thread.id == state.openThreadId ||
-                it.id == selectedPresentedThreadId
-        }
-        val openHostOnline = openItem != null &&
-            openItem.connectionId == state.hostCatalog.selectedConnectionId &&
-            state.socketState == RemoteWebSocketClient.ConnectionState.Online
-        // A host that is reconnecting/failed but not session-expired. Exclude
-        // the initial Connecting phase (a connect pass is already in flight)
-        // and SessionExpired (owned by the re-pair flow, never force-reconnect).
-        val openHostOffline = openItem != null &&
-            !openHostOnline &&
-            !state.sessionExpired &&
-            state.socketState != RemoteWebSocketClient.ConnectionState.SessionExpired &&
-            state.socketState != RemoteWebSocketClient.ConnectionState.Connecting
+        val openItem = findOpenHomeThread(state, threads, selectedPresentedThreadId)
+        val (openHostOnline, openHostOffline) = homeThreadConnectionStatus(state, openItem?.connectionId)
 
         val threadDetail: @Composable (
             showBack: Boolean,
@@ -357,7 +339,7 @@ internal fun HomeScreen(
                 hostName = openItem?.hostName,
                 hostOnline = openHostOnline,
                 hostOffline = openHostOffline,
-                onReconnect = onReconnect,
+                onReconnect = { openItem?.connectionId?.let(onReconnect) },
                 project = openItem?.project,
                 projectRuntime = projectRuntime,
                 browserMirror = browserMirror,

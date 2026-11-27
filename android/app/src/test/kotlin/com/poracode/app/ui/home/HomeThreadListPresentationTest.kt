@@ -7,12 +7,32 @@ import com.poracode.app.model.RemoteProject
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.session.AppSession
 import com.poracode.app.session.HostPresentation
+import com.poracode.app.session.HostUiCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomeThreadListPresentationTest {
+    @Test
+    fun `open thread and reconnect stay on the selected host with duplicate thread IDs`() {
+        val project = project("project", "Poracode")
+        val hostA = connection(1)
+        val hostB = connection(2)
+        val first = item(hostA, "MacBook", project, thread("shared", "First", null))
+        val selected = item(hostB, "Studio", project, thread("shared", "Second", null))
+        val state = AppSession.UiState(
+            openThreadId = "shared",
+            hostCatalog = HostUiCatalog(selectedConnectionId = hostB),
+        )
+
+        assertEquals(selected, findOpenHomeThread(state, listOf(first, selected), selected.id))
+        assertEquals(selected, findOpenHomeThread(state, listOf(first, selected), null))
+        assertEquals(HomeThreadConnectionStatus(false, false), homeThreadConnectionStatus(state, hostA))
+        assertEquals(HomeThreadConnectionStatus(false, true), homeThreadConnectionStatus(state, hostB))
+    }
+
     @Test
     fun `unanswered questions take presentation priority while execution status stays independent`() {
         assertEquals("needs_reply", homeThreadDisplayStatus("working", "needs_reply"))
