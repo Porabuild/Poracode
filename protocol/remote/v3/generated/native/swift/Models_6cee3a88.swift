@@ -100,12 +100,30 @@ public struct ProcedurereadProjectFileResult_891e9ab241: Codable, Sendable, Remo
 
 public typealias ProcedurereadTerminalSizeResult_2d2a48957e = ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09?
 
+public typealias ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItemU2DColumns_7b1fe7d08a = Int64?
+
+public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItem_fc33becf88: Codable, Sendable, RemoteModelMetadata {
+  public var columns: RemoteField<Int64>
+  public var fromCursor: Int64
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "columns", typeName: "Int64", required: true, nullable: true, minimum: 20, maximum: 400, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "fromCursor", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case columns = "columns"
+    case fromCursor = "fromCursor"
+  }
+}
+
 public enum ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a9bc12: String, Codable, Sendable {
   case `running` = "running"
   case `exited` = "exited"
 }
 
-public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1_95daca4313: Codable, Sendable, RemoteModelMetadata {
+  public var columnChanges: RemoteField<[ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItem_fc33becf88]> = .missing
   public var data: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b
   public var fromCursor: Int64
   public var generation: RemoteField<ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b>
@@ -114,6 +132,7 @@ public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782: Codab
   public var toCursor: Int64
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "columnChanges", typeName: "[ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DColumnChangesU2DItem_fc33becf88]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: 2049, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "data", typeName: "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "fromCursor", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "generation", typeName: "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -123,6 +142,7 @@ public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782: Codab
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case columnChanges = "columnChanges"
     case data = "data"
     case fromCursor = "fromCursor"
     case generation = "generation"
@@ -132,7 +152,7 @@ public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782: Codab
   }
 }
 
-public typealias ProcedurereadTerminalSnapshotResult_b67f4828f0 = ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782?
+public typealias ProcedurereadTerminalSnapshotResult_575ba25e2b = ProcedurereadTerminalSnapshotResultU2DOptionU2D1_95daca4313?
 
 public enum ProcedurereadThreadBackgroundTasksResultU2DItemU2DCategory_6d7393f750: String, Codable, Sendable {
   case `command` = "command"

@@ -93,13 +93,18 @@ fun RichTerminalPane(
     modifier: Modifier = Modifier,
 ) {
     val state by runtime.terminal.state.collectAsStateWithLifecycle()
-    val transcript = state.cursor?.transcript.orEmpty()
+    val cursor = state.cursor
+    val transcript = cursor?.transcript.orEmpty()
+    // Absolute UTF-16 cursor offset where the retained transcript tail begins;
+    // width markers stay valid after the transcript is front-trimmed.
+    val transcriptFromCursor = ((cursor?.toCursor ?: 0L) - transcript.length).coerceAtLeast(0L)
+    val columnChanges = cursor?.columnChanges.orEmpty()
     val buffer = remember(state.lease?.terminalId) { TerminalTextBuffer() }
     var document by remember(buffer) {
         mutableStateOf(TerminalRenderedDocument(emptyList(), emptyList(), 0L))
     }
-    LaunchedEffect(transcript, buffer) {
-        document = buffer.update(transcript)
+    LaunchedEffect(transcript, transcriptFromCursor, columnChanges, buffer) {
+        document = buffer.update(transcript, transcriptFromCursor, columnChanges)
     }
     // Write device-attribute/status replies the controller derives from live
     // PTY output back to the shell so queries do not stall on their fallback.

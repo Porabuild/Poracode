@@ -68,9 +68,10 @@ public struct WebSocketServerMessageU2DOptionU2D8_0ad133ee58: Codable, Sendable,
   }
 }
 
-public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSync_2cfe911595: Codable, Sendable, RemoteModelMetadata {
+public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSync_f12b1f516a: Codable, Sendable, RemoteModelMetadata {
   public var fromCursor: Int64
   public var generation: String
+  public var terminalColumns: RemoteField<Int64> = .missing
   public var toCursor: Int64
   public var version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72
   public var watchId: String
@@ -78,6 +79,7 @@ public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSync_2cfe911595: Codab
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "fromCursor", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "generation", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "terminalColumns", typeName: "Int64", required: false, nullable: false, minimum: 20, maximum: 400, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "toCursor", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "version", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "watchId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -86,6 +88,7 @@ public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSync_2cfe911595: Codab
   private enum CodingKeys: String, CodingKey {
     case fromCursor = "fromCursor"
     case generation = "generation"
+    case terminalColumns = "terminalColumns"
     case toCursor = "toCursor"
     case version = "version"
     case watchId = "watchId"
@@ -96,14 +99,14 @@ public enum WebSocketServerMessageU2DOptionU2D9U2DType_d8b225d7de: String, Codab
   case `terminalU2DOutput` = "terminal-output"
 }
 
-public struct WebSocketServerMessageU2DOptionU2D9_95d0adeb5b: Codable, Sendable, RemoteModelMetadata {
-  public var cursorSync: RemoteField<WebSocketServerMessageU2DOptionU2D9U2DCursorSync_2cfe911595> = .missing
+public struct WebSocketServerMessageU2DOptionU2D9_603f34fb30: Codable, Sendable, RemoteModelMetadata {
+  public var cursorSync: RemoteField<WebSocketServerMessageU2DOptionU2D9U2DCursorSync_f12b1f516a> = .missing
   public var data: ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b
   public var id: String
   public var typeValue: WebSocketServerMessageU2DOptionU2D9U2DType_d8b225d7de
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "cursorSync", typeName: "WebSocketServerMessageU2DOptionU2D9U2DCursorSync_2cfe911595", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["terminal.cursor.output-range"]),
+    .init(wireName: "cursorSync", typeName: "WebSocketServerMessageU2DOptionU2D9U2DCursorSync_f12b1f516a", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["terminal.cursor.output-range"]),
     .init(wireName: "data", typeName: "ProcedureapplyNativeMcpSetupResultU2DCandidatesU2DItemU2DId_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "type", typeName: "WebSocketServerMessageU2DOptionU2D9U2DType_d8b225d7de", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -117,7 +120,7 @@ public struct WebSocketServerMessageU2DOptionU2D9_95d0adeb5b: Codable, Sendable,
   }
 }
 
-public enum WebSocketServerMessage_b176186fb3: Codable, Sendable {
+public enum WebSocketServerMessage_faee39be7b: Codable, Sendable {
   case option1(WebSocketServerMessageU2DOptionU2D1_48916cddaa)
   case option2(WebSocketServerMessageU2DOptionU2D2_dade9637ae)
   case option3(WebSocketServerMessageU2DOptionU2D3_3897f50212)
@@ -126,13 +129,13 @@ public enum WebSocketServerMessage_b176186fb3: Codable, Sendable {
   case option6(WebSocketServerMessageU2DOptionU2D6_bd23acb1d6)
   case option7(WebSocketServerMessageU2DOptionU2D7_8f58c1d1ac)
   case option8(WebSocketServerMessageU2DOptionU2D8_0ad133ee58)
-  case option9(WebSocketServerMessageU2DOptionU2D9_95d0adeb5b)
-  case option10(WebSocketServerMessageU2DOptionU2D10_4655073d71)
-  case option11(WebSocketServerMessageU2DOptionU2D11_e65689e97e)
+  case option9(WebSocketServerMessageU2DOptionU2D9_603f34fb30)
+  case option10(WebSocketServerMessageU2DOptionU2D10_ae488cfbae)
+  case option11(WebSocketServerMessageU2DOptionU2D11_be70182f42)
   case option12(WebSocketServerMessageU2DOptionU2D12_f1c1581e17)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, WebSocketServerMessage_b176186fb3)] = []
+    var matches: [(Int, WebSocketServerMessage_faee39be7b)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("agent-vision-frame")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D1_48916cddaa.self) {
       matches.append((1, .option1(value)))
     }
@@ -157,21 +160,21 @@ public enum WebSocketServerMessage_b176186fb3: Codable, Sendable {
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("browser-mirror-status")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D8_0ad133ee58.self) {
       matches.append((8, .option8(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("terminal-output")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D9_95d0adeb5b.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("terminal-output")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D9_603f34fb30.self) {
       matches.append((9, .option9(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("terminal-watch-result")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D10_4655073d71.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("terminal-watch-result")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D10_ae488cfbae.self) {
       matches.append((10, .option10(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("terminal-watch-baseline-chunk")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D11_e65689e97e.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("terminal-watch-baseline-chunk")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D11_be70182f42.self) {
       matches.append((11, .option11(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("desktop-event")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D12_f1c1581e17.self) {
       matches.append((12, .option12(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched WebSocketServerMessage_b176186fb3" : "Ambiguous union WebSocketServerMessage_b176186fb3 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(WebSocketServerMessage_b176186fb3.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched WebSocketServerMessage_faee39be7b" : "Ambiguous union WebSocketServerMessage_faee39be7b matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(WebSocketServerMessage_faee39be7b.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }

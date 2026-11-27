@@ -1118,13 +1118,33 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     }
   }
 
+  /// Shared key-press path for the opt-in simulator HID qualification. With
+  /// NATIVE_E2E_IOS_HID=1 the mock harness owns the simulator's HID channel, so
+  /// synthetic XCTest key events (which the simulator can bypass) are replaced
+  /// by an authenticated control request carrying the exact key and its shift
+  /// state. Command is required and shift is the only optional modifier; any
+  /// other combination is a caller bug and fails loudly. Without the opt-in the
+  /// existing app.typeKey behavior is preserved.
+  func typeNativeE2EKey(_ key: String, modifiers: XCUIElement.KeyModifierFlags) async throws {
+    if ProcessInfo.processInfo.environment["NATIVE_E2E_IOS_HID"] == "1" {
+      let supported: XCUIElement.KeyModifierFlags = [.command, .shift]
+      guard modifiers.contains(.command), modifiers.intersection(supported) == modifiers else {
+        throw FamilyJourneyError.unsupportedKeyModifiers
+      }
+      _ = try await control(path: "/v1/simulator/key", method: "POST",
+        body: ["key": key, "shift": modifiers.contains(.shift)])
+    } else {
+      app.typeKey(XCUIKeyboardKey(rawValue: key), modifierFlags: modifiers)
+    }
+  }
+
   func pressNativeE2EShortcut(_ key: String, modifiers: XCUIElement.KeyModifierFlags) async throws {
     if let driver = ProcessInfo.processInfo.environment["NATIVE_E2E_DUO_TRANSITION_URL"] {
       let address = "\(driver)/key/\(key)"
       let (_, response) = try await URLSession.shared.data(from: try XCTUnwrap(URL(string: address)))
       XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
     } else {
-      app.typeKey(XCUIKeyboardKey(rawValue: key), modifierFlags: modifiers)
+      try await typeNativeE2EKey(key, modifiers: modifiers)
     }
   }
 
@@ -1277,6 +1297,9 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     applyFixtureAppearance()
     _ = try await control(path: "/v1/reset", method: "POST")
     _ = try await scenarioAction(["type": "seed-multihost-collision"])
+    let projectCommand = "route:project-command"
+    let primaryCommandsBefore = try await journalCount(hostID: "primary", operationID: projectCommand)
+    let collisionCommandsBefore = try await journalCount(hostID: "collision-b", operationID: projectCommand)
     try await pairBothFixtureHosts()
 
     func selectDesktop(_ label: String) async throws {
@@ -1355,7 +1378,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       XCTAssertTrue(worktreeSave.isEnabled)
     }
     try await tapNativeToolbarActionAfterDisplayTransition(worktreeSave)
-    try await waitForJournal(hostID: "collision-b", operationID: "route:project-command", count: 1)
+    try await waitForJournal(hostID: "collision-b", operationID: projectCommand, count: collisionCommandsBefore + 1)
 
     let projectSettingsList = app.collectionViews.firstMatch
     let searchSettings = app.buttons["native-e2e.settings.project-search"].firstMatch
@@ -1379,9 +1402,9 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let searchSave = app.buttons["native-e2e.projects.search.save"].firstMatch
     try await poll { searchSave.exists && searchSave.isEnabled }
     try await tapNativeToolbarActionAfterDisplayTransition(searchSave)
-    try await waitForJournal(hostID: "collision-b", operationID: "route:project-command", count: 2)
-    let primaryProjectCommands = try await journalCount(hostID: "primary", operationID: "route:project-command")
-    XCTAssertEqual(primaryProjectCommands, 0)
+    try await waitForJournal(hostID: "collision-b", operationID: projectCommand, count: collisionCommandsBefore + 2)
+    let primaryProjectCommands = try await journalCount(hostID: "primary", operationID: projectCommand)
+    XCTAssertEqual(primaryProjectCommands, primaryCommandsBefore)
 
     let generalSettings = app.buttons["native-e2e.settings.project-general"].firstMatch
     for _ in 0..<4 where !generalSettings.exists || !generalSettings.isHittable {
@@ -1645,16 +1668,21 @@ final class NativeFamilyJourneyUITests: XCTestCase {
 
     let localMode = app.buttons["native-e2e.settings.git.create-pr-mode"].firstMatch
     let mergeMethod = app.buttons["native-e2e.settings.git.merge-method"].firstMatch
+    let settingsWrite = "route:settings-write"
+    let primaryWritesBeforeSettings = try await journalCount(hostID: "primary", operationID: settingsWrite)
+    let collisionWritesBeforeSettings = try await journalCount(hostID: "collision-b", operationID: settingsWrite)
     try openNativeSettings()
     for _ in 0..<5 where !localMode.isHittable { app.swipeUp() }
     XCTAssertTrue(localMode.isHittable)
     XCTAssertFalse(mergeMethod.exists)
+    let localSelection = localMode.label.contains("Auto-generate") ? "Open dialog" : "Auto-generate"
     try await tapNativeToolbarActionAfterDisplayTransition(localMode)
-    try await tapNativeToolbarActionAfterDisplayTransition(app.buttons["Auto-generate"].firstMatch)
-    try await poll {
-      try !self.app.buttons["Open dialog"].exists
-        && self.renderedScreenText(in: self.app.screenshot()).localizedCaseInsensitiveContains("Auto-generate")
-    }
+    try await tapNativeToolbarActionAfterDisplayTransition(app.buttons[localSelection].firstMatch)
+    try await poll { localMode.label.contains(localSelection) }
+    let primaryWritesAfterLocal = try await journalCount(hostID: "primary", operationID: settingsWrite)
+    let collisionWritesAfterLocal = try await journalCount(hostID: "collision-b", operationID: settingsWrite)
+    XCTAssertEqual(primaryWritesAfterLocal, primaryWritesBeforeSettings)
+    XCTAssertEqual(collisionWritesAfterLocal, collisionWritesBeforeSettings)
     utilityProof("device-git-create-pr-mode")
 
     revealAndOpenSettingsRow("native-e2e.settings.desktop")
@@ -1672,10 +1700,10 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     }
     utilityProof("desktop-git-merge-method")
     try await tapNativeToolbarActionAfterDisplayTransition(save)
-    try await waitForJournal(hostID: "collision-b", operationID: "route:settings-write", count: 1)
+    try await waitForJournal(hostID: "collision-b", operationID: settingsWrite, count: collisionWritesBeforeSettings + 1)
     try await poll { !save.isEnabled }
-    let primarySettingsWrites = try await journalCount(hostID: "primary", operationID: "route:settings-write")
-    XCTAssertEqual(primarySettingsWrites, 0)
+    let primaryWritesAfterSave = try await journalCount(hostID: "primary", operationID: settingsWrite)
+    XCTAssertEqual(primaryWritesAfterSave, primaryWritesBeforeSettings)
 
     tapNativeSettingsBack(from: "Git", to: "Desktop Settings")
     try await selectDesktop("Navigation Host A")
@@ -1685,10 +1713,13 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let session = app.buttons["native-e2e.session-import.session.claude:session-1"]
     XCTAssertTrue(selectedDesktop.waitForExistence(timeout: 10))
     XCTAssertTrue(session.waitForExistence(timeout: 15), "Initial list on desktop A")
+    let listSessions = "procedure:listImportableSessions"
+    let collisionListsBefore = try await journalCount(hostID: "collision-b", operationID: listSessions)
     try await selectDesktop("Native E2E Collision Host B")
-    try await waitForJournal(hostID: "collision-b", operationID: "route:procedure-call", count: 1)
+    try await waitForJournal(hostID: "collision-b", operationID: listSessions, count: collisionListsBefore + 1)
+    let primaryListsBefore = try await journalCount(hostID: "primary", operationID: listSessions)
     try await selectDesktop("Navigation Host A")
-    try await waitForJournal(hostID: "primary", operationID: "route:procedure-call", count: 2)
+    try await waitForJournal(hostID: "primary", operationID: listSessions, count: primaryListsBefore + 1)
     XCTAssertTrue(session.waitForExistence(timeout: 15), "List after returning to desktop A")
     XCTAssertTrue(session.label.contains("CLI layout review"))
     XCTAssertTrue(session.label.contains("Fix the login form"))
@@ -1712,26 +1743,29 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       search.tap()
       let keyboard = app.keyboards.firstMatch
       XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
-      let listRequests = try await journalCount(hostID: "primary", operationID: "route:procedure-call")
+      let listRequests = try await journalCount(hostID: "primary", operationID: listSessions)
       search.typeText("CLI layout review")
-      try await waitForJournal(hostID: "primary", operationID: "route:procedure-call", count: listRequests + 1)
+      try await waitForJournal(hostID: "primary", operationID: listSessions, count: listRequests + 1)
       try await poll { session.exists && session.isSelected && run.isEnabled && run.isHittable }
       utilityProof("desktop-import-search-keyboard")
       XCTAssertTrue(run.isHittable)
       XCTAssertFalse(run.frame.intersects(keyboard.frame))
     }
+    let importOperation = "route:thread-command"
+    let primaryImportsBefore = try await journalCount(hostID: "primary", operationID: importOperation)
+    let collisionImportsBefore = try await journalCount(hostID: "collision-b", operationID: importOperation)
     try await tapNativeToolbarActionAfterDisplayTransition(run)
     XCTAssertTrue(app.staticTexts["Sessions imported."].waitForExistence(timeout: 15))
     let imported = app.descendants(matching: .any)["native-e2e.session-import.imported.claude:session-1"]
     for _ in 0..<3 where !imported.exists { app.swipeUp() }
     XCTAssertTrue(imported.exists)
     XCTAssertFalse(run.isEnabled)
-    try await waitForJournal(hostID: "primary", operationID: "route:thread-command", count: 1)
+    try await waitForJournal(hostID: "primary", operationID: importOperation, count: primaryImportsBefore + 1)
     let host = try await scenarioState().host("primary")
     XCTAssertTrue(host.observedOperationIds.contains("procedure:listImportableSessions"))
     XCTAssertFalse(host.observedOperationIds.contains("route:thread-start-existing"))
-    let otherHost = try await scenarioState().host("collision-b")
-    XCTAssertFalse(otherHost.observedOperationIds.contains("route:thread-command"))
+    let collisionImportsAfter = try await journalCount(hostID: "collision-b", operationID: importOperation)
+    XCTAssertEqual(collisionImportsAfter, collisionImportsBefore)
     let proof = XCTAttachment(screenshot: app.screenshot())
     proof.name = "native-session-import-completed"
     proof.lifetime = .keepAlways
@@ -1830,13 +1864,13 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     app.buttons["native-e2e.crews.template.pair"].tap()
     let name = app.textFields["native-e2e.crews.name"]
     XCTAssertTrue(name.waitForExistence(timeout: 5))
-    replaceCrewField(name, with: "Native crew")
+    replaceTextFieldUsingEditMenu(name, with: "Native crew")
     let sidekick = app.buttons["native-e2e.crew.role.sidekick"]
     for _ in 0..<3 { if sidekick.isHittable { break }; app.swipeUp() }
     sidekick.tap()
     let brief = app.textFields["native-e2e.crew.role-brief"]
     XCTAssertTrue(brief.waitForExistence(timeout: 5))
-    replaceCrewField(brief, with: "Check the UI and retain this instruction")
+    replaceTextFieldUsingEditMenu(brief, with: "Check the UI and retain this instruction")
     let parallel = app.steppers["native-e2e.crew.role-parallel"]
     app.buttons["native-e2e.crew.role-parallel-Increment"].tap()
     let fallback = app.buttons["native-e2e.crew.add-fallback"]
@@ -1989,7 +2023,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     reviewer.tap()
     let brief = app.textFields["native-e2e.crew.role-brief"]
     XCTAssertTrue(brief.waitForExistence(timeout: 5))
-    replaceCrewField(brief, with: "Preserve this live roster edit")
+    replaceTextFieldUsingEditMenu(brief, with: "Preserve this live roster edit")
     try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertTrue(brief.waitForExistence(timeout: 10))
     XCTAssertEqual(brief.value as? String, "Preserve this live roster edit")
@@ -2021,7 +2055,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertTrue(cancelHandoff.waitForExistence(timeout: 5)); cancelHandoff.tap()
   }
 
-  private func replaceCrewField(_ field: XCUIElement, with text: String) {
+  private func replaceTextFieldUsingEditMenu(_ field: XCUIElement, with text: String) {
     field.tap()
     let old = field.value as? String ?? ""
     if !old.isEmpty {
@@ -2599,14 +2633,17 @@ final class NativeFamilyJourneyUITests: XCTestCase {
   func testProviderHandoffMoveKeepsSourceAndDraftAcrossDisplays() async throws {
     try XCTSkipIf(peerMode == .real, "This journey uses a disposable provider handoff fixture.")
     try await openProviderHandoffFixture("provider-handoff-ready")
+    let command = "route:thread-command"
+    let sourceWritesBefore = try await journalCount(hostID: "primary", operationID: command)
+    let otherWritesBefore = try await journalCount(hostID: "collision-b", operationID: command)
 
     let cancel = app.buttons["native-e2e.thread.handoff-cancel"].firstMatch
     try await openProviderHandoff("fork")
     XCTAssertTrue(cancel.waitForExistence(timeout: 8))
     try await tapNativeToolbarActionAfterDisplayTransition(cancel)
     try await poll { !cancel.exists }
-    let cancelledWrites = try await journalCount(hostID: "primary", operationID: "route:thread-command")
-    XCTAssertEqual(cancelledWrites, 0)
+    let sourceWritesAfterCancel = try await journalCount(hostID: "primary", operationID: command)
+    XCTAssertEqual(sourceWritesAfterCancel, sourceWritesBefore)
 
     try await openProviderHandoff("move")
     let prompt = app.textViews["native-e2e.new-thread-prompt"].firstMatch
@@ -2619,17 +2656,17 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     utilityProof("provider-handoff-draft")
     try await assertDraftSurvivesDisplayTransitions("provider-handoff", field: prompt, value: value, availableAction: start)
     try await tapNativeToolbarActionAfterDisplayTransition(start)
-    try await waitForJournal(hostID: "primary", operationID: "route:thread-command", count: 2)
+    try await waitForJournal(hostID: "primary", operationID: command, count: sourceWritesBefore + 2)
     try await poll { !cancel.exists && !prompt.exists }
     if UIDevice.current.userInterfaceIdiom == .pad {
       let inspector = app.buttons["native-e2e.inspector-toggle"].firstMatch
       try await poll { inspector.isHittable }
     }
     utilityProof("provider-handoff-after-launch")
-    let sourceWrites = try await journalCount(hostID: "primary", operationID: "route:thread-command")
-    let overlappingIDWrites = try await journalCount(hostID: "collision-b", operationID: "route:thread-command")
-    XCTAssertEqual(sourceWrites, 2)
-    XCTAssertEqual(overlappingIDWrites, 0)
+    let sourceWrites = try await journalCount(hostID: "primary", operationID: command)
+    let overlappingIDWrites = try await journalCount(hostID: "collision-b", operationID: command)
+    XCTAssertEqual(sourceWrites, sourceWritesBefore + 2)
+    XCTAssertEqual(overlappingIDWrites, otherWritesBefore)
   }
 
   func testChatProviderSwitchKeepsTheSameThreadAcrossDisplays() async throws {
@@ -3030,22 +3067,35 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let fieldAlt = app.textFields["native-e2e.terminal.input"]
     XCTAssertTrue(field.waitForExistence(timeout: 15) || fieldAlt.waitForExistence(timeout: 1))
     let input = field.exists ? field : fieldAlt
+    let output = app.descendants(matching: .any).matching(
+      NSPredicate(format: "label == %@", "Terminal output")
+    ).firstMatch
     if peerMode == .mock {
-      let output = app.descendants(matching: .any).matching(
-        NSPredicate(format: "label == %@", "Terminal output")
-      ).firstMatch
       XCTAssertTrue(output.waitForExistence(timeout: 5))
       try assertTerminalCanvasFollowsFixtureAppearance(output)
     }
     input.tap()
-    input.typeText("echo family-pty")
+    // The rendered marker is assembled by the shell, so it cannot appear in
+    // the transcript just from echoing the command itself.
+    let realMarker = "native-e2e-pty-confirmed"
+    input.typeText(peerMode == .real ? "printf '%s%s\\n' native-e2e-pty- confirmed" : "echo family-pty")
     if peerMode == .mock { utilityProof("terminal-command-appearance") }
     app.buttons["native-e2e.terminal.send"].tap()
     switch peerMode {
     case .mock:
       try await waitForJournal(hostID: "primary", operationID: "route:terminal-write", count: 1)
     case .real:
-      try await waitForRealPeerReached()
+      // Require the host-echoed command line followed by the printf result,
+      // in order, inside the visible transcript. A bare result marker could
+      // match the echoed command itself or a stale frame.
+      let echoedCommand = "printf '%s%s\\n' native-e2e-pty- confirmed"
+      try await poll {
+        guard let transcript = output.value as? String,
+          let commandEnd = transcript.range(of: echoedCommand)?.upperBound
+        else { return false }
+        return transcript[commandEnd...].contains(realMarker)
+      }
+      utilityProof("real-terminal-pty-output")
     }
   }
 
@@ -3100,9 +3150,9 @@ final class NativeFamilyJourneyUITests: XCTestCase {
 
   private func stageAllInRealGitWorkspace() async throws {
     // The workspace git screen keeps its action panel behind the toolbar
-    // ellipsis menu (→ "Git Operations"). The real peer has a live repo with
-    // changes, so it drives the exact staging procedure the observable-effects
-    // harness proves on the host side.
+    // ellipsis menu (→ "Git Operations").
+    let unstaged = app.staticTexts["Unstaged changes"].firstMatch
+    XCTAssertTrue(unstaged.waitForExistence(timeout: 10))
     let gitMenu = app.buttons["native-e2e.git.panel-menu"]
     if gitMenu.waitForExistence(timeout: 5) {
       gitMenu.tap()
@@ -3138,7 +3188,12 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       failure.waitForExistence(timeout: 5),
       "Stage All was rejected: \(failure.exists ? failure.label : "")"
     )
-    try await waitForRealPeerReached()
+    let closeOperations = app.buttons["native-e2e.git.destination.close"]
+    if closeOperations.exists { closeOperations.tap() }
+    let staged = app.staticTexts["Staged changes"].firstMatch
+    let file = app.buttons["Open file README.md"].firstMatch
+    try await poll { staged.exists && file.isHittable && !unstaged.exists }
+    utilityProof("real-git-staged")
   }
 
   func testBrowserMirrorAddressDraftSurvivesDisplaysAndNavigatesOnItsHost() async throws {
@@ -3162,12 +3217,11 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     try await poll { go.isEnabled }
     let browserCommand = "route:browser-command"
     let firstCount = try await journalCount(hostID: "collision-b", operationID: browserCommand)
+    let otherHostCountBefore = try await journalCount(hostID: "primary", operationID: browserCommand)
     utilityProof("utility-browser-system-toolbar")
 
     let draft = "https://example.test/fold-draft"
-    address.tap()
-    try await pressNativeE2EShortcut("a", modifiers: .command)
-    address.typeText(draft)
+    replaceTextFieldUsingEditMenu(address, with: draft)
     try await assertDraftSurvivesDisplayTransitions("browser-address", field: address, value: draft, availableAction: go)
     let draftCount = try await journalCount(hostID: "collision-b", operationID: browserCommand)
     XCTAssertEqual(draftCount, firstCount)
@@ -3183,7 +3237,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let selectedHostCount = try await journalCount(hostID: "collision-b", operationID: browserCommand)
     let otherHostCount = try await journalCount(hostID: "primary", operationID: browserCommand)
     XCTAssertEqual(selectedHostCount, firstCount + 2)
-    XCTAssertEqual(otherHostCount, 0)
+    XCTAssertEqual(otherHostCount, otherHostCountBefore)
     utilityProof("utility-browser-new-tab-after-navigation")
 
     address.tap()
@@ -3216,6 +3270,13 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
     _ = try await control(path: "/v1/reset", method: "POST")
     _ = try await scenarioAction(["type": "seed-multihost-collision"])
+    let operation = "route:thread-command"
+    let closeOperation = "route:thread-close"
+    let baseline = try await scenarioState()
+    let selectedJournal = try baseline.host("collision-b").operationJournal
+    let priorSelected = selectedJournal.filter { $0.operationId == operation }.count
+    let priorClose = selectedJournal.filter { $0.operationId == closeOperation }.count
+    let priorOther = try baseline.host("primary").operationJournal.filter { $0.operationId == operation }.count
     try await pairBothFixtureHosts()
     let selected = navigationHostThread(label: "Native E2E Collision Host B")
     revealNavigationThread(selected)
@@ -3234,24 +3295,23 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let rename = app.descendants(matching: .any)["native-e2e.thread.rename.submit"].firstMatch
     utilityProof("utility-thread-rename-editing")
     try await assertDraftSurvivesDisplayTransitions("thread-rename", field: title, value: draft, availableAction: rename)
-    let operation = "route:thread-command"
     let beforeRename = try await journalCount(hostID: "collision-b", operationID: operation)
-    XCTAssertEqual(beforeRename, 0)
+    XCTAssertEqual(beforeRename, priorSelected)
     rename.tap()
-    try await waitForJournal(hostID: "collision-b", operationID: operation, count: 1)
+    try await waitForJournal(hostID: "collision-b", operationID: operation, count: priorSelected + 1)
     let threadTitle = app.buttons["native-e2e.thread-status"].firstMatch
     try await poll { threadTitle.label.contains(draft) }
 
     actions.tap()
     app.buttons["Pin to top"].firstMatch.tap()
-    try await waitForJournal(hostID: "collision-b", operationID: operation, count: 2)
+    try await waitForJournal(hostID: "collision-b", operationID: operation, count: priorSelected + 2)
     let unsent = "Preserve this unsent draft"
     try await enterWorkspaceDraft(unsent)
     actions.tap()
     XCTAssertTrue(app.buttons["Unpin"].firstMatch.waitForExistence(timeout: 5))
     utilityProof("utility-thread-lifecycle-menu")
     app.buttons["Mark Done"].firstMatch.tap()
-    try await waitForJournal(hostID: "collision-b", operationID: operation, count: 3)
+    try await waitForJournal(hostID: "collision-b", operationID: operation, count: priorSelected + 3)
     let currentTitle = app.buttons.matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@",
       "native-e2e.thread-status", draft)).firstMatch
     try await poll { !currentTitle.exists }
@@ -3271,28 +3331,28 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     actions.tap()
     XCTAssertTrue(app.buttons["Mark Not Done"].firstMatch.waitForExistence(timeout: 5))
     app.buttons["Mark Not Done"].firstMatch.tap()
-    try await waitForJournal(hostID: "collision-b", operationID: operation, count: 4)
+    try await waitForJournal(hostID: "collision-b", operationID: operation, count: priorSelected + 4)
     actions.tap()
     XCTAssertTrue(app.buttons["Mark Done"].firstMatch.waitForExistence(timeout: 5))
     try await tapThreadMenuAction("Delete")
     XCTAssertTrue(app.staticTexts["Delete this thread permanently?"].waitForExistence(timeout: 5))
     app.buttons["Cancel"].firstMatch.tap()
     let afterCancel = try await journalCount(hostID: "collision-b", operationID: operation)
-    XCTAssertEqual(afterCancel, 4)
+    XCTAssertEqual(afterCancel, priorSelected + 4)
     XCTAssertTrue(threadTitle.label.contains(draft))
 
     actions.tap()
     try await tapThreadMenuAction("Archive")
     XCTAssertTrue(app.staticTexts["Archive this thread?"].waitForExistence(timeout: 5))
     app.buttons["Archive"].firstMatch.tap()
-    try await waitForJournal(hostID: "collision-b", operationID: operation, count: 5)
+    try await waitForJournal(hostID: "collision-b", operationID: operation, count: priorSelected + 5)
     try await poll { !currentTitle.exists }
     let selectedCount = try await journalCount(hostID: "collision-b", operationID: operation)
     let otherCount = try await journalCount(hostID: "primary", operationID: operation)
-    let duplicateCloseCount = try await journalCount(hostID: "collision-b", operationID: "route:thread-close")
-    XCTAssertEqual(duplicateCloseCount, 0)
-    XCTAssertEqual(selectedCount, 5)
-    XCTAssertEqual(otherCount, 0)
+    let duplicateCloseCount = try await journalCount(hostID: "collision-b", operationID: closeOperation)
+    XCTAssertEqual(duplicateCloseCount, priorClose)
+    XCTAssertEqual(selectedCount, priorSelected + 5)
+    XCTAssertEqual(otherCount, priorOther)
     utilityProof("utility-thread-header-archive")
     if UIDevice.current.userInterfaceIdiom != .pad {
       try await selectCompactHomeThreadStatus("active")
@@ -3413,6 +3473,8 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     try XCTSkipIf(peerMode == .real, "The pairing credential belongs only to the disposable WireLab host.")
     XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
     _ = try await control(path: "/v1/reset", method: "POST")
+    let tokenExchange = "route:token-exchange"
+    let priorExchanges = try await journalCount(hostID: "primary", operationID: tokenExchange)
     app.launch()
 
     let scan = app.buttons["native-e2e.pair.scan"]
@@ -3454,13 +3516,13 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertTrue(app.keyboards.firstMatch.exists)
     try await assertDraftSurvivesDisplayTransitions("onboarding-pair-draft", field: field, value: draft)
     let pending = try await scenarioState().host("primary")
-    XCTAssertFalse(pending.observedOperationIds.contains("route:token-exchange"))
+    XCTAssertFalse(pending.observedOperationIds.contains(tokenExchange))
 
     try PairingLinkEntry.enter(try await pairingURL(hostID: "primary"), into: app)
     try await confirmPairingIfNeeded()
     XCTAssertTrue(mockHomeReady.waitForExistence(timeout: 15))
-    let final = try await scenarioState().host("primary")
-    XCTAssertEqual(final.operationJournal.filter { $0.operationId == "route:token-exchange" }.count, 1)
+    let finalExchanges = try await journalCount(hostID: "primary", operationID: tokenExchange)
+    XCTAssertEqual(finalExchanges, priorExchanges + 1)
     utilityProof("utility-onboarding-paired")
   }
 
@@ -4158,7 +4220,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     try await enterWorkspaceDraft(draft)
     forks.element(boundBy: 0).tap()
     XCTAssertTrue(field.waitForExistence(timeout: 8))
-    replaceCrewField(field, with: "Selected turn fork")
+    replaceTextFieldUsingEditMenu(field, with: "Selected turn fork")
     let create = app.buttons["Create fork"].firstMatch
     try await assertNativeDuoDisplayTransitions("transcript-fork-title", content: field, availableAction: nil) { pose in
       XCTAssertEqual(field.value as? String, "Selected turn fork", pose)
@@ -5111,6 +5173,11 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     _ = try await control(path: "/v1/reset", method: "POST")
     _ = try await scenarioAction(["type": "seed-multihost-collision"])
     _ = try await control(path: "/v1/checkpoints/worktree-settings-ready", method: "POST")
+    let settingsRead = "route:settings-read"
+    let settingsWrite = "route:settings-write"
+    let primaryWritesBefore = try await journalCount(hostID: "primary", operationID: settingsWrite)
+    let secondaryWritesBefore = try await journalCount(hostID: "collision-b", operationID: settingsWrite)
+    let secondaryReadsBefore = try await journalCount(hostID: "collision-b", operationID: settingsRead)
     try await pairBothFixtureHosts()
     try openNativeSettingsPage("native-e2e.settings.worktrees")
 
@@ -5141,12 +5208,12 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       "worktree-settings", field: base, value: localValue, availableAction: save)
 
     if app.keyboards.firstMatch.exists { base.typeText("\n") }
-    let reads = try await journalCount(hostID: "primary", operationID: "route:settings-read")
+    let reads = try await journalCount(hostID: "primary", operationID: settingsRead)
     _ = try await control(path: "/v1/checkpoints/worktree-settings-desktop-edit", method: "POST")
     let refresh = app.descendants(matching: .any).matching(identifier: "native-e2e.settings.worktrees.refresh").firstMatch
     XCTAssertTrue(refresh.waitForExistence(timeout: 5))
     try await tapNativeToolbarActionAfterDisplayTransition(refresh)
-    try await waitForJournal(hostID: "primary", operationID: "route:settings-read", count: reads + 1)
+    try await waitForJournal(hostID: "primary", operationID: settingsRead, count: reads + 1)
     try await poll { storage.exists && !base.exists }
     XCTAssertFalse(save.isEnabled)
     utilityProof("worktree-settings-refreshed-storage")
@@ -5155,19 +5222,19 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertTrue(globalStorage.waitForExistence(timeout: 5)); globalStorage.tap()
     try await poll { base.exists && base.value as? String == localValue }
     try await tapNativeToolbarActionAfterDisplayTransition(save)
-    try await waitForJournal(hostID: "primary", operationID: "route:settings-write", count: 1)
+    try await waitForJournal(hostID: "primary", operationID: settingsWrite, count: primaryWritesBefore + 1)
     try await poll { save.exists && !save.isEnabled }
 
     try await switchDesktop("Native E2E Collision Host B")
-    try await waitForJournal(hostID: "collision-b", operationID: "route:settings-read", count: 1)
+    try await waitForJournal(hostID: "collision-b", operationID: settingsRead, count: secondaryReadsBefore + 1)
     try await poll { storage.exists && (!base.exists || base.value as? String != localValue) }
     try await switchDesktop("Navigation Host A")
     try await poll { base.exists && base.value as? String == localValue }
     utilityProof("worktree-settings-saved")
-    let primaryWrites = try await journalCount(hostID: "primary", operationID: "route:settings-write")
-    let secondaryWrites = try await journalCount(hostID: "collision-b", operationID: "route:settings-write")
-    XCTAssertEqual(primaryWrites, 1)
-    XCTAssertEqual(secondaryWrites, 0)
+    let primaryWrites = try await journalCount(hostID: "primary", operationID: settingsWrite)
+    let secondaryWrites = try await journalCount(hostID: "collision-b", operationID: settingsWrite)
+    XCTAssertEqual(primaryWrites, primaryWritesBefore + 1)
+    XCTAssertEqual(secondaryWrites, secondaryWritesBefore)
   }
 
   func testAIHelperModelLimitsAndPersistenceStayWithTheirDesktopAcrossDisplays() async throws {
@@ -5463,6 +5530,11 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     _ = try await control(path: "/v1/reset", method: "POST")
     _ = try await control(path: "/v1/checkpoints/hold-project-file-save", method: "POST")
     _ = try await scenarioAction(["type": "seed-multihost-collision"])
+    let writeFileOperation = "procedure:writeProjectFile"
+    let readFileOperation = "procedure:readProjectFile"
+    let primaryWritesBefore = try await journalCount(hostID: "primary", operationID: writeFileOperation)
+    let collisionWritesBefore = try await journalCount(hostID: "collision-b", operationID: writeFileOperation)
+    let primaryReadsBefore = try await journalCount(hostID: "primary", operationID: readFileOperation)
     try await pairBothFixtureHosts()
     let thread = navigationHostThread(label: "Navigation Host A")
     revealNavigationThread(thread)
@@ -5491,7 +5563,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
     }
     try await tapNativeToolbarActionAfterDisplayTransition(save)
-    try await waitForJournal(hostID: "primary", operationID: "procedure:writeProjectFile", count: 1)
+    try await waitForJournal(hostID: "primary", operationID: writeFileOperation, count: primaryWritesBefore + 1)
     XCTAssertFalse(save.isEnabled)
     if !app.keyboards.firstMatch.exists { focusEditor() }
     editor.typeText(" Later draft")
@@ -5524,19 +5596,19 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertTrue(editor.waitForExistence(timeout: 5))
     XCTAssertEqual(editor.value as? String, finalDraft)
     try await tapNativeToolbarActionAfterDisplayTransition(save)
-    try await waitForJournal(hostID: "primary", operationID: "procedure:writeProjectFile", count: 2)
+    try await waitForJournal(hostID: "primary", operationID: writeFileOperation, count: primaryWritesBefore + 2)
     let discard = app.descendants(matching: .any).matching(identifier: "native-e2e.project-file.discard").firstMatch
     try await poll { save.exists && !save.isEnabled && !discard.exists }
 
     if !file.exists || !file.isHittable { tapNativeSettingsBack(from: "README.md", to: "Files") }
     XCTAssertTrue(file.waitForExistence(timeout: 5)); openFile()
-    try await waitForJournal(hostID: "primary", operationID: "procedure:readProjectFile", count: 2)
+    try await waitForJournal(hostID: "primary", operationID: readFileOperation, count: primaryReadsBefore + 2)
     XCTAssertTrue(editor.waitForExistence(timeout: 6))
     XCTAssertEqual(editor.value as? String, finalDraft)
     let final = try await scenarioState()
-    for hostID in ["primary", "collision-b"] {
+    for (hostID, expectedWrites) in [("primary", primaryWritesBefore + 2), ("collision-b", collisionWritesBefore)] {
       let journal = try final.host(hostID).operationJournal
-      XCTAssertEqual(journal.filter { $0.operationId == "procedure:writeProjectFile" }.count, hostID == "primary" ? 2 : 0)
+      XCTAssertEqual(journal.filter { $0.operationId == writeFileOperation }.count, expectedWrites)
     }
     utilityProof("utility-file-save-persisted")
   }
@@ -5689,6 +5761,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
 
   func testCreatePullRequestDraftAndToolbarStayWithTheSelectedDesktopAcrossDisplays() async throws {
     let create = try await openFixturePullRequestCreation()
+    let baseline = try await scenarioState()
     assertNativeDuoToolbarRail(create)
     utilityProof("utility-create-pr-available")
     try await tapNativeToolbarActionAfterDisplayTransition(create)
@@ -5712,15 +5785,16 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let pending = try await scenarioState().host("primary")
     XCTAssertFalse(pending.observedOperationIds.contains("procedure:ghCreatePr"))
     try await tapNativeToolbarActionAfterDisplayTransition(submit)
-    try await confirmFixturePullRequestCreation(create: create, summaryCount: 0)
+    try await confirmFixturePullRequestCreation(create: create, baseline: baseline, summaryCount: 0)
   }
 
   func testAlternateCreatePullRequestModeGeneratesAndSubmitsOnce() async throws {
     let create = try await openFixturePullRequestCreation()
+    let baseline = try await scenarioState()
     create.press(forDuration: 0.8)
     let auto = app.descendants(matching: .any).matching(identifier: "native-e2e.git.create-pr-alternate").firstMatch
     XCTAssertTrue(auto.waitForExistence(timeout: 5)); auto.tap()
-    try await confirmFixturePullRequestCreation(create: create, summaryCount: 1)
+    try await confirmFixturePullRequestCreation(create: create, baseline: baseline, summaryCount: 1)
   }
 
   private func openFixturePullRequestCreation() async throws -> XCUIElement {
@@ -5744,16 +5818,27 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     return create
   }
 
-  private func confirmFixturePullRequestCreation(create: XCUIElement, summaryCount: Int) async throws {
-    try await waitForJournal(hostID: "primary", operationID: "procedure:ghCreatePr", count: 1)
+  private func confirmFixturePullRequestCreation(
+    create: XCUIElement,
+    baseline: FamilyScenarioState,
+    summaryCount: Int
+  ) async throws {
+    let baselineCreateCount = try baseline.host("primary").operationJournal
+      .filter { $0.operationId == "procedure:ghCreatePr" }.count
+    try await waitForJournal(hostID: "primary", operationID: "procedure:ghCreatePr", count: baselineCreateCount + 1)
     // The fixture returns the new open PR from the authoritative catalog. The
     // current head then loses its Create action without a manual refresh.
     try await poll { !create.exists && !self.app.textFields["native-e2e.github-operation.pr-title"].exists }
     let state = try await scenarioState()
     for host in ["primary", "collision-b"] {
+      // ObservationLedger.reset preserves the append-only operationAuditValue
+      // across /v1/reset, so an earlier case's create stays in the journal.
+      // Compare only the suffix appended after this case's baseline.
       let journal = try state.host(host).operationJournal
-      XCTAssertEqual(journal.filter { $0.operationId == "procedure:ghCreatePr" }.count, host == "primary" ? 1 : 0)
-      XCTAssertEqual(journal.filter { $0.operationId == "procedure:generatePrSummary" }.count, host == "primary" ? summaryCount : 0)
+      let baselineJournal = try baseline.host(host).operationJournal
+      let suffix = journal.dropFirst(baselineJournal.count)
+      XCTAssertEqual(suffix.filter { $0.operationId == "procedure:ghCreatePr" }.count, host == "primary" ? 1 : 0)
+      XCTAssertEqual(suffix.filter { $0.operationId == "procedure:generatePrSummary" }.count, host == "primary" ? summaryCount : 0)
     }
     utilityProof("utility-create-pr-completed")
   }
@@ -5911,17 +5996,6 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     return components.url ?? url
   }
 
-  /// Real-peer completion check: the production host has no scenario journal,
-  /// so the journey asserts it drove a REAL peer (the observable PTY-echo and
-  /// repo-index effects are asserted harness-side by
-  /// `tests/native-e2e/realHostObservableEffects.test.ts`).
-  private func waitForRealPeerReached() async throws {
-    try await poll {
-      let object = try await self.control(path: "/v1/state")
-      return (object["mode"] as? String) == "real"
-    }
-  }
-
   func waitForJournal(hostID: String, operationID: String, count: Int) async throws {
     try await poll {
       try await self.journalCount(hostID: hostID, operationID: operationID) >= count
@@ -6002,6 +6076,7 @@ private enum FamilyJourneyError: Error, CustomStringConvertible {
   case invalidHarnessResponse
   case timedOut
   case missingHost
+  case unsupportedKeyModifiers
   case pairingNeverReachedHome(String)
 
   var description: String {
@@ -6009,6 +6084,8 @@ private enum FamilyJourneyError: Error, CustomStringConvertible {
     case .invalidHarnessResponse: return "the harness returned an unexpected response"
     case .timedOut: return "timed out waiting for the harness journal"
     case .missingHost: return "the harness has no such host"
+    case .unsupportedKeyModifiers:
+      return "HID key requires command and accepts only an optional shift"
     case let .pairingNeverReachedHome(state):
       return "pairing never reached Home: \(state)"
     }

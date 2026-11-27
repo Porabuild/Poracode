@@ -75,6 +75,7 @@ import {
 import { effectiveAgentSettings } from "@/shared/machineSettings";
 import { agentEnvForLocation, localMachineKey } from "@/shared/machines";
 import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
+import { knownTerminalColumns } from "@/shared/terminalColumnHistory";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import {
   type AgentAdapter,
@@ -634,7 +635,7 @@ export class ThreadSessionManager {
     }
     switch (command.action) {
       case "read": {
-        const snapshot = snapshotFromLiveShell(
+        const { columnChanges: _columnChanges, ...snapshot } = snapshotFromLiveShell(
           shell,
           shell.ptyExited ? "exited" : "running",
           WORKSPACE_TERMINAL_READ_LIMIT,
@@ -2476,8 +2477,10 @@ export class ThreadSessionManager {
       if (this.shellSessions.get(payload.shellId)?.instanceId !== session.instanceId) {
         return;
       }
+      const fromCursor = session.outputLength;
+      const columns = knownTerminalColumns(pty.cols);
       session.outputLength += data.length;
-      session.outputTranscript.append(data);
+      session.outputTranscript.append(data, { fromCursor, columns });
       if (this.options.isDev) {
         this.logWriter.append(this.resolveLogPath(payload.shellId.replace(/:/g, "_")), data);
       }
@@ -2487,6 +2490,7 @@ export class ThreadSessionManager {
         data,
         outputLength: session.outputLength,
         terminalInstanceId: session.instanceId,
+        ...(columns !== null ? { terminalColumns: columns } : {}),
       });
     });
 
@@ -2604,6 +2608,7 @@ export class ThreadSessionManager {
         data: retained.data,
         processState: "exited",
         terminalSize: retained.terminalSize,
+        ...(retained.columnChanges ? { columnChanges: retained.columnChanges } : {}),
       };
     }
     if (retained) this.exitedShellSnapshots.delete(threadId);

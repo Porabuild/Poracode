@@ -36,6 +36,9 @@ function canonicalAction(action: ScenarioAction): Record<string, unknown> {
       return { type: action.type, stage: action.stage };
     case "background-task-output-delay":
       return { type: action.type, delayMs: action.delayMs };
+    case "background-task-output-hold":
+    case "background-task-output-release":
+      return { type: action.type };
     case "await":
       return {
         type: action.type,

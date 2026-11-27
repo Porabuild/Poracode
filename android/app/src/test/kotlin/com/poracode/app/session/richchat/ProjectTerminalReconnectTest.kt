@@ -5,6 +5,8 @@ import com.poracode.app.model.terminal.TerminalConnectionStatus
 import com.poracode.app.model.terminal.TerminalServerFrame
 import com.poracode.app.model.terminal.TerminalWatchError
 import com.poracode.app.model.terminal.TerminalWatchErrorCode
+import com.poracode.remote.v3.generated.TerminalCursorColumnChange
+import com.poracode.remote.v3.generated.TerminalCursorState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -132,6 +134,27 @@ class ProjectTerminalReconnectTest {
         advanceUntilIdle()
         assertNull(runtime.terminal.state.value.lease)
         assertEquals(1, gateway.calls.count { it == "terminal-watch" })
+    }
+
+    @Test
+    fun retainedResumeSeedsPreserveTheRecordedColumnWidths() {
+        val established = TerminalCursorState.established(
+            "watch-old",
+            "generation-1",
+            20,
+            transcript = "0123456789ABCDEFGHIJ",
+            columnChanges = listOf(
+                TerminalCursorColumnChange(0, 48),
+                TerminalCursorColumnChange(10, 100),
+            ),
+        )
+        val seeded = RichTerminalWatchPolicy.seedFromRetained(established, "watch-new")
+        assertEquals("watch-new", seeded.watchId)
+        assertEquals(established.columnChanges, seeded.columnChanges)
+
+        val retained = RichTerminalWatchPolicy.retainedForReset(established, "watch-new")
+        assertEquals("watch-old", retained.watchId)
+        assertEquals(established.columnChanges, retained.columnChanges)
     }
 
     @Test

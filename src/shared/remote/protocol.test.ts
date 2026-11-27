@@ -16,10 +16,12 @@ import {
   remoteShellSnapshotSchema,
   remoteTerminalCursorSchema,
   remoteTerminalOutputCursorSyncV1Schema,
+  remoteTerminalWatchBaselineChunkSchema,
   remoteTerminalWatchResultReadySchema,
   remoteThreadSnapshotSchema,
   remoteWebSocketServerMessageSchema,
   TERMINAL_CURSOR_SYNC_VERSION,
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
 } from "./protocol";
 
 describe("device-local terminal settings", () => {
@@ -726,5 +728,104 @@ describe("remote terminal cursor-sync schemas", () => {
       data: "abc",
       cursorSync: { fromCursor: 10, toCursor: 13 },
     });
+  });
+
+  it("carries additive columnChanges on ready results while old payloads parse unchanged", () => {
+    const annotated = {
+      ...validReady,
+      columnChanges: [
+        { fromCursor: 0, columns: 48 },
+        { fromCursor: 3, columns: null },
+      ],
+    };
+    expect(remoteTerminalWatchResultReadySchema.parse(annotated)).toEqual(annotated);
+    const legacy = remoteTerminalWatchResultReadySchema.parse(validReady);
+    expect(legacy).toEqual(validReady);
+    expect(legacy).not.toHaveProperty("columnChanges");
+
+    // Bounds mirror terminalSnapshot.columnChanges: cols 20..400 or null,
+    // at most MAX_TERMINAL_COLUMN_CHANGES entries.
+    for (const columns of [19, 401, 48.5]) {
+      expect(
+        remoteTerminalWatchResultReadySchema.safeParse({
+          ...validReady,
+          columnChanges: [{ fromCursor: 0, columns }],
+        }).success,
+      ).toBe(false);
+    }
+    expect(
+      remoteTerminalWatchResultReadySchema.safeParse({
+        ...validReady,
+        columnChanges: Array.from({ length: 2050 }, () => ({
+          fromCursor: 0,
+          columns: 48,
+        })),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("carries optional terminalColumns on output cursorSync and baseline chunks", () => {
+    const tagged = remoteTerminalOutputCursorSyncV1Schema.parse({
+      version: TERMINAL_CURSOR_SYNC_VERSION,
+      watchId: "w1",
+      generation: "g1",
+      fromCursor: 0,
+      toCursor: 3,
+      terminalColumns: 100,
+    });
+    expect(tagged).toMatchObject({ terminalColumns: 100 });
+    const untagged = remoteTerminalOutputCursorSyncV1Schema.parse({
+      version: TERMINAL_CURSOR_SYNC_VERSION,
+      watchId: "w1",
+      generation: "g1",
+      fromCursor: 0,
+      toCursor: 3,
+    });
+    expect(untagged).not.toHaveProperty("terminalColumns");
+    expect(
+      remoteTerminalOutputCursorSyncV1Schema.safeParse({
+        version: TERMINAL_CURSOR_SYNC_VERSION,
+        watchId: "w1",
+        generation: "g1",
+        fromCursor: 0,
+        toCursor: 3,
+        terminalColumns: 401,
+      }).success,
+    ).toBe(false);
+
+    // The full terminal-output envelope accepts the additive field.
+    const frame = remoteWebSocketServerMessageSchema.parse({
+      type: "terminal-output",
+      id: "t1",
+      data: "abc",
+      cursorSync: {
+        version: TERMINAL_CURSOR_SYNC_VERSION,
+        watchId: "w1",
+        generation: "g1",
+        fromCursor: 10,
+        toCursor: 13,
+        terminalColumns: 48,
+      },
+    });
+    expect(frame).toMatchObject({ cursorSync: { terminalColumns: 48 } });
+
+    const chunk = {
+      version: TERMINAL_CURSOR_SYNC_V2_VERSION,
+      watchId: "w1",
+      generation: "g1",
+      chunkIndex: 0,
+      chunkCount: 1,
+      fromCursor: 0,
+      toCursor: 3,
+      data: "abc",
+      processState: "running" as const,
+      terminalSize: null,
+      resumeServed: false,
+      terminalColumns: 48,
+    };
+    expect(remoteTerminalWatchBaselineChunkSchema.parse(chunk)).toEqual(chunk);
+    const { terminalColumns: _dropped, ...chunkWithout } = chunk;
+    const parsedChunk = remoteTerminalWatchBaselineChunkSchema.parse(chunkWithout);
+    expect(parsedChunk).not.toHaveProperty("terminalColumns");
   });
 });

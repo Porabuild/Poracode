@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { WebSocketServer } from "ws";
-import { assertUnchangedProjectCatalog } from "./server-install-qualification.mjs";
+import {
+  assertUnchangedProjectCatalog,
+  combineQualificationFailures,
+  forceStopChild,
+  formatQualificationError,
+  stopQualificationChild,
+} from "./server-install-qualification.mjs";
 import {
   jsonRequest,
   PROTOCOL_VERSION_HEADER,
@@ -322,4 +329,203 @@ void test("qualification protocol discovery rejects malformed or contradictory d
     "utf8",
   );
   assert.ok(contract.includes(`REMOTE_PROTOCOL_VERSION_HEADER = "${PROTOCOL_VERSION_HEADER}"`));
+});
+
+/** An event-controlled ChildProcess stand-in: no real daemon is spawned. */
+class FakeQualificationChild extends EventEmitter {
+  constructor(pid = 4242) {
+    super();
+    this.pid = pid;
+    this.exitCode = null;
+    this.signalCode = null;
+    this.kills = [];
+  }
+
+  exit(code = 0, signal = null) {
+    this.exitCode = code;
+    this.signalCode = signal;
+    this.emit("exit", code, signal);
+  }
+
+  kill(signal) {
+    this.kills.push(signal);
+    this.exitCode = null;
+    this.signalCode = signal;
+    this.emit("exit", null, signal);
+    return true;
+  }
+}
+
+void test("stopQualificationChild joins a clean graceful exit without force-reaping", async () => {
+  const child = new FakeQualificationChild();
+  let requested = 0;
+  let forced = 0;
+  const requestStop = () => {
+    requested++;
+    setImmediate(() => child.exit(0));
+  };
+  const forceStop = () => {
+    forced++;
+  };
+  await stopQualificationChild(child, requestStop, forceStop, { joinTimeoutMs: 2_000 });
+  assert.equal(requested, 1);
+  assert.equal(forced, 0);
+  assert.equal(child.exitCode, 0);
+  assert.deepEqual(child.kills, []);
+
+  // An already-exited child short-circuits without touching either callback.
+  const exited = new FakeQualificationChild();
+  exited.exit(0);
+  let untouched = 0;
+  await stopQualificationChild(
+    exited,
+    () => {
+      untouched++;
+    },
+    () => {
+      untouched++;
+    },
+  );
+  assert.equal(untouched, 0);
+});
+
+void test("stopQualificationChild force-reaps on a failed stop request and rethrows the original", async () => {
+  const child = new FakeQualificationChild();
+  const original = new Error("poracode-server stop did not report a stopped owner");
+  let forced = 0;
+  const requestStop = () => {
+    throw original;
+  };
+  const forceStop = () => {
+    forced++;
+    child.exit(1);
+  };
+  await assert.rejects(
+    stopQualificationChild(child, requestStop, forceStop),
+    (error) => error === original,
+  );
+  assert.equal(forced, 1, "a failed graceful request must still reap the owned child");
+  assert.equal(child.exitCode, 1);
+});
+
+void test("stopQualificationChild rethrows a graceful-stop rejection carrying undefined", async () => {
+  const child = new FakeQualificationChild();
+  let forced = 0;
+  // A callback can reject with a non-Error (even `undefined`); the old
+  // `undefined` sentinel misread that as a clean stop and masked the failure.
+  const rejectionReason = undefined;
+  const requestStop = () => Promise.reject(rejectionReason);
+  const forceStop = () => {
+    forced++;
+    child.exit(1);
+  };
+  let didThrow = false;
+  try {
+    await stopQualificationChild(child, requestStop, forceStop);
+  } catch (error) {
+    didThrow = true;
+    assert.equal(error, undefined);
+  }
+  assert.equal(didThrow, true, "a graceful-stop rejection with undefined must be rethrown");
+  assert.equal(forced, 1, "the exact owned child is still force-reaped");
+  assert.equal(child.exitCode, 1);
+});
+
+void test("stopQualificationChild aggregates the graceful-stop and cleanup failures", async () => {
+  const child = new FakeQualificationChild();
+  const original = new Error("stop request failed");
+  const cleanup = new Error("taskkill failed");
+  const requestStop = () => {
+    throw original;
+  };
+  const forceStop = () => {
+    throw cleanup;
+  };
+  await assert.rejects(
+    stopQualificationChild(child, requestStop, forceStop),
+    (error) =>
+      error instanceof AggregateError &&
+      error.cause === cleanup &&
+      error.errors.length === 2 &&
+      error.errors[0] === original &&
+      error.errors[1] === cleanup,
+  );
+});
+
+void test("stopQualificationChild force-reaps when the graceful child-exit join expires", async () => {
+  const child = new FakeQualificationChild();
+  let forced = 0;
+  const requestStop = () => {}; // graceful request resolves, child ignores it
+  const forceStop = () => {
+    forced++;
+    child.exit(1);
+  };
+  await assert.rejects(
+    stopQualificationChild(child, requestStop, forceStop, {
+      joinTimeoutMs: 40,
+      cleanupTimeoutMs: 500,
+    }),
+    /qualification daemon did not exit within 40ms/u,
+  );
+  assert.equal(forced, 1, "an expired join must force-reap, not become a clean pass");
+});
+
+void test("qualification retains both probe and cleanup failures with the probe first", () => {
+  const secret = "synthetic-access-token-0123456789";
+  const probe = new Error(`probe failed with Bearer ${secret}`);
+  const cleanup = new Error("daemon cleanup failed");
+  const combined = combineQualificationFailures(probe, cleanup);
+  assert.ok(combined instanceof AggregateError);
+  assert.deepEqual(combined.errors, [probe, cleanup]);
+
+  const rendered = formatQualificationError(combined);
+  assert.match(rendered, /probe failed/u);
+  assert.match(rendered, /daemon cleanup failed/u);
+  assert.ok(rendered.indexOf("probe failed") < rendered.indexOf("daemon cleanup failed"));
+  assert.ok(!rendered.includes(secret), "raw app credential must be redacted");
+  assert.match(rendered, /Bearer \[redacted\]/u);
+
+  // Normal success and single failures are preserved, never wrapped.
+  assert.equal(combineQualificationFailures(probe, null), probe);
+  assert.equal(combineQualificationFailures(null, cleanup), cleanup);
+  assert.equal(combineQualificationFailures(null, null), null);
+
+  // Nested AggregateError members (the stop path's own aggregation) are printed.
+  const nested = new AggregateError(
+    [new Error("graceful stop failed"), new Error("taskkill failed")],
+    "stop and cleanup failed",
+  );
+  const nestedRendered = formatQualificationError(combineQualificationFailures(probe, nested));
+  assert.match(nestedRendered, /graceful stop failed/u);
+  assert.match(nestedRendered, /taskkill failed/u);
+});
+
+void test("forceStopChild uses fully-qualified taskkill.exe /PID /T /F with a bounded timeout", () => {
+  const calls = [];
+  const run = (file, args, options) => {
+    calls.push({ file, args, options });
+  };
+  const child = new FakeQualificationChild(840);
+  forceStopChild(child, { platform: "win32", env: { SystemRoot: "C:\\Windows" }, run });
+  assert.equal(calls.length, 1);
+  const [call] = calls;
+  assert.match(call.file, /taskkill\.exe$/u);
+  assert.match(call.file, /System32/u);
+  assert.match(call.file, /C:\\Windows/u);
+  assert.deepEqual(call.args, ["/PID", "840", "/T", "/F"]);
+  assert.ok(call.options.timeout > 0 && call.options.timeout <= 10_000);
+  assert.equal(call.options.windowsHide, true);
+  assert.deepEqual(child.kills, [], "a valid Windows pid must not fall back to a bare kill");
+
+  // No name-based selection and no taskkill for an invalid pid.
+  const invalid = new FakeQualificationChild(NaN);
+  forceStopChild(invalid, { platform: "win32", env: { windir: "C:\\Windows" }, run });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(invalid.kills, ["SIGKILL"]);
+
+  // An already-exited child is never reaped.
+  const exited = new FakeQualificationChild(999);
+  exited.exit(0);
+  forceStopChild(exited, { platform: "win32", env: { SystemRoot: "C:\\Windows" }, run });
+  assert.equal(calls.length, 1);
 });

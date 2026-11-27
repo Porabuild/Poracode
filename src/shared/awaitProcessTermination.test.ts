@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { awaitProcessTermination } from "./awaitProcessTermination";
 
 describe("awaitProcessTermination", () => {
-  it("waits for a SIGTERM-resistant worker to exit after escalation", async () => {
+  it("waits for a SIGTERM-resistant worker to exit after an event loop stall", async () => {
     const child = spawn(
       process.execPath,
       [
@@ -15,7 +15,10 @@ describe("awaitProcessTermination", () => {
     );
     try {
       await once(child.stdout!, "data");
-      await awaitProcessTermination(child, { graceMs: 100 });
+      const graceMs = 500;
+      const termination = awaitProcessTermination(child, { graceMs });
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, graceMs * 3);
+      await termination;
       expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
       await expect(awaitProcessTermination(child)).resolves.toBeUndefined();
     } finally {

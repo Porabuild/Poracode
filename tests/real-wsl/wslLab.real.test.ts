@@ -24,6 +24,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { fileURLToPath } from "node:url";
 import { afterAll, expect, test, vi, type TestContext } from "vitest";
 import { getWslLocationHostFsPath, toWslUncPath, wslLinuxToHostFsPath } from "@/shared/wsl";
 import {
@@ -34,7 +35,11 @@ import {
 import { windowsProjectLocationInWslDistro } from "@/supervisor/wsl/projectLocation";
 import { batchWslCommandsForBootstrap, probeDistroArch } from "@/supervisor/wsl/runtime/probe";
 import type { RuntimeProgressEvent } from "@/supervisor/wsl/runtime/types";
-import { WslStagingService } from "@/supervisor/wsl/staging";
+import {
+  createProcessStagingExecutor,
+  WslStagingService,
+  type WslStagingProcessSpec,
+} from "@/supervisor/wsl/staging";
 import {
   guestTcpProbeArgs,
   listRegisteredDistros,
@@ -116,9 +121,31 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
 }
 
-/** Isolated staging front door; never the supervisor-wide singleton. */
+/**
+ * Isolated staging front door; never the supervisor-wide singleton.
+ *
+ * The lab imports the worker as TypeScript source (no adjacent compiled worker
+ * bundle), so the default executor would silently choose the in-process inline
+ * fallback and the qualification would never exercise the isolated process
+ * lifecycle. Inject one real worker process per distro instead: `--import`
+ * needs a file URL (a Windows `C:\` path is rejected with
+ * ERR_UNSUPPORTED_ESM_URL_SCHEME), while the positional worker entry is a
+ * filesystem path. A worker that cannot boot fails its request (fails closed).
+ */
 function newIsolatedStaging(): WslStagingService {
+  const spec: WslStagingProcessSpec = {
+    command: process.execPath,
+    args: [
+      "--import",
+      new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url).href,
+      fileURLToPath(new URL("../../src/supervisor/wsl/staging/worker.ts", import.meta.url)),
+    ],
+    env: process.env,
+  };
   return new WslStagingService({
+    // Invoked once per distro; every executor is a real child process, never
+    // the inline fallback.
+    createExecutor: () => createProcessStagingExecutor(spec),
     cachedHome: () => "/root",
     requestTimeoutMs: 20_000,
     idleTimeoutMs: 600_000,
@@ -316,48 +343,53 @@ test(
       const distro = enabledDistro("primary");
 
       // Fresh module graph: the runtime resolver caches per distro in module
-      // state, and this scenario must observe the actual single-flight, not a
-      // warm cache.
+      // state; this scenario must observe the actual single-flight, not a warm
+      // cache. Inject the process-backed staging service through the resolver's
+      // own options seam, not the global singleton.
       vi.resetModules();
       const runtime = await import("@/supervisor/wsl/runtime");
-      const eventsA: RuntimeProgressEvent[] = [];
-      const eventsB: RuntimeProgressEvent[] = [];
+      const staging = newIsolatedStaging();
+      try {
+        const eventsA: RuntimeProgressEvent[] = [];
+        const eventsB: RuntimeProgressEvent[] = [];
 
-      const [resolvedA, resolvedB] = await Promise.all([
-        runtime.resolveNodeForDistro(distro, {
-          useBridge: false,
-          onProgress: (event) => eventsA.push(event),
-        }),
-        runtime.resolveNodeForDistro(distro, {
-          useBridge: false,
-          onProgress: (event) => eventsB.push(event),
-        }),
-      ]);
+        const [resolvedA, resolvedB] = await Promise.all([
+          runtime.resolveNodeForDistro(distro, {
+            useBridge: false,
+            staging,
+            onProgress: (event) => eventsA.push(event),
+          }),
+          runtime.resolveNodeForDistro(distro, {
+            useBridge: false,
+            staging,
+            onProgress: (event) => eventsB.push(event),
+          }),
+        ]);
 
-      expect(resolvedA.nodePath).toBe(resolvedB.nodePath);
-      expect(resolvedA.source).toBe("poracode-managed");
-      expect(eventsA.filter((event) => event.kind === "download-start")).toHaveLength(1);
-      expect(
-        eventsB.some((event) => event.kind === "ready"),
-        "the joined caller resolves",
-      ).toBe(true);
-      expect(
-        eventsB.some((event) => event.kind === "download-start"),
-        "the joined caller never repeats the download",
-      ).toBe(false);
+        expect(resolvedA.nodePath).toBe(resolvedB.nodePath);
+        expect(resolvedA.source).toBe("poracode-managed");
+        expect(eventsA.filter((event) => event.kind === "download-start")).toHaveLength(1);
+        expect(
+          eventsB.some((event) => event.kind === "ready"),
+          "the joined caller resolves",
+        ).toBe(true);
+        expect(
+          eventsB.some((event) => event.kind === "download-start"),
+          "the joined caller never repeats the download",
+        ).toBe(false);
 
-      // The installed binary must be visible both in-distro and over UNC.
-      expect(existsSync(toWslUncPath(distro, resolvedA.nodePath))).toBe(true);
-      const version = await runInDistro(distro, [resolvedA.nodePath, "--version"]);
-      expect(version.stdout.trim()).toMatch(/^v\d+\.\d+\.\d+$/u);
+        // The installed binary must be visible both in-distro and over UNC.
+        expect(existsSync(toWslUncPath(distro, resolvedA.nodePath))).toBe(true);
+        const version = await runInDistro(distro, [resolvedA.nodePath, "--version"]);
+        expect(version.stdout.trim()).toMatch(/^v\d+\.\d+\.\d+$/u);
 
-      const staging = await import("@/supervisor/wsl/staging");
-      await staging.disposeWslStagingService();
-
-      passRow("single-flight-events", started, {
-        callerA: eventsA.map((event) => event.kind),
-        callerB: eventsB.map((event) => event.kind),
-      });
+        passRow("single-flight-events", started, {
+          callerA: eventsA.map((event) => event.kind),
+          callerB: eventsB.map((event) => event.kind),
+        });
+      } finally {
+        await staging.dispose();
+      }
     });
   },
 );
@@ -447,7 +479,35 @@ test("a stalled distro cannot pin the staging service", async (ctx) => {
         stalledOutcome === "resolved" ? String(payloadBytes) : "absent",
       );
       const recoveredPath = "/tmp/poracode-lab-recovered.txt";
-      await staging.writeTextFile(stalled, toWslUncPath(stalled, recoveredPath), "recovered");
+      try {
+        await staging.writeTextFile(stalled, toWslUncPath(stalled, recoveredPath), "recovered");
+      } catch (error) {
+        // Bounded probes separate a Windows share stall from a guest-side /tmp
+        // that is not back after reboot; the original failure is preserved.
+        const share = await staging.readDirectory(stalled, toWslUncPath(stalled, "/tmp")).then(
+          (result) => ({ exists: result.exists, entries: result.entries.length }),
+          (probeError) => ({
+            error: probeError instanceof Error ? probeError.message : String(probeError),
+          }),
+        );
+        const guestTmp = await runInDistro(stalled, ["test", "-d", "/tmp"], {
+          timeoutMs: 5_000,
+        }).then(
+          () => "present",
+          () => "unavailable",
+        );
+        evidence.push({
+          name: "secondary-unc-readiness",
+          ok: false,
+          ms: Math.round(performance.now() - started),
+          detail: {
+            error: error instanceof Error ? error.message : String(error),
+            share,
+            guestTmp,
+          },
+        });
+        throw error;
+      }
       expect(await staging.readTextFile(stalled, toWslUncPath(stalled, recoveredPath))).toBe(
         "recovered",
       );

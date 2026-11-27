@@ -164,6 +164,52 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
     expect(detectTerminalStatus).not.toHaveBeenCalled();
   });
 
+  it("observes columns from the PTY for each output span", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const pty = { cols: 48, write: vi.fn<(data: string) => void>() };
+    const session = {
+      threadId: "t1",
+      instanceId: "generation-1",
+      status: "idle",
+      attention: "none",
+      config: {},
+      hasCliHookPluginActivity: true,
+      prevChunk: "",
+      outputLength: 0,
+      adapter: {
+        capabilities: { presentationMode: "terminal" },
+        isReadyForInitialPrompt: () => false,
+      },
+      pty,
+    } as unknown as SessionRuntime;
+
+    p.handlePtyData(session, "🐱");
+    pty.cols = 100;
+    p.handlePtyData(session, "ok");
+
+    expect(emit).toHaveBeenCalledWith({
+      type: "thread-output",
+      threadId: "t1",
+      terminalInstanceId: "generation-1",
+      data: "🐱",
+      outputLength: 2,
+      terminalColumns: 48,
+    });
+    expect(emit).toHaveBeenCalledWith({
+      type: "thread-output",
+      threadId: "t1",
+      terminalInstanceId: "generation-1",
+      data: "ok",
+      outputLength: 4,
+      terminalColumns: 100,
+    });
+    expect(session.outputTranscript?.readColumnChanges(0, 4)).toEqual([
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 2, columns: 100 },
+    ]);
+  });
+
   it("runs terminal readiness and terminal status detection for dual-mode providers opened in terminal mode", () => {
     const onStartQueuedLaunchPrompt = vi.fn<(session: SessionRuntime) => void>();
     const p = new ThreadOutputPipeline({

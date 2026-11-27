@@ -1,5 +1,6 @@
 package com.poracode.app.chat
 
+import com.poracode.remote.v3.generated.TerminalCursorColumnChange
 import com.poracode.remote.v3.generated.TerminalCursorFrame
 import com.poracode.remote.v3.generated.TerminalCursorFrameKind
 import com.poracode.remote.v3.generated.TerminalCursorReconciler
@@ -45,6 +46,13 @@ object TerminalCursorFrameDecoder {
                     from,
                     to,
                     data,
+                    // Width history only describes output units; an empty ready
+                // result (up-to-date resume) discards the optional list.
+                columnChanges = if (data.isNotEmpty()) {
+                    decodeColumnChanges(result["columnChanges"])
+                } else {
+                    emptyList()
+                },
                 ).takeIf(TerminalCursorReconciler::isValid)
             }
             else -> null
@@ -62,7 +70,54 @@ object TerminalCursorFrameDecoder {
         val watchId = sync.requiredString("watchId", allowEmpty = false) ?: return null
         val from = sync["fromCursor"]?.longOrStrictNull() ?: return null
         val to = sync["toCursor"]?.longOrStrictNull() ?: return null
-        return TerminalCursorFrame(kind, terminalId, watchId, generation, from, to, data)
+        // A live output span is homogeneous: one usable width covers the whole
+        // accepted range, marked at its start. Absent or unusable widths leave
+        // the frame widthless.
+        val columnChanges = if (data.isNotEmpty()) {
+            sync["terminalColumns"].usableColumns()
+                ?.let { listOf(TerminalCursorColumnChange(from, it)) }
+                ?: emptyList()
+        } else {
+            emptyList()
+        }
+        return TerminalCursorFrame(kind, terminalId, watchId, generation, from, to, data, columnChanges)
             .takeIf(TerminalCursorReconciler::isValid)
     }
+
+    /**
+     * Optional ready-result width history. Chronology must be absolute,
+     * non-decreasing, safe-integer cursors with usable columns or explicit
+     * null; any malformed entry discards the whole optional list while the raw
+     * frame stays intact (older hosts simply record no widths).
+     */
+    private fun decodeColumnChanges(value: JsonElement?): List<TerminalCursorColumnChange> {
+        val entries = value?.arrayOrNull() ?: return emptyList()
+        if (entries.size > MAX_COLUMN_CHANGES) return emptyList()
+        val changes = mutableListOf<TerminalCursorColumnChange>()
+        var previous = -1L
+        for (entry in entries) {
+            val objectValue = entry.objectOrNull() ?: return emptyList()
+            if (!objectValue.containsKey("columns")) return emptyList()
+            val from = objectValue["fromCursor"]?.longOrStrictNull() ?: return emptyList()
+            if (from < 0L || from > MAX_CURSOR || from < previous) return emptyList()
+            val columns = when (val raw = objectValue["columns"]) {
+                JsonNull -> null
+                else -> raw.usableColumns() ?: return emptyList()
+            }
+            previous = from
+            changes.add(TerminalCursorColumnChange(from, columns))
+        }
+        return changes
+    }
+
+    /** Usable observed width (20...400); unusable scalars decode as absent. */
+    private fun JsonElement?.usableColumns(): Int? =
+        this?.longOrStrictNull()
+            ?.takeIf { it in MIN_TERMINAL_COLUMNS..MAX_TERMINAL_COLUMNS }
+            ?.toInt()
+
+    private const val MIN_TERMINAL_COLUMNS = 20L
+    private const val MAX_TERMINAL_COLUMNS = 400L
+    private const val MAX_CURSOR = 9_007_199_254_740_991L
+    private const val MAX_COLUMN_CHANGES = 2_049
 }

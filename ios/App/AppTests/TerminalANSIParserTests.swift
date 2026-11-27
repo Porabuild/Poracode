@@ -71,6 +71,158 @@ final class TerminalANSIParserTests: XCTestCase {
     }
   }
 
+  func testTerminalColumnReplayFixtureRendersTheRecordedLogicalTail() throws {
+    let fixture = try loadRichChatFixture("terminal-column-replay.json")
+    for item in try richFixtureArray(try XCTUnwrap(fixture["cases"])) {
+      let value = try richFixtureObject(item)
+      let id = try XCTUnwrap(value["id"]?.stringValue)
+      let input = try XCTUnwrap(value["input"]?.stringValue)
+      let expected = try richFixtureArray(try XCTUnwrap(value["expectedTail"]))
+        .map { try XCTUnwrap($0.stringValue) }
+      let markers = try richFixtureArray(try XCTUnwrap(value["columnChanges"])).map { entry in
+        let object = try richFixtureObject(entry)
+        let columns: Int?
+        if object["columns"] == .null {
+          columns = nil
+        } else {
+          columns = Int(try XCTUnwrap(object["columns"]?.exactInt64Value))
+        }
+        return TerminalCursorColumnChange(
+          fromCursor: try XCTUnwrap(object["fromCursor"]?.exactInt64Value),
+          columns: columns
+        )
+      }
+      let rendered = TerminalANSIParser.render(input, fromCursor: 0, columnChanges: markers)
+        .plainText
+      let actual = rendered.split(separator: "\n").map {
+        $0.trimmingCharacters(in: .whitespaces)
+      }
+      XCTAssertEqual(Array(actual.suffix(expected.count)), expected, id)
+    }
+  }
+
+  func testUnknownAndAbsentColumnMarkersKeepTheWidthlessProjection() throws {
+    let fixture = try loadRichChatFixture("terminal-column-replay.json")
+    let item = try XCTUnwrap(richFixtureArray(try XCTUnwrap(fixture["cases"])).first)
+    let value = try richFixtureObject(item)
+    let input = try XCTUnwrap(value["input"]?.stringValue)
+    let legacy = TerminalANSIParser.render(input).plainText
+    // An explicit null marker is an unknown span: identical to no markers.
+    XCTAssertEqual(
+      TerminalANSIParser.render(
+        input,
+        columnChanges: [TerminalCursorColumnChange(fromCursor: 0, columns: nil)]
+      ).plainText,
+      legacy
+    )
+    // A known width followed by an unknown tail returns to widthless output
+    // for the tail — here the whole document stays legacy once nil applies.
+    XCTAssertEqual(
+      TerminalANSIParser.render(
+        input,
+        columnChanges: [
+          TerminalCursorColumnChange(fromCursor: 0, columns: 48),
+          TerminalCursorColumnChange(fromCursor: 10, columns: nil),
+        ]
+      ).plainText,
+      legacy
+    )
+  }
+
+  func testWidthLimitedCursorForwardStaysInsideTheRowWithoutOverflow() {
+    let rendered = TerminalANSIParser.render(
+      "a\u{1B}[\(Int.max)Cy",
+      columnChanges: [TerminalCursorColumnChange(fromCursor: 0, columns: 20)]
+    ).plainText
+    XCTAssertEqual(rendered, "a" + String(repeating: " ", count: 18) + "y")
+  }
+
+  func testWideGlyphWrappingOffTheLastColumnClearsTheBoundaryCell() {
+    let rendered = TerminalANSIParser.render(
+      String(repeating: "x", count: 20) + "\u{1B}[20G界",
+      columnChanges: [TerminalCursorColumnChange(fromCursor: 0, columns: 20)]
+    ).plainText
+    XCTAssertEqual(rendered, String(repeating: "x", count: 19) + " " + "界")
+  }
+
+  func testWidthMarkerInsideACSISequenceAppliesBeforeTheCommandExecutes() {
+    let rendered = TerminalANSIParser.render(
+      "a\u{1B}[25GY",
+      columnChanges: [
+        TerminalCursorColumnChange(fromCursor: 0, columns: 20),
+        TerminalCursorColumnChange(fromCursor: 3, columns: 40),
+      ]
+    ).plainText
+    XCTAssertEqual(rendered, "a" + String(repeating: " ", count: 23) + "Y")
+  }
+
+  func testEraseLineAtThePendingWrapColumnPreservesTheFullRow() {
+    let rendered = TerminalANSIParser.render(
+      String(repeating: "x", count: 20) + "\u{1B}[K" + "Y",
+      columnChanges: [TerminalCursorColumnChange(fromCursor: 0, columns: 20)]
+    ).plainText
+    XCTAssertEqual(rendered, String(repeating: "x", count: 20) + "Y")
+  }
+
+  func testWidthChangeAtThePendingWrapColumnKeepsTheLogicalPosition() {
+    let markers = { (next: Int?) in
+      [
+        TerminalCursorColumnChange(fromCursor: 0, columns: 20),
+        TerminalCursorColumnChange(fromCursor: 20, columns: next),
+      ]
+    }
+    let source = String(repeating: "x", count: 20) + "Y"
+    XCTAssertEqual(
+      TerminalANSIParser.render(source, columnChanges: markers(40)).plainText,
+      String(repeating: "x", count: 20) + "Y"
+    )
+    XCTAssertEqual(
+      TerminalANSIParser.render(source, columnChanges: markers(nil)).plainText,
+      String(repeating: "x", count: 20) + "Y"
+    )
+  }
+
+  func testKnownWidthTabMovesToTheNextStopWithoutFillingCells() {
+    let columnChanges = [TerminalCursorColumnChange(fromCursor: 0, columns: 20)]
+    XCTAssertEqual(
+      TerminalANSIParser.render(
+        String(repeating: "x", count: 18) + "\tY",
+        columnChanges: columnChanges
+      ).plainText,
+      String(repeating: "x", count: 18) + " Y"
+    )
+    XCTAssertEqual(
+      TerminalANSIParser.render(
+        String(repeating: "x", count: 20) + "\tY",
+        columnChanges: columnChanges
+      ).plainText,
+      String(repeating: "x", count: 20) + "Y"
+    )
+  }
+
+  func testColumnMarkersAreAbsoluteSoAShiftedTranscriptMatches() throws {
+    let fixture = try loadRichChatFixture("terminal-column-replay.json")
+    let item = try XCTUnwrap(richFixtureArray(try XCTUnwrap(fixture["cases"])).first)
+    let value = try richFixtureObject(item)
+    let input = try XCTUnwrap(value["input"]?.stringValue)
+    let shifted = TerminalANSIParser.render(
+      input,
+      fromCursor: 500,
+      columnChanges: [
+        TerminalCursorColumnChange(fromCursor: 500, columns: 48),
+        TerminalCursorColumnChange(fromCursor: 834, columns: 100),
+      ]
+    ).plainText
+    let unshifted = TerminalANSIParser.render(
+      input,
+      columnChanges: [
+        TerminalCursorColumnChange(fromCursor: 0, columns: 48),
+        TerminalCursorColumnChange(fromCursor: 334, columns: 100),
+      ]
+    ).plainText
+    XCTAssertEqual(shifted, unshifted)
+  }
+
   func testSGRStylesAreRenderedWithoutEscapeText() {
     let rendered = TerminalANSIParser.render("plain \u{1B}[31;1mred\u{1B}[0m done")
 

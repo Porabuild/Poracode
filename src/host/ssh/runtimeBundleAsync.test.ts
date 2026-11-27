@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -77,7 +78,7 @@ function createRuntimeFixture(): {
   readonly wslHelpersDir: string;
   readonly cacheDir: string;
 } {
-  const root = mkdtempSync(join(tmpdir(), "poracode-ssh-async-bundle-"));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "poracode-ssh-async-bundle-"));
   tempDirs.push(root);
   const mainBundleDir = join(root, "main");
   const agentPluginsDir = join(root, "agent-plugins");

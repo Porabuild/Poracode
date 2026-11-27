@@ -1,5 +1,7 @@
 import type { WebSocket } from "ws";
-import type { TerminalSnapshot } from "@/shared/contracts";
+import { MAX_TERMINAL_COLS, type TerminalSnapshot } from "@/shared/contracts";
+import { TerminalColumnHistory, type TerminalColumnChange } from "@/shared/terminalColumnHistory";
+import { segmentTerminalTranscript } from "@/shared/terminalTranscriptSegments";
 import {
   TERMINAL_CURSOR_SYNC_VERSION,
   TERMINAL_CURSOR_SYNC_V2_VERSION,
@@ -129,6 +131,7 @@ export function buildCursorTaggedTerminalOutput(
   watchId: string,
   generation: string,
   toCursor: number,
+  terminalColumns?: number,
 ): Extract<RemoteWebSocketServerMessage, { type: "terminal-output" }> {
   const fromCursor = Math.max(0, toCursor - data.length);
   return {
@@ -141,6 +144,7 @@ export function buildCursorTaggedTerminalOutput(
       generation,
       fromCursor,
       toCursor,
+      ...(terminalColumns !== undefined ? { terminalColumns } : {}),
     },
   };
 }
@@ -156,6 +160,7 @@ export function readyResultFromSnapshot(
     data: snapshot.data,
     processState: snapshot.processState,
     terminalSize: snapshot.terminalSize,
+    ...(snapshot.columnChanges ? { columnChanges: snapshot.columnChanges } : {}),
   };
 }
 
@@ -207,14 +212,23 @@ export function composeTerminalWatchReadyResult(
         : record.transcript.length > toCursor
           ? record.transcript.slice(-toCursor)
           : record.transcript;
+    const fromCursor = toCursor - data.length;
+    let columnChanges: TerminalColumnChange[] | undefined;
+    if (data.length > 0 && record.columnChanges) {
+      const history = new TerminalColumnHistory();
+      history.recordChanges(fromCursor, toCursor, record.columnChanges);
+      const changes = history.snapshot(fromCursor, toCursor);
+      if (changes.some(({ columns }) => columns !== null)) columnChanges = changes;
+    }
     return {
       status: "ready",
       generation: null,
-      fromCursor: toCursor - data.length,
+      fromCursor,
       toCursor,
       data,
       processState: "exited",
       terminalSize: null,
+      ...(columnChanges ? { columnChanges } : {}),
     };
   }
 
@@ -363,14 +377,12 @@ function jsonEscapedByteLength(s: string): number {
         i++;
         continue;
       }
-      // Lone high surrogate: Node encodes it as U+FFFD (3 bytes) — but this
-      // function is only consulted on code-point-aligned slices, which never
-      // contain lone surrogates. Count 3 so the bound stays honest.
-      bytes += 3;
+      // Lone surrogates are escaped by JSON.stringify as \uXXXX — 6 bytes.
+      bytes += 6;
       continue;
     }
     if (unit >= 0xdc00 && unit <= 0xdfff) {
-      bytes += 3; // lone low surrogate — same reasoning as above
+      bytes += 6; // lone low surrogate — same \uXXXX escape
       continue;
     }
     bytes += unit < 0x80 ? 1 : unit < 0x800 ? 2 : 3;
@@ -425,10 +437,14 @@ export function sliceTerminalBaselineChunks(input: {
     // exactly; both directions converge in a handful of steps.
     while (end > 0) {
       const candidate = data.slice(start, start + end);
-      // Never split a surrogate pair at the boundary.
+      // Align the cut only when it would split a genuinely paired high/low
+      // sequence; a lone surrogate is a valid boundary.
       const lastUnit = candidate.charCodeAt(candidate.length - 1);
+      const nextUnit = start + end < data.length ? data.charCodeAt(start + end) : 0;
       let alignedEnd = end;
-      if (lastUnit >= 0xd800 && lastUnit <= 0xdbff) alignedEnd = end - 1;
+      if (isHighSurrogateUnit(lastUnit) && isLowSurrogateUnit(nextUnit)) {
+        alignedEnd = end - 1;
+      }
       if (alignedEnd <= 0) {
         end = 0;
         break;
@@ -443,24 +459,33 @@ export function sliceTerminalBaselineChunks(input: {
         });
         break;
       }
-      // Over budget: step back ~12.5% plus escape slack, then fine-tune.
-      end = Math.max(1, Math.floor(alignedEnd * 0.875));
+      // Over budget: shrink strictly toward zero so even a single oversized
+      // scalar reaches the progress fallback below instead of looping.
+      end = Math.floor(alignedEnd * 0.875);
     }
     if (end === 0) {
-      // Single unit does not fit (dataBudget too small for its escape) —
-      // emit it alone rather than looping forever; the outbound credit guard
-      // still bounds what actually hits the wire.
+      // No code point fits the data budget: emit one whole scalar — a full
+      // surrogate pair, never half — and let the outbound credit guard bound
+      // what actually hits the wire.
+      const scalarUnits =
+        isHighSurrogateUnit(data.charCodeAt(start)) &&
+        isLowSurrogateUnit(data.charCodeAt(start + 1))
+          ? 2
+          : 1;
       chunks.push({
         fromCursor: fromCursor + start,
-        toCursor: fromCursor + start + 1,
-        data: data.slice(start, start + 1),
+        toCursor: fromCursor + start + scalarUnits,
+        data: data.slice(start, start + scalarUnits),
       });
-      end = 1;
+      end = scalarUnits;
     }
     start += end;
   }
   return chunks;
 }
+
+const isHighSurrogateUnit = (unit: number): boolean => unit >= 0xd800 && unit <= 0xdbff;
+const isLowSurrogateUnit = (unit: number): boolean => unit >= 0xdc00 && unit <= 0xdfff;
 
 /**
  * Byte length of a fully encoded chunk message minus its `data` payload —
@@ -495,8 +520,8 @@ export function buildTerminalBaselineChunkMessage(
  * the caller hands the result to the {@link TerminalBaselineStreamScheduler}
  * for credit-windowed delivery.
  *
- * `maxCursorDigits` bounds the cursor/index digit width in the overhead
- * estimate so every chunk's real envelope stays under the budget.
+ * The overhead estimate reserves digits for the absolute end cursor and the
+ * largest possible number of chunks in this window.
  */
 export function composeTerminalBaselineStream(input: {
   readonly terminalId: string;
@@ -527,27 +552,45 @@ export function composeTerminalBaselineStream(input: {
   const budgetBytes = clampTerminalBaselineChunkBytes(input.maxChunkBytes);
   const windowBytes = clampTerminalBaselineWindowBytes(input.maxWindowBytes, budgetBytes);
 
-  // Conservative fixed-envelope estimate: widest realistic cursor/index digits
-  // so a chunk's true envelope can only be smaller than budget - overhead.
+  // The baseline is small, but its absolute cursor can grow over a terminal's
+  // lifetime. Each nonempty chunk consumes at least one UTF-16 unit.
+  const largestCursor = Math.max(8_888_888_888, result.toCursor);
+  const largestChunkCount = Math.max(88_888, baselineData.length);
   const overheadTemplate: Omit<RemoteTerminalWatchBaselineChunk, "data"> = {
     version: TERMINAL_CURSOR_SYNC_V2_VERSION,
     watchId,
     generation: result.generation,
-    chunkIndex: 88888,
-    chunkCount: 88888,
-    fromCursor: 8888888888,
-    toCursor: 8888888888,
+    chunkIndex: largestChunkCount,
+    chunkCount: largestChunkCount,
+    fromCursor: largestCursor,
+    toCursor: largestCursor,
     processState: result.processState,
     terminalSize: result.terminalSize,
     resumeServed,
   };
+  // Reserve the optional width scalar at its widest encoding only for runs
+  // that actually carry it; width-less runs keep the old envelope budget.
+  const overheadBytesWithWidth = terminalBaselineChunkEnvelopeOverheadBytes(terminalId, {
+    ...overheadTemplate,
+    terminalColumns: MAX_TERMINAL_COLS,
+  });
   const overheadBytes = terminalBaselineChunkEnvelopeOverheadBytes(terminalId, overheadTemplate);
 
-  const pieces = sliceTerminalBaselineChunks({
-    data: baselineData,
-    fromCursor: sliceFromCursor,
-    budgetBytes,
-    envelopeOverheadBytes: overheadBytes,
+  const pieces = segmentTerminalTranscript(
+    baselineData,
+    sliceFromCursor,
+    result.columnChanges,
+  ).flatMap((run) => {
+    // An empty run has no output units to assign a width to — the last width
+    // observation may even precede a later resize — so it never carries the
+    // scalar and keeps the no-width envelope budget.
+    const carriesWidth = run.columns !== null && run.data.length > 0;
+    return sliceTerminalBaselineChunks({
+      data: run.data,
+      fromCursor: run.fromCursor,
+      budgetBytes,
+      envelopeOverheadBytes: carriesWidth ? overheadBytesWithWidth : overheadBytes,
+    }).map((piece) => ({ ...piece, columns: carriesWidth ? run.columns : null }));
   });
   const chunks = pieces.map<RemoteTerminalWatchBaselineChunk>((piece, index) => ({
     version: TERMINAL_CURSOR_SYNC_V2_VERSION,
@@ -561,6 +604,7 @@ export function composeTerminalBaselineStream(input: {
     processState: result.processState,
     terminalSize: result.terminalSize,
     resumeServed,
+    ...(piece.columns === null ? {} : { terminalColumns: piece.columns }),
   }));
   const messages = chunks.map((chunk) =>
     JSON.stringify(buildTerminalBaselineChunkMessage(terminalId, chunk)),

@@ -99,7 +99,7 @@ void test("Linux setups recover mirror DNS failures without hiding install error
         [
           "#!/bin/sh",
           'case "$1" in',
-          '  sed) shift; [ "$1" = "-i" ] || exit 2; shift; expr="$1"; shift; [ "$1" = "/etc/apt/apt-mirrors.txt" ] || exit 2; sed -i "$expr" "$MIRROR_FILE" ;;',
+          '  sed) shift; [ "$1" = "-i" ] || exit 2; shift; expr="$1"; shift; [ "$1" = "/etc/apt/apt-mirrors.txt" ] || exit 2; sed "$expr" "$MIRROR_FILE" > "$MIRROR_FILE.new" && mv "$MIRROR_FILE.new" "$MIRROR_FILE" ;;',
           '  tee) [ "$2" = "-a" ] && [ "$3" = "/etc/hosts" ] || exit 2; cat >> "$HOSTS_FILE" ;;',
           '  apt-get) printf "%s\\n" "$*" >> "$CALLS_FILE"; [ "$FAIL_APT" != "$2" ] ;;',
           "  *) exit 3 ;;",
@@ -930,4 +930,63 @@ void test("promote-ios-appstore workflow pins checksum-verified asc CLI and prom
   assert.equal(cleanupStep.if, "${{ always() }}");
   assert.match(cleanupStep.run, /poracode-app-store-connect\.p8/u);
   assert.match(cleanupStep.run, /\.asc/u);
+});
+
+void test("iOS UI mock journey is sharded across exactly six jobs with a single real-peer qualification", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const job = workflow.jobs.ios_ui;
+  // The job name and selector share the six-shard matrix.
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.deepEqual(job.strategy.matrix.shard, [1, 2, 3, 4, 5, 6]);
+  assert.match(job.name, /shard \$\{\{ matrix\.shard \}\}\/6/u);
+  assert.equal(job["timeout-minutes"], 60, "the job-level timeout stays unchanged");
+
+  const steps = job.steps;
+  const mock = steps.find((item) => item.name?.includes("mock peer"));
+  const real = steps.find((item) => item.name?.includes("real host"));
+  const installHardwareInput = steps.find(
+    (item) => item.name === "Install iOS simulator hardware input",
+  );
+  const buildNative = steps.find((item) => item.name === "Build test native dependencies");
+  const buildHost = steps.find((item) => item.name === "Build the production headless host");
+  const upload = steps.find((item) => item.name === "Upload iOS journey evidence");
+  assert.ok(mock && real && installHardwareInput && buildNative && buildHost && upload);
+
+  // Mock leg is sharded; the unchanged 30m XCTest budget stays.
+  assert.equal(mock.env.NATIVE_E2E_IOS_SHARD, "${{ matrix.shard }}/6");
+  assert.equal(mock.env.NATIVE_E2E_IOS_HID, "1");
+  assert.ok(steps.indexOf(installHardwareInput) < steps.indexOf(mock));
+  assert.match(installHardwareInput.run, /shasum -a 256 -c/u);
+  assert.equal(mock.env.NATIVE_E2E_TEST_TIMEOUT_MS, "1800000");
+  assert.equal(mock.run, "node scripts/native-e2e.mjs ios-ui");
+
+  // The two builds and the real-peer leg run only on shard 1 (real peer once).
+  for (const step of [buildNative, buildHost, real]) {
+    assert.equal(step.if, "${{ matrix.shard == 1 }}", `${step.name} must be gated to shard 1`);
+  }
+  // Real-peer leg never sets a shard and keeps its two selectors + 30m budget.
+  assert.equal(real.env.NATIVE_E2E_IOS_SHARD, undefined);
+  assert.equal(real.env.NATIVE_E2E_IOS_HID, undefined);
+  assert.equal(real.env.NATIVE_E2E_TEST_TIMEOUT_MS, "1800000");
+  assert.match(real.env.NATIVE_E2E_IOS_ONLY_TESTING, /testTerminalKeystrokeFamilyWritesToPty/u);
+  assert.match(real.env.NATIVE_E2E_IOS_ONLY_TESTING, /testGitFamilyReachesHostFromWorkspace/u);
+  assert.equal(steps.filter((item) => item.name?.includes("real host")).length, 1);
+
+  // Per-shard artifact names are unique.
+  assert.match(
+    upload.with.name,
+    /ios-ui-journey-\$\{\{ matrix\.shard \}\}-\$\{\{ github\.run_attempt \}\}/u,
+  );
+});
+
+void test("native required gate keeps depending on the aggregate ios_ui matrix result", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  assert.ok(workflow.jobs.native_gate.needs.includes("ios_ui"));
+  const gate = workflow.jobs.native_gate.steps.at(-1);
+  assert.match(gate.run, /ios_ui/u);
+  assert.match(gate.run, /jobs\[name\]\?\.result/u);
 });

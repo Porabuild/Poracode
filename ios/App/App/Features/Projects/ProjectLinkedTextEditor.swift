@@ -1,11 +1,10 @@
 import SwiftUI
 import UIKit
 
-/// Reveals a requested source line without moving focus or opening the keyboard.
-/// Other files continue to use the ordinary workspace editor.
+/// Edits project files and reveals an optional source line without opening the keyboard.
 struct ProjectLinkedTextEditor: UIViewRepresentable {
   @Binding var text: String
-  let line: Int
+  let line: Int?
   let isEditable: Bool
 
   func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
@@ -20,8 +19,6 @@ struct ProjectLinkedTextEditor: UIViewRepresentable {
     view.adjustsFontForContentSizeCategory = true
     view.autocapitalizationType = .none
     view.autocorrectionType = .no
-    view.smartQuotesType = .no
-    view.smartDashesType = .no
     view.isSelectable = true
     return view
   }
@@ -29,6 +26,8 @@ struct ProjectLinkedTextEditor: UIViewRepresentable {
   func updateUIView(_ view: LinkedTextView, context: Context) {
     context.coordinator.text = $text
     view.isEditable = isEditable
+    view.smartQuotesType = line == nil ? .default : .no
+    view.smartDashesType = line == nil ? .default : .no
     view.accessibilityLabel = isEditable
       ? ProjectWorkspaceStrings.editorLabel : ProjectWorkspaceStrings.fileContentsLabel
     view.accessibilityIdentifier = "native-e2e.project-file-editor"
@@ -38,7 +37,11 @@ struct ProjectLinkedTextEditor: UIViewRepresentable {
     }
   }
 
-  final class LinkedTextView: NativeFocusReportingTextView {
+  final class LinkedTextView: NativeFocusReportingTextView, NativeCommandFocusProviding {
+    var nativeCommandFocus: NativeCommandFocus {
+      .init(role: isEditable ? .editor : .input, isTextInput: true)
+    }
+
     var requestedLine: Int? {
       didSet {
         followsRequestedLine = true

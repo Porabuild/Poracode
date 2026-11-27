@@ -1,4 +1,5 @@
 import type { ProjectLocation, TerminalSize, TerminalSnapshot } from "@/shared/contracts";
+import type { TerminalColumnChange } from "@/shared/terminalColumnHistory";
 import type { SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
 
 /** Bounded in-memory snapshots for naturally-exited dev shells (not DB-persisted). */
@@ -13,6 +14,7 @@ export interface RetainedShellSnapshot {
   readonly fromCursor: number;
   readonly toCursor: number;
   readonly terminalSize: TerminalSize | null;
+  readonly columnChanges?: TerminalColumnChange[];
   readonly retainedAt: number;
   readonly workspaceClose?: {
     projectLocation: ProjectLocation;
@@ -39,13 +41,16 @@ export function snapshotFromLiveSession(
 ): TerminalSnapshot {
   const data = session.outputTranscript?.readTail(RETAINED_SHELL_SNAPSHOT_MAX_CHARS) ?? "";
   const toCursor = session.outputLength;
+  const fromCursor = Math.max(0, toCursor - data.length);
+  const columnChanges = session.outputTranscript?.readColumnChanges(fromCursor, toCursor);
   return {
     generation: session.instanceId,
-    fromCursor: Math.max(0, toCursor - data.length),
+    fromCursor,
     toCursor,
     data,
     processState,
     terminalSize: session.terminalSize,
+    ...(columnChanges ? { columnChanges } : {}),
   };
 }
 
@@ -56,13 +61,16 @@ export function snapshotFromLiveShell(
 ): TerminalSnapshot {
   const data = shell.outputTranscript.readTail(maxChars);
   const toCursor = shell.outputLength;
+  const fromCursor = Math.max(0, toCursor - data.length);
+  const columnChanges = shell.outputTranscript.readColumnChanges(fromCursor, toCursor);
   return {
     generation: shell.instanceId,
-    fromCursor: Math.max(0, toCursor - data.length),
+    fromCursor,
     toCursor,
     data,
     processState,
     terminalSize: shellTerminalSize(shell),
+    ...(columnChanges ? { columnChanges } : {}),
   };
 }
 
@@ -75,6 +83,7 @@ export function buildRetainedShellSnapshot(shell: ShellSessionRuntime): Retained
     fromCursor: snapshot.fromCursor,
     toCursor: snapshot.toCursor,
     terminalSize: snapshot.terminalSize,
+    ...(snapshot.columnChanges ? { columnChanges: snapshot.columnChanges } : {}),
     retainedAt: Date.now(),
   };
 }

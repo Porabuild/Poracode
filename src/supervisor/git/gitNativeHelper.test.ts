@@ -3,6 +3,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   unlinkSync,
@@ -41,7 +42,7 @@ import { ForgeRuntime } from "../forges/runtime";
 const temps: string[] = [];
 
 function makeTempDir(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  const dir = mkdtempSync(join(realpathSync.native(tmpdir()), prefix));
   temps.push(dir);
   return dir;
 }

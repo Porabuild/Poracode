@@ -91,6 +91,8 @@ export type ScenarioAction =
       readonly delayMs: number;
       readonly requestId?: string;
     }
+  | { readonly type: "background-task-output-hold"; readonly requestId?: string }
+  | { readonly type: "background-task-output-release"; readonly requestId?: string }
   | {
       readonly type: "await";
       readonly condition: ScenarioCondition;

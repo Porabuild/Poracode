@@ -19,6 +19,8 @@
  * different source fails closed instead of half-serving the new verbs.
  * The same version also adds optional `mode` bits to `mkdirp`/`write-file` so a
  * staged launch document keeps its private permissions.
+ * Handshake sequencing and streaming decoding leave v3 messages unchanged, so
+ * per versioning.md no version bump is required.
  */
 export const WSL_STAGING_PROTOCOL_VERSION = 3;
 

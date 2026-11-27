@@ -105,6 +105,7 @@ function tag(
   generation: string,
   fromCursor: number,
   data: string,
+  terminalColumns?: number,
 ): RemoteWebSocketServerMessage {
   return {
     type: "terminal-output",
@@ -116,6 +117,7 @@ function tag(
       generation,
       fromCursor,
       toCursor: fromCursor + data.length,
+      ...(terminalColumns === undefined ? {} : { terminalColumns }),
     },
   };
 }
@@ -260,6 +262,213 @@ describe("terminalFeed — cursor-sync baseline", () => {
     const { listener: late, rec: lateRec } = recordingListener({ snapshot: true });
     h.feed.watch("t1", late);
     expect(lateRec.snapshots[0]).toMatchObject({ fromCursor: 0, toCursor: 9, data: "a👍b cd👍" });
+  });
+
+  it("carries chronological snapshot columnChanges into the retained cache geometry", () => {
+    const h = createHarness();
+    connect(h);
+    const { listener, rec } = recordingListener({ snapshot: true });
+    h.feed.watch("t1", listener);
+
+    // "x🐱y" is 4 UTF-16 units (surrogate pair at 1..2) at 48 cols, then a
+    // 2-unit wide span at 100 cols — the recorded narrow→wide order.
+    sendResult(
+      h.feed,
+      "t1",
+      "w1",
+      ready({
+        generation: "g1",
+        fromCursor: 0,
+        toCursor: 6,
+        data: "x🐱yzz",
+        columnChanges: [
+          { fromCursor: 0, columns: 48 },
+          { fromCursor: 4, columns: 100 },
+        ],
+      }),
+    );
+    expect(rec.snapshots[0]?.data).toBe("x🐱yzz");
+    expect(rec.snapshots[0]?.columnChanges).toEqual([
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 4, columns: 100 },
+    ]);
+
+    // A late listener's cache snapshot reports the same clipped geometry.
+    const late = recordingListener({ snapshot: true });
+    h.feed.watch("t1", late.listener);
+    expect(late.rec.snapshots[0]).toMatchObject({
+      fromCursor: 0,
+      toCursor: 6,
+      data: "x🐱yzz",
+      columnChanges: [
+        { fromCursor: 0, columns: 48 },
+        { fromCursor: 4, columns: 100 },
+      ],
+    });
+  });
+
+  it("records only the uncovered suffix of an overlapping live frame at its width", () => {
+    const h = createHarness();
+    connect(h);
+    const { listener, rec } = recordingListener({ snapshot: true });
+    h.feed.watch("t1", listener);
+    sendResult(
+      h.feed,
+      "t1",
+      "w1",
+      ready({
+        generation: "g1",
+        fromCursor: 0,
+        toCursor: 6,
+        data: "x🐱yzz",
+        columnChanges: [
+          { fromCursor: 0, columns: 48 },
+          { fromCursor: 4, columns: 100 },
+        ],
+      }),
+    );
+
+    // Frame spans 4..8 at 60 cols; cursor is 6, so only "Q!" (6..8) is
+    // uncovered — the covered 4..6 keeps the baseline's 100, never 60.
+    h.feed.handleServerMessage(tag("t1", "w1", "g1", 4, "zzQ!", 60));
+    expect(rec.output).toEqual(["Q!"]);
+
+    // A fieldless frame records an unknown span: it must not adopt 60.
+    h.feed.handleServerMessage(tag("t1", "w1", "g1", 8, "hi"));
+    expect(rec.output).toEqual(["Q!", "hi"]);
+
+    const late = recordingListener({ snapshot: true });
+    h.feed.watch("t1", late.listener);
+    expect(late.rec.snapshots[0]).toMatchObject({
+      fromCursor: 0,
+      toCursor: 10,
+      data: "x🐱yzzQ!hi",
+    });
+    expect(late.rec.snapshots[0]?.columnChanges).toEqual([
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 4, columns: 100 },
+      { fromCursor: 6, columns: 60 },
+      { fromCursor: 8, columns: null },
+    ]);
+  });
+
+  it("records widths for live frames buffered before the baseline installs", () => {
+    const h = createHarness();
+    connect(h);
+    h.feed.watch("t1", recordingListener({ snapshot: true }).listener);
+
+    // Buffered while awaiting the baseline: spans 0..4, only 2..4 is uncovered.
+    h.feed.handleServerMessage(tag("t1", "w1", "g1", 0, "abcd", 60));
+    sendResult(
+      h.feed,
+      "t1",
+      "w1",
+      ready({
+        generation: "g1",
+        fromCursor: 0,
+        toCursor: 2,
+        data: "ok",
+        columnChanges: [{ fromCursor: 0, columns: 48 }],
+      }),
+    );
+
+    const late = recordingListener({ snapshot: true });
+    h.feed.watch("t1", late.listener);
+    expect(late.rec.snapshots[0]).toMatchObject({
+      fromCursor: 0,
+      toCursor: 4,
+      data: "okcd",
+      columnChanges: [
+        { fromCursor: 0, columns: 48 },
+        { fromCursor: 2, columns: 60 },
+      ],
+    });
+  });
+
+  it("commits live width before onOutput so a reentrant watcher sees consistent geometry", () => {
+    const h = createHarness();
+    connect(h);
+    const base = recordingListener({ snapshot: true });
+    h.feed.watch("t1", base.listener);
+    sendResult(
+      h.feed,
+      "t1",
+      "w1",
+      ready({
+        generation: "g1",
+        fromCursor: 0,
+        toCursor: 3,
+        data: "abc",
+        columnChanges: [{ fromCursor: 0, columns: 48 }],
+      }),
+    );
+
+    // A listener that joins from inside onOutput must see the appended
+    // transcript AND its width together — not data with stale geometry.
+    const late = recordingListener({ snapshot: true });
+    let joined = false;
+    const joiner = recordingListener();
+    h.feed.watch("t1", {
+      ...joiner.listener,
+      onOutput(data) {
+        joiner.listener.onOutput(data);
+        if (joined) return;
+        joined = true;
+        h.feed.watch("t1", late.listener);
+      },
+    });
+
+    h.feed.handleServerMessage(tag("t1", "w1", "g1", 3, "xyz", 100));
+    expect(base.rec.output).toEqual(["xyz"]); // raw delivery preserved
+    expect(joiner.rec.output).toEqual(["xyz"]);
+    expect(late.rec.snapshots).toHaveLength(1);
+    expect(late.rec.snapshots[0]).toMatchObject({
+      fromCursor: 0,
+      toCursor: 6,
+      data: "abcxyz",
+      columnChanges: [
+        { fromCursor: 0, columns: 48 },
+        { fromCursor: 3, columns: 100 },
+      ],
+    });
+  });
+
+  it("clears geometry on reset and ignores widths from stale attempts", () => {
+    const h = createHarness();
+    connect(h);
+    const { listener, rec } = recordingListener({ snapshot: true });
+    h.feed.watch("t1", listener);
+    sendResult(
+      h.feed,
+      "t1",
+      "w1",
+      ready({
+        generation: "g1",
+        fromCursor: 0,
+        toCursor: 2,
+        data: "ok",
+        columnChanges: [{ fromCursor: 0, columns: 48 }],
+      }),
+    );
+
+    h.feed.emitReset("t1");
+    expect(h.watchIds()).toEqual(["w1", "w2"]);
+
+    // The retired attempt's width-tagged frame cannot leak into the new cache.
+    h.feed.handleServerMessage(tag("t1", "w1", "g1", 2, "XX", 100));
+
+    // A fieldless re-baseline emits no geometry at all.
+    sendResult(
+      h.feed,
+      "t1",
+      "w2",
+      ready({ generation: "g2", fromCursor: 0, toCursor: 2, data: "ok" }),
+    );
+    const late = recordingListener({ snapshot: true });
+    h.feed.watch("t1", late.listener);
+    expect(late.rec.snapshots[0]).toMatchObject({ generation: "g2", data: "ok" });
+    expect(late.rec.snapshots[0]).not.toHaveProperty("columnChanges");
+    expect(rec.output).toEqual([]);
   });
 });
 

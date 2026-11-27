@@ -7,6 +7,7 @@
 import { jsonRequest, readQualificationProtocolVersion } from "../qualification-http.mjs";
 export { jsonRequest } from "../qualification-http.mjs";
 import { pairingCredentialFromCliOutput, parseLastJsonLine } from "./server-process.mjs";
+import { redactSecrets } from "./redaction.mjs";
 
 /** Pair against the running daemon; the pairing URL never survives an error. */
 export async function pairAndAuthenticate(runCli, entry, env, httpBase, fetchImpl, doctorReport) {
@@ -43,15 +44,54 @@ export function assertDoctorOk(runCli, entry, env, label) {
   return report;
 }
 
-/** Authenticated status of the running owner (build identity + roots). */
+/**
+ * Authenticated running-owner build identity. Only `status --details --json`
+ * carries it, as { formatVersion: 1, view: "running-owner", status: { build,
+ * dataRoot } }. Plain `status --json` is the basic describe reply (no build),
+ * and `reply.result.build` is the raw host-control shape the CLI never emits —
+ * so no legacy CLI contract exists. Every mismatch fails closed, typed.
+ */
 export function readRunningStatus(runCli, entry, env) {
-  const reply = parseLastJsonLine(runCli(entry, ["status", "--json"], env).stdout);
-  if (!reply?.result?.build?.version) {
-    throw new Error(
-      `status --json returned no build identity: ${JSON.stringify(reply).slice(0, 500)}`,
+  let raw;
+  try {
+    raw = runCli(entry, ["status", "--details", "--json"], env).stdout;
+  } catch (error) {
+    const failure = new Error(
+      `status --details --json unavailable (requires host-control status / control protocol v2): ` +
+        redactSecrets(String(error?.message ?? error)),
+    );
+    failure.code = "STATUS_DETAILS_UNAVAILABLE";
+    throw failure;
+  }
+  let reply;
+  try {
+    reply = parseLastJsonLine(raw);
+  } catch (error) {
+    const failure = new Error(
+      `status --details --json returned invalid JSON: ${redactSecrets(String(error?.message ?? error))}`,
+    );
+    failure.code = "STATUS_CONTRACT_INVALID";
+    throw failure;
+  }
+  const bad = (message) => {
+    const failure = new Error(message);
+    failure.code = "STATUS_CONTRACT_INVALID";
+    throw failure;
+  };
+  if (reply?.formatVersion !== 1 || reply?.view !== "running-owner") {
+    bad(
+      `expected formatVersion 1 / running-owner status contract, got ` +
+        `${String(reply?.formatVersion)} / ${String(reply?.view)}`,
     );
   }
-  return reply.result;
+  const status = reply.status;
+  if (!status || typeof status.build?.version !== "string" || !status.build.version) {
+    bad("detailed status has no build.version to prove the exact candidate build");
+  }
+  if (typeof status.dataRoot !== "string" || !status.dataRoot) {
+    bad("detailed status has no dataRoot to locate the persisted payload database");
+  }
+  return status;
 }
 
 /** Tolerant read of a list route: modern bounded reads first, plain fallback. */

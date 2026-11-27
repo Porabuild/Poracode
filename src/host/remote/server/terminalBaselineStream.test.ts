@@ -272,6 +272,272 @@ describe("composeTerminalBaselineStream", () => {
   });
 });
 
+describe("composeTerminalBaselineStream terminal widths", () => {
+  type ColumnChange = { fromCursor: number; columns: number | null };
+
+  const widthAt = (changes: readonly ColumnChange[], cursor: number): number | null => {
+    let columns: number | null = null;
+    for (const marker of changes) {
+      if (marker.fromCursor > cursor) break;
+      columns = marker.columns;
+    }
+    return columns;
+  };
+
+  const expectChunkStream = (
+    stream: ReturnType<typeof composeTerminalBaselineStream>,
+    data: string,
+    fromCursor: number,
+    changes: readonly ColumnChange[],
+    budgetBytes: number,
+  ) => {
+    let cursor = fromCursor;
+    let joined = "";
+    for (const [index, chunk] of stream.chunks.entries()) {
+      expect(chunk.chunkIndex).toBe(index);
+      expect(chunk.chunkCount).toBe(stream.chunks.length);
+      expect(chunk.fromCursor).toBe(cursor);
+      expect(chunk.toCursor - chunk.fromCursor).toBe(chunk.data.length);
+      cursor = chunk.toCursor;
+      joined += chunk.data;
+      const width = widthAt(changes, chunk.fromCursor);
+      if (width === null) {
+        expect(chunk).not.toHaveProperty("terminalColumns");
+      } else {
+        expect(chunk.terminalColumns).toBe(width);
+      }
+      const message = remoteWebSocketServerMessageSchema.parse(JSON.parse(stream.messages[index]!));
+      expect(message.type).toBe("terminal-watch-baseline-chunk");
+      expect(Buffer.byteLength(stream.messages[index]!, "utf8")).toBe(stream.messageBytes[index]);
+      expect(stream.messageBytes[index]!).toBeLessThanOrEqual(budgetBytes);
+    }
+    expect(joined).toBe(data);
+    expect(cursor).toBe(fromCursor + data.length);
+  };
+
+  const readyResult = (
+    data: string,
+    columnChanges?: ColumnChange[],
+  ): Parameters<typeof composeTerminalBaselineStream>[0]["result"] => ({
+    status: "ready",
+    generation: "g1",
+    fromCursor: 0,
+    toCursor: data.length,
+    data,
+    processState: "running",
+    terminalSize: null,
+    ...(columnChanges ? { columnChanges } : {}),
+  });
+
+  it("splits chunks at width transitions and keeps every envelope under budget", () => {
+    const data = "x".repeat(3000);
+    const changes: ColumnChange[] = [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 1000, columns: 100 },
+      { fromCursor: 2000, columns: null },
+    ];
+    const stream = composeTerminalBaselineStream({
+      terminalId: "t1",
+      watchId: "w1",
+      result: readyResult(data, changes),
+      resume: undefined,
+      maxChunkBytes: 1024,
+      maxWindowBytes: undefined,
+    });
+    expect(stream.chunks.length).toBeGreaterThan(3);
+    expectChunkStream(stream, data, 0, changes, 1024);
+    // A width transition is always a chunk boundary.
+    for (const chunk of stream.chunks) {
+      for (const marker of changes.slice(1)) {
+        const straddles =
+          chunk.fromCursor < marker.fromCursor && chunk.toCursor > marker.fromCursor;
+        expect(straddles).toBe(false);
+      }
+    }
+  });
+
+  it("preserves the earlier known width at a clipped resume offset", () => {
+    const data = "y".repeat(600);
+    const changes: ColumnChange[] = [
+      { fromCursor: 0, columns: 48 },
+      { fromCursor: 200, columns: 100 },
+      { fromCursor: 400, columns: null },
+    ];
+    const stream = composeTerminalBaselineStream({
+      terminalId: "t1",
+      watchId: "w1",
+      result: readyResult(data, changes),
+      resume: { generation: "g1", cursor: 250 },
+      maxChunkBytes: 2048,
+      maxWindowBytes: undefined,
+    });
+    expect(stream.resumeServed).toBe(true);
+    expectChunkStream(stream, data.slice(250), 250, changes, 2048);
+    expect(stream.chunks[0]!.fromCursor).toBe(250);
+    expect(stream.chunks[0]!.terminalColumns).toBe(100);
+    const unknownTail = stream.chunks.filter((chunk) => chunk.fromCursor >= 400);
+    expect(unknownTail.length).toBeGreaterThan(0);
+    for (const chunk of unknownTail) {
+      expect(chunk).not.toHaveProperty("terminalColumns");
+    }
+  });
+
+  it("budgets for the absolute cursor after a long transcript is pruned", () => {
+    const data = "x".repeat(2500);
+    const toCursor = Number.MAX_SAFE_INTEGER;
+    const fromCursor = toCursor - data.length;
+    const changes = [{ fromCursor, columns: 48 }];
+    const stream = composeTerminalBaselineStream({
+      terminalId: "fixture",
+      watchId: "fixture",
+      result: { ...readyResult(data, changes), fromCursor, toCursor },
+      resume: undefined,
+      maxChunkBytes: 1024,
+      maxWindowBytes: undefined,
+    });
+    expect(stream.chunks.length).toBeGreaterThan(1);
+    expectChunkStream(stream, data, fromCursor, changes, 1024);
+  });
+
+  it("moves a width split between a surrogate pair just past that scalar", () => {
+    const data = `${"a".repeat(10)}\u{1F600}${"b".repeat(20)}`;
+    expect(data.length).toBe(32);
+    const changes: ColumnChange[] = [
+      { fromCursor: 0, columns: 48 },
+      // The boundary lands between the pair's high and low surrogates.
+      { fromCursor: 11, columns: 100 },
+    ];
+    const stream = composeTerminalBaselineStream({
+      terminalId: "t1",
+      watchId: "w1",
+      result: readyResult(data, changes),
+      resume: undefined,
+      maxChunkBytes: undefined,
+      maxWindowBytes: undefined,
+    });
+    expectChunkStream(stream, data, 0, changes, 8192);
+    expect(stream.chunks).toHaveLength(2);
+    expect(stream.chunks[0]).toMatchObject({
+      fromCursor: 0,
+      toCursor: 12,
+      terminalColumns: 48,
+    });
+    expect(stream.chunks[0]!.data).toBe(data.slice(0, 12));
+    expect(stream.chunks[0]!.data.endsWith("\u{1F600}")).toBe(true);
+    expect(stream.chunks[1]).toMatchObject({
+      fromCursor: 12,
+      toCursor: 32,
+      terminalColumns: 100,
+    });
+  });
+
+  it("keeps the empty up-to-date completion chunk without a width", () => {
+    const stream = composeTerminalBaselineStream({
+      terminalId: "t1",
+      watchId: "w1",
+      result: readyResult("z".repeat(100), [
+        { fromCursor: 0, columns: 48 },
+        { fromCursor: 60, columns: 100 },
+      ]),
+      resume: { generation: "g1", cursor: 100 },
+      maxChunkBytes: undefined,
+      maxWindowBytes: undefined,
+    });
+    expect(stream.resumeServed).toBe(true);
+    expect(stream.chunks).toHaveLength(1);
+    expect(stream.chunks[0]).toMatchObject({
+      fromCursor: 100,
+      toCursor: 100,
+      data: "",
+      processState: "running",
+      resumeServed: true,
+    });
+    // No output units to assign a width to; the last observation may even
+    // precede a subsequent resize, so the scalar stays off the wire.
+    expect(stream.chunks[0]).not.toHaveProperty("terminalColumns");
+  });
+
+  it("omits terminalColumns on an empty baseline even with known geometry", () => {
+    const stream = composeTerminalBaselineStream({
+      terminalId: "t1",
+      watchId: "w1",
+      result: readyResult("", [{ fromCursor: 0, columns: 48 }]),
+      resume: undefined,
+      maxChunkBytes: undefined,
+      maxWindowBytes: undefined,
+    });
+    expect(stream.chunks).toHaveLength(1);
+    expect(stream.chunks[0]).toMatchObject({
+      fromCursor: 0,
+      toCursor: 0,
+      data: "",
+      processState: "running",
+      resumeServed: false,
+    });
+    expect(stream.chunks[0]).not.toHaveProperty("terminalColumns");
+  });
+
+  it("omits terminalColumns entirely when the snapshot has no width history", () => {
+    const data = "q".repeat(2000);
+    const stream = composeTerminalBaselineStream({
+      terminalId: "t1",
+      watchId: "w1",
+      result: readyResult(data),
+      resume: undefined,
+      maxChunkBytes: 1024,
+      maxWindowBytes: undefined,
+    });
+    expect(stream.chunks.length).toBeGreaterThan(1);
+    for (const chunk of stream.chunks) {
+      expect(chunk).not.toHaveProperty("terminalColumns");
+    }
+    expectChunkStream(stream, data, 0, [], 1024);
+  });
+});
+
+describe("sliceTerminalBaselineChunks degenerate budgets", () => {
+  // budgetBytes - envelopeOverheadBytes leaves one byte of data budget.
+  const slice = (data: string) =>
+    sliceTerminalBaselineChunks({
+      data,
+      fromCursor: 0,
+      budgetBytes: 8,
+      envelopeOverheadBytes: 7,
+    });
+
+  it("makes progress past a control byte that cannot fit the budget", () => {
+    // ESC escapes to 6 JSON bytes; with a 1-byte data budget no code point
+    // fits, so the oversize fallback must still advance one scalar.
+    const chunks = slice("\u001bZ");
+    expect(chunks).toEqual([
+      { fromCursor: 0, toCursor: 1, data: "\u001b" },
+      { fromCursor: 1, toCursor: 2, data: "Z" },
+    ]);
+  });
+
+  it("advances by a whole surrogate pair, never half, under a tiny budget", () => {
+    const pair = "\u{1F600}";
+    expect(pair.length).toBe(2);
+    const chunks = slice(pair);
+    expect(chunks).toEqual([{ fromCursor: 0, toCursor: 2, data: pair }]);
+  });
+
+  it("counts a lone surrogate as its 6-byte JSON escape within a feasible budget", () => {
+    // A lone high surrogate costs 6 escaped bytes, 'x' costs 1: with a 6-byte
+    // data budget they cannot share a chunk.
+    const chunks = sliceTerminalBaselineChunks({
+      data: "\uD800x",
+      fromCursor: 0,
+      budgetBytes: 13,
+      envelopeOverheadBytes: 7,
+    });
+    expect(chunks).toEqual([
+      { fromCursor: 0, toCursor: 1, data: "\uD800" },
+      { fromCursor: 1, toCursor: 2, data: "x" },
+    ]);
+  });
+});
+
 describe("TerminalBaselineStreamScheduler", () => {
   interface Harness {
     scheduler: TerminalBaselineStreamScheduler;

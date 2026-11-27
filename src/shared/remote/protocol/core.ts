@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { toolPresentationCatalogSlotSchema } from "../../contracts/toolPresentation";
-import { terminalSizeSchema, threadContextUsageSchema } from "../../contracts";
+import {
+  terminalSizeSchema,
+  terminalSnapshotSchema,
+  threadContextUsageSchema,
+} from "../../contracts";
 import { gitStatePatchSchema } from "../../gitState";
 
 // v11 adds the daily usage window. Older native bindings reject unknown
@@ -472,6 +476,13 @@ export const remoteTerminalCursorSchema = z
 export type RemoteTerminalCursor = z.infer<typeof remoteTerminalCursorSchema>;
 
 /**
+ * Observed PTY width in columns for one homogeneous terminal span. Same
+ * bounds as `terminalSize.cols`; absent when the width is unknown. Additive
+ * within the cursor-sync framing versions — older readers strip it.
+ */
+const remoteTerminalColumnsSchema = terminalSizeSchema.shape.cols;
+
+/**
  * Client opt-in on `terminal-watch`. Accepts any positive version so unsupported
  * future values are explicit server errors rather than silent schema drops.
  * Servers advertise supported versions via environment capabilities.
@@ -520,6 +531,14 @@ export const remoteTerminalWatchResultReadySchema = z
     data: z.string(),
     processState: z.enum(["running", "exited"]),
     terminalSize: terminalSizeSchema.nullable(),
+    /**
+     * Additive width history copied from the supervisor snapshot: each entry
+     * marks the columns in effect from its `fromCursor` until the next entry,
+     * with `columns: null` an unknown span. Same shape and bound as
+     * `TerminalSnapshot.columnChanges`; absent when the host recorded no
+     * widths (older snapshots, persisted fallback). Old readers strip it.
+     */
+    columnChanges: terminalSnapshotSchema.shape.columnChanges,
   })
   .superRefine((value, ctx) => {
     if (value.fromCursor > value.toCursor) {
@@ -563,6 +582,8 @@ export const remoteTerminalOutputCursorSyncV1Schema = z
     generation: z.string().min(1),
     fromCursor: remoteTerminalCursorSchema,
     toCursor: remoteTerminalCursorSchema,
+    /** Observed PTY width for this homogeneous output span; absent when unknown. */
+    terminalColumns: remoteTerminalColumnsSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.fromCursor > value.toCursor) {
@@ -603,6 +624,13 @@ export const remoteTerminalWatchBaselineChunkSchema = z
     terminalSize: terminalSizeSchema.nullable(),
     /** True = delta from the client's resume cursor; false = full window. */
     resumeServed: z.boolean(),
+    /**
+     * Observed PTY width for this chunk's homogeneous span; absent when the
+     * width is unknown. Chunks never mix widths: the host splits the baseline
+     * at width transitions before budgeting, so every chunk carries at most
+     * one width.
+     */
+    terminalColumns: remoteTerminalColumnsSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.chunkIndex >= value.chunkCount) {

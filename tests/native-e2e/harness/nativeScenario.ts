@@ -121,6 +121,8 @@ export class NativeScenarioController implements NativeScenarioControl {
         "clear-faults",
         "background-task-stage",
         "background-task-output-delay",
+        "background-task-output-hold",
+        "background-task-output-release",
         "await",
       ],
       awaitConditions: ["revision-at-least", "operations-observed", "pairing-state", "host-count"],
@@ -207,6 +209,16 @@ export class NativeScenarioController implements NativeScenarioControl {
         break;
       case "background-task-output-delay":
         this.primary.backgroundTasks.delayNextRead(action.delayMs);
+        this.changed();
+        result = this.result(action.type);
+        break;
+      case "background-task-output-hold":
+        this.primary.backgroundTasks.holdNextOutputRead();
+        this.changed();
+        result = this.result(action.type);
+        break;
+      case "background-task-output-release":
+        this.primary.backgroundTasks.releaseOutputRead();
         this.changed();
         result = this.result(action.type);
         break;

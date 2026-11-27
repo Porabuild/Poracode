@@ -5,6 +5,7 @@ import com.poracode.app.model.terminal.TerminalDimensions
 import com.poracode.app.model.terminal.TerminalProcessState
 import com.poracode.app.model.terminal.TerminalServerFrame
 import com.poracode.app.model.terminal.TerminalWatchErrorCode
+import com.poracode.remote.v3.generated.TerminalCursorColumnChange
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -96,6 +97,89 @@ class TerminalRemoteV3CodecTest {
 
         val invalid = valid.replace("\"toCursor\":6", "\"toCursor\":5")
         assertTrue(runCatching { TerminalRemoteV3Codec.decodeServerFrame(invalid) }.isFailure)
+    }
+
+    @Test
+    fun v1OutputSynthesizesOneWidthMarkerAndBaselineDecodesColumnChanges() {
+        val output = """{
+          "type":"terminal-output","id":"t","data":"abc",
+          "cursorSync":{"version":1,"watchId":"w","generation":"g",
+            "fromCursor":4,"toCursor":7,"terminalColumns":80}
+        }"""
+        val frame = TerminalRemoteV3Codec.decodeServerFrame(output)
+            as TerminalServerFrame.Cursor
+        assertEquals(
+            listOf(TerminalCursorColumnChange(4, 80)),
+            frame.frame.columnChanges,
+        )
+
+        // The wire schema bounds terminalColumns to 20...400 ints, so any
+        // unusable scalar fails canonical decode like other malformed fields.
+        for (bad in listOf("10", "\"eighty\"", "401", "48.5")) {
+            val widthless = output.replace("\"terminalColumns\":80", "\"terminalColumns\":$bad")
+            assertTrue(runCatching { TerminalRemoteV3Codec.decodeServerFrame(widthless) }.isFailure)
+        }
+
+        val baseline = """{
+          "type":"terminal-watch-result","id":"t",
+          "cursorSync":{"version":1,"watchId":"w","result":{
+            "status":"ready","data":"abc","fromCursor":0,"toCursor":3,
+            "generation":"g","processState":"running","terminalSize":null,
+            "columnChanges":[{"fromCursor":0,"columns":48},
+              {"fromCursor":3,"columns":null}]}}
+        }"""
+        val result = TerminalRemoteV3Codec.decodeServerFrame(baseline)
+            as TerminalServerFrame.Cursor
+        assertEquals(
+            listOf(
+                TerminalCursorColumnChange(0, 48),
+                TerminalCursorColumnChange(3, null),
+            ),
+            result.frame.columnChanges,
+        )
+
+        // Malformed optional chronology drops the whole list; the raw frame
+        // stays intact.
+        val malformed = baseline.replace(
+            "{\"fromCursor\":0,\"columns\":48}",
+            "{\"fromCursor\":5,\"columns\":48}",
+        )
+        val dropped = TerminalRemoteV3Codec.decodeServerFrame(malformed)
+            as TerminalServerFrame.Cursor
+        assertEquals("abc", dropped.frame.data)
+        assertEquals(emptyList<TerminalCursorColumnChange>(), dropped.frame.columnChanges)
+    }
+
+    @Test
+    fun emptyBaselineDiscardsOptionalColumnChanges() {
+        // An up-to-date resume carries no output units, so optional width
+        // history is dropped like iOS/TS even when the host sends it.
+        val baseline = """{
+          "type":"terminal-watch-result","id":"t",
+          "cursorSync":{"version":1,"watchId":"w","result":{
+            "status":"ready","data":"","fromCursor":3,"toCursor":3,
+            "generation":"g","processState":"running","terminalSize":null,
+            "columnChanges":[{"fromCursor":0,"columns":48}]}}
+        }"""
+        val result = TerminalRemoteV3Codec.decodeServerFrame(baseline)
+            as TerminalServerFrame.Cursor
+        assertEquals("", result.frame.data)
+        assertEquals(emptyList<TerminalCursorColumnChange>(), result.frame.columnChanges)
+    }
+
+    @Test
+    fun v2ChunkDecodesTheNullableTerminalColumnsScalar() {
+        val root = Json.parseToJsonElement(fixture("ws-terminal-cursor-sync-v2.json")).jsonObject
+        val chunks = root.getValue("chunks").jsonArray
+        val withWidth = chunks.first().toString()
+            .replace("\"data\":", "\"terminalColumns\":100,\"data\":")
+        val decoded = TerminalRemoteV3Codec.decodeServerFrame(withWidth)
+            as TerminalServerFrame.BaselineChunk
+        assertEquals(100, decoded.chunk.terminalColumns)
+
+        val without = TerminalRemoteV3Codec.decodeServerFrame(chunks.first().toString())
+            as TerminalServerFrame.BaselineChunk
+        assertEquals(null, without.chunk.terminalColumns)
     }
 
     @Test

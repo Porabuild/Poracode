@@ -42,6 +42,7 @@ import type {
   RemoteTerminalWatchResultError,
   RemoteTerminalWatchResultReady,
 } from "@/shared/remote/protocol";
+import { segmentTerminalTranscript } from "@/shared/terminalTranscriptSegments";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
@@ -396,6 +397,9 @@ export const XTermSurface = forwardRef<
     // (possibly stale / byte-sliced) replayed scrollback.
     const forceAgentRepaint = () => {
       if (!isActive || !visibleRef.current || !resizeTerminalOnFit || fixedTerminalSize) return;
+      // Recorded replay widths are temporary; hydration completion repaints
+      // once the viewport width is restored.
+      if (replayGate.replayingAtRecordedColumns) return;
       const { cols, rows } = backingTerminalSize();
       if (cols < 20 || rows < 5) return;
       // Pin our throttle bookkeeping to the REAL size so the next doFit doesn't
@@ -644,6 +648,16 @@ export const XTermSurface = forwardRef<
     const flushPtyResize = () => {
       ptyResizeTimer = 0;
       if (!isActive) return;
+      // A geometry replay resizes the terminal to recorded widths; those are
+      // not the viewport's, so they must never reach the backing PTY.
+      // Invalidate the last fit and requeue so the real size is sent after
+      // the replay restores the viewport width.
+      if (replayGate.replayingAtRecordedColumns) {
+        lastFitWidth = -1;
+        lastFitHeight = -1;
+        scheduleResize();
+        return;
+      }
       const { cols, rows } = backingTerminalSize();
       if (cols === lastCols && rows === lastRows) return;
       if (cols < 20 || rows < 5) return;
@@ -662,6 +676,15 @@ export const XTermSurface = forwardRef<
       if (!isActive || !mount) return;
       // The parking host has no authoritative terminal dimensions.
       if (!visibleRef.current) return;
+
+      // A geometry replay temporarily resizes the terminal to recorded PTY
+      // widths; fitting now would overwrite them and pin bogus dimensions.
+      // Requeue the coalesced fit so the real viewport is applied after the
+      // replay restores the width.
+      if (replayGate.replayingAtRecordedColumns) {
+        scheduleResize();
+        return;
+      }
 
       const width = mount.clientWidth;
       const height = mount.clientHeight;
@@ -1123,10 +1146,23 @@ export const XTermSurface = forwardRef<
       writeQueue.clear();
       // A feed baseline replaces the display. Its historical queries must not
       // produce replies to the current PTY while reconciled live bytes wait.
-      replayGate.begin(snapshot.data, {
-        before: resetTerminal,
-        complete: () => finishHydration(token, snapshot.data.length > 0),
-      });
+      const complete = () => finishHydration(token, snapshot.data.length > 0);
+      // A snapshot carrying recorded PTY widths replays each width-homogeneous
+      // span at its own columns; unknown spans fall back to the viewport width
+      // inside the gate. Fieldless snapshots keep the legacy single write.
+      const segments = segmentTerminalTranscript(
+        snapshot.data,
+        snapshot.fromCursor,
+        snapshot.columnChanges,
+      ).map((segment) => ({
+        data: segment.data,
+        ...(segment.columns === null ? {} : { columns: segment.columns }),
+      }));
+      if (segments.some((segment) => segment.columns !== undefined)) {
+        replayGate.beginSegments(segments, { before: resetTerminal, complete });
+      } else {
+        replayGate.begin(snapshot.data, { before: resetTerminal, complete });
+      }
     };
 
     const handleWatchError = (error: RemoteTerminalWatchResultError) => {

@@ -5,6 +5,7 @@ import {
   type RemoteTerminalWatchResultError,
   type RemoteTerminalWatchResultReady,
 } from "./protocol";
+import { TerminalColumnHistory, knownTerminalColumns } from "../terminalColumnHistory";
 import { reconcileTerminalRange, type TerminalPosition } from "./terminalRange";
 
 /**
@@ -52,6 +53,8 @@ export interface TerminalWatchFrame {
   readonly fromCursor: number;
   readonly toCursor: number;
   readonly data: string;
+  /** Observed PTY width for this homogeneous output span; absent when unknown. */
+  readonly terminalColumns?: number;
 }
 
 /** Feed-owned callbacks the session uses to reach the wire and the listeners. */
@@ -137,6 +140,8 @@ export class TerminalWatchSession {
   private cacheData = "";
   /** Absolute cursor of `cacheData[0]`; shifts when the cache front-trims. */
   private cacheFromCursor = 0;
+  /** Recorded PTY widths over the retained cache range; cleared with it. */
+  private columnHistory = new TerminalColumnHistory();
   private processState: RemoteTerminalWatchResultReady["processState"] = "running";
   private terminalSize: RemoteTerminalWatchResultReady["terminalSize"] = null;
 
@@ -178,6 +183,7 @@ export class TerminalWatchSession {
   currentSnapshot(): RemoteTerminalWatchResultReady | null {
     const position = this.position;
     if (!position) return null;
+    const columnChanges = this.columnHistory.snapshot(this.cacheFromCursor, position.cursor);
     return {
       status: "ready",
       generation: position.generation,
@@ -186,6 +192,9 @@ export class TerminalWatchSession {
       data: this.cacheData,
       processState: this.processState,
       terminalSize: this.terminalSize,
+      // Geometry is emitted only when at least one width is known; unknown
+      // regions already read as null markers inside the clipped range.
+      ...(columnChanges.some((change) => change.columns !== null) ? { columnChanges } : {}),
     };
   }
 
@@ -242,6 +251,7 @@ export class TerminalWatchSession {
     this.position = null;
     this.cacheData = "";
     this.cacheFromCursor = 0;
+    this.columnHistory = new TerminalColumnHistory();
     this.stopped = false;
     this.lastStopError = null;
   }
@@ -267,7 +277,7 @@ export class TerminalWatchSession {
       this.resync();
       return;
     }
-    this.append(result.data, result.toCursor);
+    this.append(result.data, result.toCursor, frame.terminalColumns);
   }
 
   /** Untagged frame while a cursor-sync watch is installed: the reliable
@@ -392,6 +402,10 @@ export class TerminalWatchSession {
     const previous = this.position;
     this.setCache(ready.data, ready.fromCursor);
     this.position = { generation: ready.generation, cursor: ready.toCursor };
+    // Re-authoritative replace: the bound column history restarts from the
+    // snapshot's own markers, clipped to the retained cache window.
+    this.columnHistory = new TerminalColumnHistory();
+    this.columnHistory.recordChanges(this.cacheFromCursor, ready.toCursor, ready.columnChanges);
     this.processState = ready.processState;
     this.terminalSize = ready.terminalSize;
     this.awaitingBaseline = false;
@@ -427,7 +441,7 @@ export class TerminalWatchSession {
         this.resync();
         return;
       }
-      this.append(result.data, result.toCursor);
+      this.append(result.data, result.toCursor, frame.terminalColumns);
     }
   }
 
@@ -451,7 +465,7 @@ export class TerminalWatchSession {
     this.pendingUnits += units;
   }
 
-  private append(data: string, toCursor: number): void {
+  private append(data: string, toCursor: number, terminalColumns?: number): void {
     const position = this.position;
     if (!position) return;
     this.position = { generation: position.generation, cursor: toCursor };
@@ -463,6 +477,15 @@ export class TerminalWatchSession {
       const cut = this.cacheData.length - this.limits.cacheUnits;
       this.cacheData = this.cacheData.slice(cut);
       this.cacheFromCursor += cut;
+    }
+    // Commit the accepted span's layout with the transcript before any
+    // listener callback: a reentrant watch() sees both together, and a
+    // reentrant reset/replace discards them together. Only the uncovered
+    // suffix is recorded; widthless frames leave a natural null gap instead
+    // of consuming the known-span cap.
+    const columns = knownTerminalColumns(terminalColumns);
+    if (columns !== null) {
+      this.columnHistory.record(toCursor - data.length, toCursor, columns);
     }
     this.host.deliverOutput(data);
   }
@@ -488,6 +511,7 @@ export class TerminalWatchSession {
     this.position = null;
     this.cacheData = "";
     this.cacheFromCursor = 0;
+    this.columnHistory = new TerminalColumnHistory();
     this.processState = "running";
     this.terminalSize = null;
     this.retryAttempt = 0;

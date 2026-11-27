@@ -1,5 +1,6 @@
 package com.poracode.app.chat
 
+import com.poracode.remote.v3.generated.TerminalCursorColumnChange
 import com.poracode.remote.v3.generated.TerminalCursorFrameKind
 
 import com.poracode.app.model.terminal.TerminalBaselineChunk
@@ -121,6 +122,58 @@ class TerminalBaselineAssemblerTest {
         assertEquals(108L, resumeDone.throughCursor)
     }
 
+    @Test
+    fun knownChunkWidthsCoalesceIntoCanonicalMarkersWithUnknownGaps() {
+        val assembler = TerminalBaselineAssembler()
+        assembler.offer(
+            chunk(index = 0, from = 0, to = 3, data = "abc", count = 4, columns = 48),
+        )
+        assembler.offer(chunk(index = 1, from = 3, to = 6, data = "def", count = 4))
+        assembler.offer(
+            chunk(index = 2, from = 6, to = 9, data = "ghi", count = 4, columns = 48),
+        )
+        val done = assembler.offer(
+            chunk(index = 3, from = 9, to = 12, data = "jkl", count = 4, columns = 100),
+        ) as TerminalBaselineAssembler.Outcome.Complete
+        assertEquals(
+            listOf(
+                TerminalCursorColumnChange(0, 48),
+                TerminalCursorColumnChange(3, null),
+                TerminalCursorColumnChange(6, 48),
+                TerminalCursorColumnChange(9, 100),
+            ),
+            done.frame.columnChanges,
+        )
+    }
+
+    @Test
+    fun contiguousEqualWidthsMergeAndUnusableWidthsStayUnknown() {
+        val assembler = TerminalBaselineAssembler()
+        assembler.offer(
+            chunk(index = 0, from = 0, to = 3, data = "abc", count = 3, columns = 48),
+        )
+        assembler.offer(
+            chunk(index = 1, from = 3, to = 6, data = "def", count = 3, columns = 48),
+        )
+        val done = assembler.offer(
+            chunk(index = 2, from = 6, to = 9, data = "ghi", count = 3, columns = 9),
+        ) as TerminalBaselineAssembler.Outcome.Complete
+        // The unusable width leaves an unknown tail; equal adjacent widths merged.
+        assertEquals(
+            listOf(
+                TerminalCursorColumnChange(0, 48),
+                TerminalCursorColumnChange(6, null),
+            ),
+            done.frame.columnChanges,
+        )
+
+        val empty = TerminalBaselineAssembler()
+        val emptyDone = empty.offer(
+            chunk(index = 0, from = 0, to = 0, data = "", count = 1, columns = 48),
+        ) as TerminalBaselineAssembler.Outcome.Complete
+        assertEquals(emptyList<TerminalCursorColumnChange>(), emptyDone.frame.columnChanges)
+    }
+
     private fun chunk(
         index: Int,
         from: Long,
@@ -129,6 +182,7 @@ class TerminalBaselineAssemblerTest {
         count: Int = 3,
         generation: String = "generation-1",
         resume: Boolean = false,
+        columns: Int? = null,
     ) = TerminalBaselineChunk(
         terminalId = "terminal-1",
         watchId = "watch-2",
@@ -141,5 +195,6 @@ class TerminalBaselineAssemblerTest {
         processState = TerminalProcessState.Running,
         dimensions = if (index == count - 1) TerminalDimensions(80, 24) else null,
         resumeServed = resume,
+        terminalColumns = columns,
     )
 }

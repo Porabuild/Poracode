@@ -7,17 +7,20 @@
  *
  *  1. Resolve the newest stable published GitHub release strictly below the
  *     candidate version that publishes a `server-artifact-<platform>-<arch>.json`
- *     metadata file for the running target.
+ *     metadata file for the running target. For 2.0.0 only, use a published
+ *     2.0.0 nightly if no stable server artifact exists.
  *  2. Download that release's metadata + tarball, validate the metadata, and
  *     verify the published sha256 checksum. No checksum, no gate.
  *  3. Install the N-1 release into a prefix OUTSIDE this checkout, start it,
  *     and seed representative real persisted payloads through its
- *     authenticated HTTP surface: a project (catalog), a terminal thread with
- *     a genuinely executed turn, a thread goal where the release supports it,
- *     and an interrupted command receipt written into the release's own
- *     database. Every seeded row is fingerprinted from sqlite before the
- *     upgrade so the post-upgrade comparison is against real N-1-written
- *     bytes, never assumptions.
+ *     authenticated HTTP surface: a project (catalog), a persisted terminal
+ *     thread with a genuinely executed PTY turn (started through the real
+ *     thread `start` command with a deterministic isolated fixture provider,
+ *     never a real authenticated LLM), a thread goal where the release
+ *     supports it, and an interrupted command receipt written into the
+ *     release's own database. Every seeded row is fingerprinted from sqlite
+ *     before the upgrade so the post-upgrade comparison is against real
+ *     N-1-written bytes, never assumptions.
  *  4. Upgrade the same prefix in place to the candidate tarball with the
  *     server's own `upgrade` CLI, then reopen and assert: every seeded
  *     payload survived, the running build identity is the exact candidate
@@ -36,15 +39,15 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   readlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installServerPrefix } from "./install-server-prefix.mjs";
 import { readServerArtifactMetadata } from "./server-artifact-metadata.mjs";
@@ -60,6 +63,7 @@ import {
   selectN1Release,
 } from "./server-n1-qualification/selection.mjs";
 import { redactSecrets } from "./server-n1-qualification/redaction.mjs";
+import { serverBundleSupportsD4 } from "./server-n1-qualification/server-bundle.mjs";
 import { classifyDowngradeRefusalPlan } from "./server-n1-qualification/downgrade-plan.mjs";
 import { downloadAsset, fetchAllReleases } from "./server-n1-qualification/github-releases.mjs";
 import {
@@ -84,7 +88,6 @@ import {
 import {
   assertPrefixOutsideCheckout,
   gitInit,
-  makeProjectLocation,
   sha256File,
 } from "./server-n1-qualification/workspace.mjs";
 import {
@@ -111,9 +114,11 @@ export {
   assertTarballChecksum,
   redactSecrets,
   classifyDowngradeRefusalPlan,
+  readRunningStatus,
 };
 export { compareSemver, serverArtifactAssetName } from "./server-n1-qualification/selection.mjs";
 export { pairingCredentialFromCliOutput } from "./server-n1-qualification/server-process.mjs";
+export { fingerprintPayloads } from "./server-n1-qualification/sqlite-payloads.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -123,6 +128,70 @@ const SHELL_ID = "n1-qual-shell";
 const SHELL_MARKER_OUTPUT = "n1q-86-turn";
 const GOAL_MARKER = `n1-qual-goal-${Date.now().toString(36)}`;
 const RECEIPT_ID = `n1-qual-receipt-${Date.now().toString(36)}`;
+
+// Deterministic fixture "provider": probes (non-TTY) get a version; the real
+// thread PTY (TTY) execs an interactive shell, ignoring all CLI args.
+// prepareN1FixtureProvider installs it at <isolated HOME>/.local/bin and
+// returns the HOME/PATH/SHELL overlay that keeps resolution on the fixture;
+// no real profile or authenticated LLM is ever involved.
+const FIXTURE_AGENT_KIND = "claude";
+const FIXTURE_BINARY = "claude";
+const FIXTURE_PROVIDER_SCRIPT = `#!/bin/sh
+if [ -t 1 ]; then
+  exec /bin/sh
+else
+  echo "2.0.0 (poracode-n1-fixture)"
+  exit 0
+fi
+`;
+
+// Fixture-owned SHELL. Nothing in the qualification needs login startup —
+// the real provider PTY is already the fixture /bin/sh and workspace plain
+// shells only need an interactive shell — so a leading -l is stripped on
+// every call: a real login shell would run the host's /etc/profile, which can
+// reorder PATH and execute host startup code. The native Node probe
+// (probeUserNode) uses the combined -lic form; it is normalized to -c before
+// the separate-option handling. -i is stripped only when it precedes -c,
+// ENV/BASH_ENV are unset, and the rest of argv reaches /bin/sh literally (a
+// bare invocation still reads commands from stdin/PTY).
+const FIXTURE_SHELL_SCRIPT = `#!/bin/sh
+unset ENV BASH_ENV
+if [ "$1" = "-lic" ]; then
+  shift
+  set -- "-c" "$@"
+fi
+if [ "$1" = "-l" ]; then
+  shift
+fi
+if [ "$1" = "-i" ] && [ "$2" = "-c" ]; then
+  shift
+fi
+exec /bin/sh "$@"
+`;
+
+/**
+ * Install the deterministic fixture provider under an isolated HOME and
+ * return the env overlay every N-1/candidate/downgrade process needs. HOME
+ * pins homedir()/.local/bin resolution; PATH prepends that bin dir while
+ * retaining the inherited search path for normal dependencies; SHELL points
+ * at a fixture-owned shim that strips login flags so `$SHELL -l [-i] -c`
+ * probes and bare `-l` shells never run host startup files.
+ */
+export function prepareN1FixtureProvider(fixtureHome, inheritedPath = process.env.PATH) {
+  const binDir = join(fixtureHome, ".local", "bin");
+  mkdirSync(binDir, { recursive: true });
+  const fixturePath = join(binDir, FIXTURE_BINARY);
+  writeFileSync(fixturePath, FIXTURE_PROVIDER_SCRIPT);
+  chmodSync(fixturePath, 0o755);
+  const shellPath = join(fixtureHome, "n1-fixture-shell");
+  writeFileSync(shellPath, FIXTURE_SHELL_SCRIPT);
+  chmodSync(shellPath, 0o755);
+  return {
+    HOME: fixtureHome,
+    PATH: inheritedPath ? `${binDir}${delimiter}${inheritedPath}` : binDir,
+    SHELL: shellPath,
+  };
+}
 
 export async function runN1Qualification(options) {
   const evidence = { steps: {}, warnings: [] };
@@ -153,10 +222,7 @@ async function runN1QualificationInner(options, evidence) {
   const candidateVersion =
     options.candidateVersion ?? readCandidateVersionFromTarball(candidateTarball);
   if (!parsePlainSemver(candidateVersion)) {
-    const failure = new Error(
-      `candidate version "${candidateVersion}" is not plain X.Y.Z — published releases only ` +
-        "carry plain versions, so no compatible N-1 could ever match",
-    );
+    const failure = new Error(`candidate version "${candidateVersion}" is not plain X.Y.Z`);
     failure.code = "CANDIDATE_INVALID";
     throw failure;
   }
@@ -256,7 +322,15 @@ async function runN1QualificationInner(options, evidence) {
   assertPrefixOutsideCheckout(prefix, options.repoRoot ?? REPO_ROOT);
   const profile = join(workRoot, "profile");
   const project = join(workRoot, "project");
+  const fixtureHome = join(workRoot, "fixture-home");
   gitInit(project);
+  // HOME alone is not enough: provider resolution probes through
+  // `$SHELL -l [-i] -c`, and a real login shell can re-source profiles that
+  // reorder PATH ahead of the fixture. The overlay pins HOME, prepends the
+  // fixture bin dir to PATH (the inherited search path stays for normal
+  // dependencies), and points SHELL at a fixture-owned shim.
+  const fixtureProviderEnv = prepareN1FixtureProvider(fixtureHome);
+  const envFor = (port) => ({ ...serverEnv(profile, port), ...fixtureProviderEnv });
   installServerPrefix({ tarball: n1Tarball, prefix });
   const n1Entry = join(prefix, "current", "lib", "server.cjs");
   if (!existsSync(n1Entry)) {
@@ -264,16 +338,10 @@ async function runN1QualificationInner(options, evidence) {
     failure.code = "N1_ARTIFACT_INVALID";
     throw failure;
   }
-  // A published release that predates the D4 upgrade contract (no staging/
-  // identity markers in its entrypoint — the same markers the upgrade
-  // integration tests use) cannot serve as an N-1 for this gate at all. That
-  // is the honest "no compatible published server N-1 exists" verdict, not a
-  // qualification crash.
-  const n1Entrypoint = readFileSync(n1Entry, "latin1");
-  if (!n1Entrypoint.includes("not-staging") || !n1Entrypoint.includes("identity-mismatch")) {
+  if (!serverBundleSupportsD4(dirname(n1Entry))) {
     throw new NoPublishedServerN1Error(
       `The newest published release compatible with ${target} (${selection.tag}) predates the ` +
-        "D4 upgrade contract (its entrypoint lacks the staging/identity markers), so there is " +
+        "D4 upgrade contract (its server bundle lacks the staging/identity markers), so there is " +
         "no published server N-1 this gate can upgrade from.",
       {
         candidateVersion,
@@ -283,7 +351,7 @@ async function runN1QualificationInner(options, evidence) {
       },
     );
   }
-  const n1Doctor = assertDoctorOk(runServerCli, n1Entry, serverEnv(profile, null), "n1-install");
+  const n1Doctor = assertDoctorOk(runServerCli, n1Entry, envFor(null), "n1-install");
   const n1LatestSchema = n1Doctor.migrations?.latestSchemaVersion ?? null;
   if (!Number.isSafeInteger(n1LatestSchema)) {
     const failure = new Error("published N-1 doctor returned no valid latest schema version");
@@ -301,7 +369,7 @@ async function runN1QualificationInner(options, evidence) {
   const httpBase = `http://127.0.0.1:${port}`;
   const runCli = (entry, args, env, opts) => runServerCli(entry, args, env, opts);
   const daemon = spawn(process.execPath, [n1Entry], {
-    env: serverEnv(profile, port),
+    env: envFor(port),
     stdio: ["ignore", "pipe", "pipe"],
   });
   const daemonLogs = [];
@@ -324,7 +392,7 @@ async function runN1QualificationInner(options, evidence) {
     healthSignal.catch(() => undefined);
     await Promise.race([consoleSignal, healthSignal]);
 
-    const n1Status = readRunningStatus(runCli, n1Entry, serverEnv(profile, null));
+    const n1Status = readRunningStatus(runCli, n1Entry, envFor(null));
     if (n1Status.build.version !== selection.version) {
       throw new Error(
         `running N-1 identity ${n1Status.build.version} does not match release ${selection.version}`,
@@ -338,7 +406,7 @@ async function runN1QualificationInner(options, evidence) {
     const { token: accessToken, protocolVersion } = await pairAndAuthenticate(
       runCli,
       n1Entry,
-      serverEnv(profile, null),
+      envFor(null),
       httpBase,
       fetchImpl,
       n1Doctor,
@@ -354,19 +422,35 @@ async function runN1QualificationInner(options, evidence) {
         `project add failed (${add.status}): ${JSON.stringify(add.body).slice(0, 500)}`,
       );
     }
-    const start = await jsonRequest(fetchImpl, `${httpBase}/api/terminal/start`, {
+    const projectId = add.body?.project?.id;
+    if (typeof projectId !== "string" || projectId.length === 0) {
+      throw new Error(
+        "project add returned no project id; the persisted terminal-thread start command " +
+          "requires the already-created project identity",
+      );
+    }
+    // Real persisted terminal-thread start: unlike the transient
+    // /api/terminal/start dev shell, this writes a durable `threads` row AND
+    // a real PTY whose output persists as terminal scrollback.
+    const start = await jsonRequest(fetchImpl, `${httpBase}/api/threads/${SHELL_ID}/command`, {
       method: "POST",
       token: accessToken,
       protocolVersion,
       body: {
-        shellId: SHELL_ID,
-        projectLocation: makeProjectLocation(project),
+        kind: "start",
+        projectId,
+        agentKind: FIXTURE_AGENT_KIND,
+        config: { model: "fixture" },
+        prompt: "",
+        presentationMode: "terminal",
         initialSize: { cols: 80, rows: 24 },
+        title: "n1-qualify",
       },
     });
     if (start.status !== 200) {
       throw new Error(
-        `terminal/start failed (${start.status}): ${JSON.stringify(start.body).slice(0, 500)}`,
+        `persisted terminal-thread start failed (${start.status}): ` +
+          `${JSON.stringify(start.body).slice(0, 500)}`,
       );
     }
     const ticket = await jsonRequest(fetchImpl, `${httpBase}/api/auth/websocket-ticket`, {
@@ -407,23 +491,39 @@ async function runN1QualificationInner(options, evidence) {
       watch.close();
     }
 
-    // Goal state, where this release supports it.
+    // The deterministic terminal fixture is a shell stub with no provider goal
+    // handler, so the goal payload is intentionally unavailable for it. Record
+    // the endpoint response as coverage evidence (never mislabel a generic
+    // server error as "unsupported"); a real provider that accepts the goal
+    // keeps the full seeded-goal fingerprint + survival checks below.
     const goal = await jsonRequest(fetchImpl, `${httpBase}/api/threads/${SHELL_ID}/goal`, {
       method: "POST",
       token: accessToken,
       protocolVersion,
       body: { action: "edit", objective: `${GOAL_MARKER} keep this thread on track` },
     });
+    const goalSeeded = goal.status === 200;
     evidence.seeded = {
       project,
       shellId: SHELL_ID,
       turnMarker: SHELL_MARKER_OUTPUT,
       goalMarker: GOAL_MARKER,
       receiptId: RECEIPT_ID,
-      goal:
-        goal.status === 200
-          ? { seeded: true }
-          : { seeded: false, reason: `thread goal rejected (${goal.status})` },
+      threadStart: {
+        kind: "start",
+        projectId,
+        agentKind: FIXTURE_AGENT_KIND,
+        presentationMode: "terminal",
+        fixture: true,
+      },
+      goal: goalSeeded
+        ? { seeded: true }
+        : {
+            seeded: false,
+            reason:
+              "unavailable for the deterministic terminal fixture provider (no provider goal handler)",
+            coverage: { httpStatus: goal.status },
+          },
     };
 
     // 6. Stop the N-1 daemon, then fingerprint + extend the payload set.
@@ -470,7 +570,7 @@ async function runN1QualificationInner(options, evidence) {
     const upgrade = runServerCli(
       n1Entry,
       ["upgrade", "--from", candidateTarball, "--prefix", prefix, "--json"],
-      serverEnv(profile, port),
+      envFor(port),
       { timeoutMs: 600_000 },
     );
     const upgradeResult = parseLastJsonLine(upgrade.stdout);
@@ -496,7 +596,7 @@ async function runN1QualificationInner(options, evidence) {
     const candidateDoctor = assertDoctorOk(
       runCli,
       candidateEntry,
-      serverEnv(profile, null),
+      envFor(null),
       "candidate-install",
     );
     const candidateLatestSchema =
@@ -508,7 +608,7 @@ async function runN1QualificationInner(options, evidence) {
       failure.code = "CANDIDATE_INVALID";
       throw failure;
     }
-    const candidateStatus = readRunningStatus(runCli, candidateEntry, serverEnv(profile, null));
+    const candidateStatus = readRunningStatus(runCli, candidateEntry, envFor(null));
     const expectedIdentity = {
       version: candidateVersion,
       entrypointSha256: sha256File(candidateEntry),
@@ -537,7 +637,7 @@ async function runN1QualificationInner(options, evidence) {
     const { token: candidateToken } = await pairAndAuthenticate(
       runCli,
       candidateEntry,
-      serverEnv(profile, null),
+      envFor(null),
       httpBase,
       fetchImpl,
       candidateDoctor,
@@ -642,7 +742,7 @@ async function runN1QualificationInner(options, evidence) {
           [candidateEntry, "upgrade", "--from", n1Tarball, "--prefix", prefix, "--json"],
           {
             encoding: "utf8",
-            env: serverEnv(profile, port),
+            env: envFor(port),
             timeout: 600_000,
             maxBuffer: 64 * 1024 * 1024,
           },
@@ -655,7 +755,7 @@ async function runN1QualificationInner(options, evidence) {
         }
         const currentAfterDowngradeAttempt = readlinkSync(join(prefix, "current"));
         const stillCandidate =
-          readRunningStatus(runCli, candidateEntry, serverEnv(profile, null)).build.version ===
+          readRunningStatus(runCli, candidateEntry, envFor(null)).build.version ===
           candidateVersion;
         const refusedAsExpected =
           refusal !== null &&

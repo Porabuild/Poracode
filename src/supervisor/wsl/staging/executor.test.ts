@@ -93,6 +93,88 @@ describe("ProcessStagingExecutor", () => {
     },
   );
 
+  it("rejects every concurrent caller when a delayed worker advertises an old protocol", async () => {
+    const executor = createProcessStagingExecutor({
+      ...fixtureSpec("delayed-ready"),
+      env: { ...process.env, FIXTURE_MODE: "delayed-ready", FIXTURE_PROTOCOL_VERSION: "2" },
+    });
+    try {
+      const request = { op: "exists", path: "/tmp/whatever" } as const;
+      // Two synchronous calls on one cold executor must share one handshake.
+      const settled = await Promise.allSettled([
+        executor.execute(request, { timeoutMs: 5_000 }),
+        executor.execute(request, { timeoutMs: 5_000 }),
+      ]);
+      const versionError = "protocol 2 is not supported by host protocol 3";
+      // No caller may resolve from a request written before the incompatible
+      // handshake; both must fail closed with the version error.
+      const rejected = {
+        status: "rejected",
+        reason: expect.objectContaining({ message: expect.stringContaining(versionError) }),
+      };
+      expect(settled).toEqual([rejected, rejected]);
+    } finally {
+      await executor.dispose();
+    }
+  });
+
+  it("rejects two cold waiters together when the worker never becomes ready", async () => {
+    const executor = createProcessStagingExecutor({
+      ...fixtureSpec("no-ready"),
+      readyTimeoutMs: 250,
+    });
+    try {
+      const request = { op: "exists", path: "/tmp/whatever" } as const;
+      const settled = await Promise.allSettled([
+        executor.execute(request, { timeoutMs: 5_000 }),
+        executor.execute(request, { timeoutMs: 5_000 }),
+      ]);
+      const readyMessage = "WSL staging worker did not become ready";
+      // failAll at readiness rejects both cold waiters with the same error,
+      // before the 5s operation deadline ("timed out after ..." never wins).
+      const rejected = {
+        status: "rejected",
+        reason: expect.objectContaining({ message: readyMessage }),
+      };
+      expect(settled).toEqual([rejected, rejected]);
+      const reasons = settled.map((result) => ("reason" in result ? result.reason : undefined));
+      expect(reasons[0]).toBe(reasons[1]);
+    } finally {
+      await executor.dispose();
+    }
+  });
+
+  it("sends concurrent requests only after the delayed v3 handshake", async () => {
+    const executor = createProcessStagingExecutor(fixtureSpec("delayed-ready"));
+    try {
+      const request = { op: "exists", path: "/tmp/whatever" } as const;
+      const first = executor.execute(request, { timeoutMs: 5_000 });
+      const second = executor.execute({ ...request, path: "/tmp/other" }, { timeoutMs: 5_000 });
+      const [a, b] = await Promise.all([first, second]);
+      // The fixture records whether a request arrived before it emitted ready:
+      // both concurrent callers must be gated on the handshake.
+      const expected = { mode: "delayed-ready", requestBeforeReady: false };
+      expect(a).toEqual(expected);
+      expect(b).toEqual(expected);
+    } finally {
+      await executor.dispose();
+    }
+  });
+
+  it("assembles a multi-byte character split across stdout chunks", async () => {
+    const executor = createProcessStagingExecutor(fixtureSpec("split-utf8"));
+    try {
+      await expect(
+        executor.execute({ op: "read-dir", path: "/tmp/whatever" }, { timeoutMs: 5_000 }),
+      ).resolves.toEqual({
+        exists: true,
+        entries: [{ name: "évidence", directory: false }],
+      });
+    } finally {
+      await executor.dispose();
+    }
+  });
+
   it("rejects waiters when the worker exits", async () => {
     const executor = createProcessStagingExecutor(fixtureSpec("exit"));
     try {

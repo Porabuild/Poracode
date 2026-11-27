@@ -10,8 +10,16 @@ function output(
   data: string,
   outputLength: number,
   terminalInstanceId = "gen-1",
+  terminalColumns?: number,
 ): SupervisorEvent {
-  return { type: "thread-output", threadId, data, outputLength, terminalInstanceId };
+  return {
+    type: "thread-output",
+    threadId,
+    data,
+    outputLength,
+    terminalInstanceId,
+    ...(terminalColumns !== undefined ? { terminalColumns } : {}),
+  };
 }
 
 function runtimeEvent(threadId: string, text: string): SupervisorEvent {
@@ -73,6 +81,31 @@ describe("SupervisorIpcSender", () => {
 
     vi.advanceTimersByTime(8);
     expect(sent).toEqual([output("one", "old", 3, "gen-a"), output("one", "new", 3, "gen-b")]);
+  });
+
+  it("keeps output with different observed column counts in separate batches", () => {
+    vi.useFakeTimers();
+    const sent: OutboundMessage[] = [];
+    const sender = new SupervisorIpcSender({
+      send: (message, callback) => {
+        sent.push(message);
+        callback(null);
+        return true;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+    });
+
+    sender.emit(output("one", "a🐱", 3, "g", 48));
+    sender.emit(output("one", "b", 4, "g", 48));
+    sender.emit(output("one", "c", 5, "g", 100));
+    sender.emit(output("one", "d", 6, "g"));
+    vi.advanceTimersByTime(8);
+
+    expect(sent).toEqual([
+      output("one", "a🐱b", 4, "g", 48),
+      output("one", "c", 5, "g", 100),
+      output("one", "d", 6, "g"),
+    ]);
   });
 
   it("flushes terminal bytes before a following event", () => {

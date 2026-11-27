@@ -4,6 +4,11 @@ import {
   type TerminalCursorGuard,
   type TerminalCursorRule,
 } from "../terminalCursorMachineSpec";
+import {
+  MAX_TERMINAL_COLS,
+  MAX_TERMINAL_COLUMN_CHANGES,
+  MIN_TERMINAL_COLS,
+} from "../../../terminalColumnHistory";
 
 const HEADER = [
   "// GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
@@ -61,10 +66,21 @@ export function emitSwiftTerminalCursorMachine(): string {
   const spec = TERMINAL_CURSOR_MACHINE_SPEC;
   const bounds = spec.bounds;
   const rules = spec.rules.map(ruleLiteral).join("\n");
+  // The retained known-span cap mirrors TerminalColumnHistory's private
+  // MAX_RETAINED_SPANS, derived from the exported changes bound.
+  const maximumColumnSpans = (MAX_TERMINAL_COLUMN_CHANGES - 1) / 2;
 
   return `${HEADER.join("\n")}
 public enum TerminalCursorFrameKind: String, Sendable, Equatable {
 ${spec.frameKinds.map((kind) => `  case ${kind}`).join("\n")}
+}
+
+/// One observed-width marker in absolute UTF-16 cursor space; \`columns\` nil
+/// marks an unknown span. Mirrors \`TerminalColumnChange\`.
+public struct TerminalCursorColumnChange: Sendable, Equatable {
+  public let fromCursor: Int64
+  public let columns: Int?
+  public init(fromCursor: Int64, columns: Int?) { self.fromCursor = fromCursor; self.columns = columns }
 }
 
 public struct TerminalCursorFrame: Sendable, Equatable {
@@ -75,7 +91,9 @@ public struct TerminalCursorFrame: Sendable, Equatable {
   public let fromCursor: Int64
   public let toCursor: Int64
   public let data: String
-  public init(kind: TerminalCursorFrameKind, terminalID: String, watchID: String, generation: String?, fromCursor: Int64, toCursor: Int64, data: String) { self.kind = kind; self.terminalID = terminalID; self.watchID = watchID; self.generation = generation; self.fromCursor = fromCursor; self.toCursor = toCursor; self.data = data }
+  /// Optional width markers; only nonempty spans carry width.
+  public let columnChanges: [TerminalCursorColumnChange]
+  public init(kind: TerminalCursorFrameKind, terminalID: String, watchID: String, generation: String?, fromCursor: Int64, toCursor: Int64, data: String, columnChanges: [TerminalCursorColumnChange] = []) { self.kind = kind; self.terminalID = terminalID; self.watchID = watchID; self.generation = generation; self.fromCursor = fromCursor; self.toCursor = toCursor; self.data = data; self.columnChanges = columnChanges }
 }
 
 public struct TerminalCursorPosition: Sendable, Equatable {
@@ -94,6 +112,8 @@ public struct TerminalCursorState: Sendable, Equatable {
   public var bufferedOutput: [TerminalCursorFrame] = []
   public var bufferedUTF16Units = 0
   public var needsResync = false
+  /// Bounded width history over the retained tail; empty = all widthless.
+  public var columnChanges: [TerminalCursorColumnChange] = []
 
   public static func watching(_ watchID: String) -> Self { Self(watchID: watchID) }
 
@@ -101,17 +121,17 @@ public struct TerminalCursorState: Sendable, Equatable {
     watchID: String,
     generation: String?,
     toCursor: Int64,
-    transcript: String = ""
+    transcript: String = "",
+    columnChanges: [TerminalCursorColumnChange] = []
   ) -> Self {
-    Self(
+    let tail = TerminalCursorReconciler.boundedTail(transcript)
+    return Self(
       watchID: watchID,
       baselineReceived: true,
       generation: generation,
       toCursor: toCursor,
-      transcript: TerminalCursorReconciler.boundedTail(transcript),
-      bufferedOutput: [],
-      bufferedUTF16Units: 0,
-      needsResync: false
+      transcript: tail, bufferedOutput: [], bufferedUTF16Units: 0, needsResync: false,
+      columnChanges: TerminalCursorReconciler.normalizedColumnChanges(toCursor: toCursor, transcriptUTF16Count: tail.utf16.count, changes: columnChanges)
     )
   }
 }
@@ -324,6 +344,7 @@ ${rules}
     var next = state
     next.toCursor = frame.toCursor
     next.transcript = boundedTail(state.transcript + suffix)
+    applyGeometry(next: &next, frame: frame, previous: state)
     return result(next, overlap == 0 ? .append : .appendUnseenSuffix, appended: suffix)
   }
 
@@ -334,7 +355,8 @@ ${rules}
       watchID: state.watchID,
       generation: frame.generation,
       toCursor: frame.toCursor,
-      transcript: frame.data
+      transcript: frame.data,
+      columnChanges: frame.columnChanges
     )
     // Buffered pre-baseline frames replay only under a durable generation;
     // the first resync aborts the replay.
@@ -353,6 +375,115 @@ ${rules}
     let utf16Index = value.utf16.index(value.utf16.startIndex, offsetBy: count)
     guard let index = String.Index(utf16Index, within: value) else { return nil }
     return String(value[index...])
+  }
+
+  // MARK: - Width geometry (mirrors TerminalColumnHistory + applyGeometry)
+
+  /// One known-width span in absolute UTF-16 cursor space.
+  private struct ColumnSpan { var fromCursor: Int64; var toCursor: Int64; var columns: Int }
+
+  static let minimumTerminalColumns = ${MIN_TERMINAL_COLS}
+  static let maximumTerminalColumns = ${MAX_TERMINAL_COLS}
+  /// Safe-integer cursor bound; retained known spans = (MAX_TERMINAL_COLUMN_CHANGES - 1) / 2.
+  static let maximumCursor = 9_007_199_254_740_991
+  static let maximumColumnSpans = ${maximumColumnSpans}
+
+  private static func recordColumnSpan(_ spans: inout [ColumnSpan], from: Int64, to: Int64, columns: Int) {
+    if let last = spans.last, last.toCursor == from, last.columns == columns {
+      spans[spans.index(before: spans.endIndex)].toCursor = to
+      return
+    }
+    spans.append(ColumnSpan(fromCursor: from, toCursor: to, columns: columns))
+    if spans.count > maximumColumnSpans { spans.removeFirst() }
+  }
+
+  /// Absolute window start of a retained tail; nil when it cannot be positioned.
+  private static func tailWindowStart(toCursor: Int64, transcriptUTF16Count: Int) -> Int64? {
+    guard toCursor >= 0, toCursor <= maximumCursor else { return nil }
+    let from = toCursor - Int64(transcriptUTF16Count)
+    return from >= 0 ? from : nil
+  }
+
+  /// Snapshots spans onto the tail window; empty when unpositioned or all-unknown.
+  private static func snapshotKnown(_ spans: [ColumnSpan], toCursor: Int64, transcriptUTF16Count: Int) -> [TerminalCursorColumnChange] {
+    guard let from = tailWindowStart(toCursor: toCursor, transcriptUTF16Count: transcriptUTF16Count) else { return [] }
+    let snapshot = snapshotColumnChanges(spans: spans, fromCursor: from, toCursor: toCursor)
+    return snapshot.contains { $0.columns != nil } ? snapshot : []
+  }
+
+  /// Clips caller markers onto the bounded tail window for established states.
+  static func normalizedColumnChanges(toCursor: Int64, transcriptUTF16Count: Int, changes: [TerminalCursorColumnChange]) -> [TerminalCursorColumnChange] {
+    var spans: [ColumnSpan] = []
+    if let from = tailWindowStart(toCursor: toCursor, transcriptUTF16Count: transcriptUTF16Count) { recordColumnChanges(&spans, fromCursor: from, toCursor: toCursor, changes: changes) }
+    return snapshotKnown(spans, toCursor: toCursor, transcriptUTF16Count: transcriptUTF16Count)
+  }
+
+  /// Mirrors TerminalColumnHistory.recordChanges: malformed markers or an
+  /// unpositionable range leave the span widthless; only known spans record.
+  private static func recordColumnChanges(
+    _ spans: inout [ColumnSpan], fromCursor: Int64, toCursor: Int64, changes: [TerminalCursorColumnChange]
+  ) {
+    guard fromCursor >= 0, toCursor <= maximumCursor, toCursor > fromCursor, !changes.isEmpty else { return }
+    var ordered = true
+    var previousMarker = Int64(-1)
+    for change in changes {
+      let width = change.columns
+      let known = width == nil || (width! >= minimumTerminalColumns && width! <= maximumTerminalColumns)
+      guard change.fromCursor >= 0, change.fromCursor <= maximumCursor,
+        change.fromCursor >= previousMarker, known
+      else { ordered = false; break }
+      previousMarker = change.fromCursor
+    }
+    guard ordered else { return }
+    var index = 0
+    var columns: Int? = nil
+    while index < changes.count, changes[index].fromCursor <= fromCursor {
+      columns = changes[index].columns
+      index += 1
+    }
+    var spanStart = fromCursor
+    func recordSpan(_ end: Int64) { if let columns, end > spanStart { recordColumnSpan(&spans, from: spanStart, to: end, columns: columns) } }
+    while index < changes.count {
+      let marker = changes[index]
+      if marker.fromCursor >= toCursor { break }
+      recordSpan(marker.fromCursor)
+      spanStart = marker.fromCursor
+      columns = marker.columns
+      index += 1
+    }
+    recordSpan(toCursor)
+  }
+
+  /// Mirrors TerminalColumnHistory.snapshot: clips, emits null gaps, coalesces equal widths.
+  private static func snapshotColumnChanges(
+    spans: [ColumnSpan], fromCursor: Int64, toCursor: Int64
+  ) -> [TerminalCursorColumnChange] {
+    guard toCursor > fromCursor else { return [] }
+    var changes: [TerminalCursorColumnChange] = []
+    var coveredThrough = fromCursor
+    func push(_ cursor: Int64, _ columns: Int?) { if changes.last?.columns != columns { changes.append(TerminalCursorColumnChange(fromCursor: cursor, columns: columns)) } }
+    for span in spans {
+      if span.toCursor <= fromCursor { continue }
+      if span.fromCursor >= toCursor { break }
+      let start = max(fromCursor, span.fromCursor)
+      if start > coveredThrough { push(coveredThrough, nil) }
+      push(start, span.columns)
+      coveredThrough = min(toCursor, span.toCursor)
+    }
+    if coveredThrough < toCursor { push(coveredThrough, nil) }
+    return changes
+  }
+
+  /// Folds accepted geometry into the retained window; unpositionable or
+  /// all-unknown geometry empties the list.
+  private static func applyGeometry(
+    next: inout TerminalCursorState, frame: TerminalCursorFrame, previous: TerminalCursorState
+  ) {
+    if frame.columnChanges.isEmpty && previous.columnChanges.isEmpty { return }
+    var spans: [ColumnSpan] = []
+    if let from = tailWindowStart(toCursor: previous.toCursor, transcriptUTF16Count: previous.transcript.utf16.count) { recordColumnChanges(&spans, fromCursor: from, toCursor: previous.toCursor, changes: previous.columnChanges) }
+    recordColumnChanges(&spans, fromCursor: previous.toCursor, toCursor: frame.toCursor, changes: frame.columnChanges)
+    next.columnChanges = snapshotKnown(spans, toCursor: next.toCursor, transcriptUTF16Count: next.transcript.utf16.count)
   }
 }
 `;

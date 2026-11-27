@@ -192,6 +192,39 @@ class RemoteRequestSchedulerTest {
         held.release()
     }
 
+    @Test
+    fun cancellationAfterGrantBeforeDispatchReleasesLease() = runTest {
+        val scheduler = RemoteRequestScheduler(
+            limits = RemoteRequestSchedulerLimits(maxTotal = 1, maxBulk = 1, maxBackground = 1),
+        )
+        val origin = "https://host.local"
+        val held = scheduler.tryAcquire(origin, RemoteRequestPriority.Interactive)!!
+        val second = async {
+            val lease = scheduler.acquire(origin, RemoteRequestPriority.Interactive)
+            // If the resumed continuation is dispatched, give the lease straight back.
+            lease.release()
+            lease
+        }
+        testScheduler.runCurrent()
+        assertEquals(1, scheduler.stats(origin).queuedInteractive)
+
+        // Granting the queued waiter resumes its continuation, but the test
+        // dispatcher has not dispatched that resume yet.
+        held.release()
+        assertEquals(0, scheduler.stats(origin).queuedInteractive)
+        assertEquals(1, scheduler.stats(origin).activeInteractive)
+
+        // Cancel before dispatch: the caller never receives the granted lease.
+        second.cancel()
+        testScheduler.runCurrent()
+
+        assertEquals(0, scheduler.stats(origin).activeTotal())
+        assertEquals(0, scheduler.stats(origin).queuedInteractive)
+        val fresh = scheduler.tryAcquire(origin, RemoteRequestPriority.Interactive)
+        assertNotNull(fresh)
+        fresh!!.release()
+    }
+
     private fun RemoteRequestSchedulerStats.activeTotal(): Int =
         activeControl + activeInteractive + activeBackground
 }

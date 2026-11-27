@@ -142,7 +142,11 @@ describe("remote v3 native binding generator", () => {
         // Additive optional subagent viewerId/leaseMs fields keep older peers
         // valid but move the source hash.
         // Read-only news line preferences add optional settings fields.
-        sourceHash: "sha256:52cb317cf1f13735396c17f15f9302f38c512da8e1a3a0f6518e1e5734d3b100",
+        // Optional column history adds two types to the internal PTY snapshot.
+        // Optional terminal-width metadata (ready columnChanges, cursorSync
+        // terminalColumns, baseline-chunk terminalColumns) keeps wire
+        // versions and moves the source hash while re-chunking both shards.
+        sourceHash: "sha256:026fa981d58fee99cceddc28247ff4c49140fc2c6baa8e2e4aecb1cf3f199ab2",
         manifestHash: "sha256:d497d2d7a7342cb2f7d21370f6abb514ec08f9024ffa152546cbb2b4da7735c2",
         counts: {
           routes: 128,
@@ -153,12 +157,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 622,
-          structuralTypes: 1645,
+          structuralTypes: 1647,
           semanticValidators: 31,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 181,
-          kotlinFiles: 152,
+          swiftFiles: 179,
+          kotlinFiles: 150,
           stateMachines: 5,
         },
       });

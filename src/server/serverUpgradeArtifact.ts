@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveTar, tarCommand } from "../../scripts/server-host-tools.mjs";
+import { serverBundleSupportsD4 } from "../../scripts/server-n1-qualification/server-bundle.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -58,13 +59,7 @@ export function tarballSupportsD4(path: string): boolean {
     if (!members.some((member) => member.replace(/^\.\//u, "") === "lib/server.cjs")) return false;
     stage = mkdtempSync(join(tmpdir(), "poracode-d4-sniff-"));
     runTar(["-xzf", path, "-C", stage], { stdio: "pipe" });
-    const libDir = join(stage, "lib");
-    return readdirSync(libDir)
-      .filter((name) => name.endsWith(".cjs"))
-      .some((name) => {
-        const chunk = readFileSync(join(libDir, name), { encoding: "utf8" });
-        return chunk.includes("not-staging") && chunk.includes("identity-mismatch");
-      });
+    return serverBundleSupportsD4(join(stage, "lib"));
   } catch {
     return false;
   } finally {

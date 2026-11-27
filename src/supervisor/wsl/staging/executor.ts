@@ -59,6 +59,11 @@ class ProcessStagingExecutor implements WslStagingExecutor {
   private disposed = false;
   private termination: Promise<void> | undefined;
   private readonly pending = new Map<string, PendingRequest>();
+  /**
+   * Handshake for the current child: the only cold-child guard, shared by all
+   * concurrent ensureChild() callers and cleared beside the child on teardown.
+   */
+  private childReady: Promise<void> | undefined;
   private resolveReady: (() => void) | undefined;
   private rejectReady: ((error: Error) => void) | undefined;
 
@@ -121,7 +126,7 @@ class ProcessStagingExecutor implements WslStagingExecutor {
     // A worker that was killed (deadline/exit) is joined before a replacement
     // starts, so a successor can never race the previous worker's handles.
     if (this.termination) await this.termination;
-    if (this.child) return;
+    if (this.childReady) return this.childReady;
     if (this.disposed) throw new Error("WSL staging worker is disposed");
     const child = spawn(this.spec.command, [...this.spec.args], {
       ...(this.spec.cwd ? { cwd: this.spec.cwd } : {}),
@@ -137,12 +142,13 @@ class ProcessStagingExecutor implements WslStagingExecutor {
       this.resolveReady = resolve;
       this.rejectReady = reject;
       const timer = setTimeout(() => {
-        reject(new Error("WSL staging worker did not become ready"));
-        void this.terminateChild();
+        // failAll settles all waiters and runs the existing teardown path.
+        this.failAll(new Error("WSL staging worker did not become ready"));
       }, this.spec.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS);
       timer.unref?.();
       clearReadyTimer = () => clearTimeout(timer);
     });
+    this.childReady = ready;
     void ready.then(
       () => clearReadyTimer(),
       () => clearReadyTimer(),
@@ -150,9 +156,11 @@ class ProcessStagingExecutor implements WslStagingExecutor {
 
     unrefReadable(child.stdout);
     unrefWritable(child.stdin);
-    child.stdout?.on("data", (chunk: Buffer | string) => {
+    // Node's decoder assembles UTF-8 characters split across chunks.
+    child.stdout?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
       if (this.child !== child) return;
-      this.consume(typeof chunk === "string" ? chunk : chunk.toString("utf8"));
+      this.consume(chunk);
     });
     child.stderr?.on("data", (chunk: Buffer | string) => {
       if (this.child !== child) return;
@@ -263,6 +271,7 @@ class ProcessStagingExecutor implements WslStagingExecutor {
     if (this.termination) return this.termination;
     const child = this.child;
     this.child = undefined;
+    this.childReady = undefined;
     this.buffer = "";
     if (!child || child.exitCode !== null || child.signalCode !== null) {
       return Promise.resolve();

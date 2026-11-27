@@ -61,6 +61,12 @@ export interface BackgroundTaskOutputResult {
   readonly truncated: boolean;
 }
 
+/** A test-only parked output read waiting for an explicit release. */
+interface HeldOutputRead {
+  readonly result: BackgroundTaskOutputResult;
+  readonly resolve: (result: BackgroundTaskOutputResult) => void;
+}
+
 export interface BackgroundTaskLabSnapshot {
   readonly stage: BackgroundTaskStage | "stopped";
   readonly taskIds: readonly string[];
@@ -114,6 +120,8 @@ export class BackgroundTaskLab {
   private outputDeliveredValue = 0;
   private stopCount = 0;
   private delayNextReadMsValue = 0;
+  private holdArmedValue = false;
+  private heldOutputValue: HeldOutputRead | null = null;
 
   /** WireLab installs this so a roster change updates the authoritative
    * snapshot and publishes exactly one `background_tasks.changed` event. */
@@ -132,6 +140,9 @@ export class BackgroundTaskLab {
   }
 
   reset(): void {
+    // A parked read belongs to the previous generation: settle/drop it before
+    // the counters are cleared so its delivery is never recorded in the new one.
+    this.settleHeldOutput();
     this.stageKey = "initial";
     this.tasks = cloneTasks(this.fixture.stages.initial.tasks);
     this.outputReadsValue = 0;
@@ -159,6 +170,39 @@ export class BackgroundTaskLab {
 
   delayNextRead(delayMs: number): void {
     this.delayNextReadMsValue = delayMs;
+  }
+
+  /** Test-only: park exactly the next output read until an explicit release.
+   * The hold is one-shot and idempotent: while a read is already parked, a
+   * second arm is ignored so a later read cannot overwrite (and strand) the
+   * first parked promise. A fresh read issued while it is held is served
+   * normally and can display a newer ordinal before the old reply lands. */
+  holdNextOutputRead(): void {
+    if (this.heldOutputValue) return;
+    this.holdArmedValue = true;
+  }
+
+  /** Deliver the parked old read; its reply arrives only after this call. Also
+   * disarms a hold that never consumed a read, so a later read is not parked. */
+  releaseOutputRead(): void {
+    const held = this.heldOutputValue;
+    this.heldOutputValue = null;
+    this.holdArmedValue = false;
+    if (!held) return;
+    this.outputDeliveredValue += 1;
+    held.resolve(held.result);
+  }
+
+  /**
+   * Settle/drop a parked read on reset or stop: resolve its pending request so
+   * no promise/socket hangs, but never record a delivery. Also clears an armed
+   * (not-yet-consumed) hold so it cannot leak into the next generation.
+   */
+  settleHeldOutput(): void {
+    const held = this.heldOutputValue;
+    this.heldOutputValue = null;
+    this.holdArmedValue = false;
+    held?.resolve(held.result);
   }
 
   snapshot(): BackgroundTaskLabSnapshot {
@@ -191,6 +235,14 @@ export class BackgroundTaskLab {
     this.outputReadsValue += 1;
     const ordinal = this.outputReadsValue;
     const result = this.outputFor(payload, ordinal);
+    // A one-shot, test-only hold parks exactly this read. A later read is not
+    // held, so a newer ordinal can display before the old reply is released.
+    if (this.holdArmedValue) {
+      this.holdArmedValue = false;
+      return new Promise<BackgroundTaskOutputResult>((resolve) => {
+        this.heldOutputValue = { result, resolve };
+      });
+    }
     const delay = this.delayNextReadMsValue;
     this.delayNextReadMsValue = 0;
     if (delay <= 0) {

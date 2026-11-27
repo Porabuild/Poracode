@@ -148,4 +148,28 @@ describe("retainedShellSnapshots", () => {
     expect(retained.generation).toBe("inst-shell");
     expect(retained.toCursor).toBe(4);
   });
+
+  it("clips geometry to the retained shell output and preserves the earlier width", () => {
+    const transcript = new TranscriptBuffer(4);
+    transcript.append("ab🐱", { fromCursor: 0, columns: 48 });
+    transcript.append("CD", { fromCursor: 4, columns: 100 });
+    const shell = {
+      shellId: "shell:resized",
+      instanceId: "inst-resized",
+      outputLength: 6,
+      outputTranscript: transcript,
+      pty: { cols: 100, rows: 24 },
+    } as unknown as ShellSessionRuntime;
+
+    expect(buildRetainedShellSnapshot(shell)).toMatchObject({
+      fromCursor: 2,
+      toCursor: 6,
+      data: "🐱CD",
+      terminalSize: { cols: 100, rows: 24 },
+      columnChanges: [
+        { fromCursor: 2, columns: 48 },
+        { fromCursor: 4, columns: 100 },
+      ],
+    });
+  });
 });

@@ -1,14 +1,27 @@
+import { TerminalColumnHistory, type TerminalColumnChange } from "./terminalColumnHistory";
+
 export class TranscriptBuffer {
   private readonly chunks: string[] = [];
   private totalLength = 0;
+  private columnHistory?: TerminalColumnHistory;
 
   constructor(private readonly maxLength: number) {}
 
-  append(chunk: string): void {
+  append(chunk: string, columnChange?: TerminalColumnChange): void {
     if (!chunk) return;
+    if (columnChange && (this.columnHistory || columnChange.columns !== null)) {
+      const { fromCursor, columns } = columnChange;
+      this.columnHistory ??= new TerminalColumnHistory();
+      this.columnHistory.record(fromCursor, fromCursor + chunk.length, columns);
+    }
     this.chunks.push(chunk);
     this.totalLength += chunk.length;
     this.trim();
+  }
+
+  readColumnChanges(fromCursor: number, toCursor: number): TerminalColumnChange[] | undefined {
+    const changes = this.columnHistory?.snapshot(fromCursor, toCursor);
+    return changes?.some(({ columns }) => columns !== null) ? changes : undefined;
   }
 
   readTail(limit: number): string {

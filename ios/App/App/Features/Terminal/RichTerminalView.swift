@@ -43,6 +43,8 @@ struct RichTerminalView: View {
         terminalBackground
         TerminalTextSurface(
           transcript: controller.state.cursor?.transcript ?? "",
+          transcriptFromCursor: terminalTranscriptFromCursor,
+          columnChanges: controller.state.cursor?.columnChanges ?? [],
           accessibilityLabel: TerminalStrings.output,
           font: font,
           onRawKeyInput: { value in
@@ -172,6 +174,13 @@ struct RichTerminalView: View {
     }
     .padding(12)
     .poracodeBarBackground()
+  }
+
+  /// Absolute UTF-16 cursor offset where the retained transcript tail begins;
+  /// width markers stay valid after the transcript is front-trimmed.
+  private var terminalTranscriptFromCursor: Int64 {
+    guard let cursor = controller.state.cursor else { return 0 }
+    return cursor.toCursor - Int64(cursor.transcript.utf16.count)
   }
 
   private var canSend: Bool {

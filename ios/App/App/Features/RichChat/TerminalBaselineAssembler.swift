@@ -21,6 +21,8 @@ struct TerminalBaselineChunk: Sendable, Equatable {
   let toCursor: Int64
   let data: String
   let resumeServed: Bool
+  /// Observed PTY width for this chunk's homogeneous span; nil = unknown.
+  var terminalColumns: Int? = nil
 }
 
 /**
@@ -34,6 +36,11 @@ struct TerminalBaselineChunk: Sendable, Equatable {
  * caller resyncs with one fresh watch. Overflow is evaluated only while the
  * stream is in flight — a final chunk that completes the assembly is
  * delivered even when its cumulative units exceed the budget.
+ *
+ * Each accepted chunk may carry one observed width covering its whole
+ * `[fromCursor, toCursor)` span; usable widths accumulate as bounded known
+ * spans and the completed frame emits the canonical marker list (explicit
+ * null gaps, coalesced contiguous widths, at most the wire cap).
  */
 struct TerminalBaselineAssembler: Sendable {
   static let defaultMaximumAssemblyUTF16Units = 200_000
@@ -56,6 +63,14 @@ struct TerminalBaselineAssembler: Sendable {
     case discard
   }
 
+  /// One known-width span in absolute UTF-16 cursor space (mirrors the
+  /// generated machine's private `ColumnSpan`).
+  private struct ColumnSpan {
+    var fromCursor: Int64
+    var toCursor: Int64
+    var columns: Int
+  }
+
   private struct Assembly {
     let generation: String?
     let fromCursor: Int64
@@ -64,6 +79,7 @@ struct TerminalBaselineAssembler: Sendable {
     var toCursor: Int64
     var parts: [String]
     var units: Int
+    var columnSpans: [ColumnSpan] = []
   }
 
   /// Clears any partial assembly (new attempt, watch change, or discard).
@@ -100,6 +116,7 @@ struct TerminalBaselineAssembler: Sendable {
         units: chunk.data.utf16.count
       )
     }
+    recordWidth(chunk)
 
     if chunk.chunkIndex < chunk.chunkCount - 1 {
       if let current = assembly, current.units > maximumAssemblyUTF16Units {
@@ -110,6 +127,9 @@ struct TerminalBaselineAssembler: Sendable {
     }
     guard let done = assembly else { return .discard }
     assembly = nil
+    let changes = Self.snapshotColumnChanges(
+      spans: done.columnSpans, fromCursor: done.fromCursor, toCursor: done.toCursor
+    )
     return .complete(
       frame: TerminalCursorFrame(
         kind: .baseline,
@@ -118,10 +138,70 @@ struct TerminalBaselineAssembler: Sendable {
         generation: done.generation,
         fromCursor: done.fromCursor,
         toCursor: done.toCursor,
-        data: done.parts.joined()
+        data: done.parts.joined(),
+        columnChanges: changes.contains { $0.columns != nil } ? changes : []
       ),
       throughCursor: chunk.toCursor
     )
+  }
+
+  /// Fold one accepted chunk's homogeneous width into the assembly's known
+  /// spans. Empty chunks and unusable widths leave a natural unknown gap
+  /// instead of consuming the retained-span budget; duplicate and stale
+  /// chunks never reach this point.
+  private mutating func recordWidth(_ chunk: TerminalBaselineChunk) {
+    guard var current = assembly, !chunk.data.isEmpty, chunk.toCursor > chunk.fromCursor,
+      let columns = Self.usableColumns(chunk.terminalColumns)
+    else { return }
+    Self.recordColumnSpan(
+      &current.columnSpans, from: chunk.fromCursor, to: chunk.toCursor, columns: columns
+    )
+    assembly = current
+  }
+
+  /// Usable observed width (20...400); anything else stays unknown.
+  private static func usableColumns(_ columns: Int?) -> Int? {
+    guard let columns,
+      columns >= TerminalCursorReconciler.minimumTerminalColumns,
+      columns <= TerminalCursorReconciler.maximumTerminalColumns
+    else { return nil }
+    return columns
+  }
+
+  private static func recordColumnSpan(
+    _ spans: inout [ColumnSpan], from: Int64, to: Int64, columns: Int
+  ) {
+    if let last = spans.last, last.toCursor == from, last.columns == columns {
+      spans[spans.index(before: spans.endIndex)].toCursor = to
+      return
+    }
+    spans.append(ColumnSpan(fromCursor: from, toCursor: to, columns: columns))
+    if spans.count > TerminalCursorReconciler.maximumColumnSpans { spans.removeFirst() }
+  }
+
+  /// Canonical marker list over `[fromCursor, toCursor)`: clips retained
+  /// spans, emits explicit null gaps, and coalesces contiguous equal widths.
+  private static func snapshotColumnChanges(
+    spans: [ColumnSpan], fromCursor: Int64, toCursor: Int64
+  ) -> [TerminalCursorColumnChange] {
+    guard toCursor > fromCursor else { return [] }
+    var changes: [TerminalCursorColumnChange] = []
+    var coveredThrough = fromCursor
+    func push(_ cursor: Int64, _ columns: Int?) {
+      if changes.last?.columns != columns {
+        changes.append(TerminalCursorColumnChange(fromCursor: cursor, columns: columns))
+      }
+    }
+    for span in spans {
+      if span.toCursor <= fromCursor { continue }
+      if span.fromCursor >= toCursor { break }
+      let start = max(fromCursor, span.fromCursor)
+      if start > coveredThrough { push(coveredThrough, nil) }
+      push(start, span.columns)
+      coveredThrough = min(toCursor, span.toCursor)
+    }
+    if coveredThrough < toCursor { push(coveredThrough, nil) }
+    return changes
   }
 }
 

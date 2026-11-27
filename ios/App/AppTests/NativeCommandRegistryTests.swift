@@ -90,6 +90,7 @@ import XCTest
     let editor = NativeCommandFocus(role: .editor, isTextInput: true)
     let browser = NativeCommandFocus(role: .browser, isTextInput: true)
     XCTAssertEqual(NativeCommandFocus.resolve(probed: main, declared: editor), main)
+    XCTAssertEqual(NativeCommandFocus.resolve(probed: editor, declared: browser), editor)
     XCTAssertEqual(NativeCommandFocus.resolve(probed: .init(role: .input, isTextInput: true), declared: editor), editor)
     XCTAssertEqual(NativeCommandFocus.resolve(probed: .init(role: .input, isTextInput: true), declared: browser), browser)
     let capture = NativeCommandFocus(role: .shortcutCapture)

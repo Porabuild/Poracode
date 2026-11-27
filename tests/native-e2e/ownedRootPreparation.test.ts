@@ -76,6 +76,7 @@ describe("production host fixture root preparation", () => {
     } finally {
       await owner.close();
     }
+    writeFileSync(paths.dataFencePath, "");
     await cleanup.shutdown();
     expect(readdirSync(root)).toEqual([]);
   });

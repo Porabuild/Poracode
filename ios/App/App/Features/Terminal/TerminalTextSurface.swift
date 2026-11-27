@@ -65,6 +65,11 @@ enum TerminalViewportMetrics {
 
 struct TerminalTextSurface: UIViewRepresentable {
   let transcript: String
+  /// Absolute UTF-16 cursor offset of `transcript`'s first unit; width
+  /// markers in `columnChanges` use the same absolute space.
+  var transcriptFromCursor: Int64 = 0
+  /// Accepted observed-width markers; empty keeps the widthless projection.
+  var columnChanges: [TerminalCursorColumnChange] = []
   let accessibilityLabel: String
   let font: UIFont
   /// Hardware-keyboard passthrough. When nil the surface stays a purely
@@ -101,20 +106,29 @@ struct TerminalTextSurface: UIViewRepresentable {
     let palette = theme.variant(for: colorScheme)
     let foreground = UIColor(palette.foreground)
     let background = UIColor(palette.background)
-    guard context.coordinator.transcript != transcript || context.coordinator.font != font
+    // Geometry is an input too: identical raw text under different recorded
+    // widths must re-render (soft-wrap joins and redraws change the tail).
+    guard context.coordinator.transcript != transcript
+      || context.coordinator.transcriptFromCursor != transcriptFromCursor
+      || context.coordinator.columnChanges != columnChanges
+      || context.coordinator.font != font
       || context.coordinator.foreground != foreground || context.coordinator.background != background
     else { return }
     let unchangedText = context.coordinator.transcript == transcript
     let selection = view.selectedRange
     let distanceFromBottom = view.contentSize.height - view.contentOffset.y - view.bounds.height
     let shouldFollowOutput = context.coordinator.transcript.isEmpty || distanceFromBottom < 72
-    let rendered = TerminalANSIParser.render(transcript)
+    let rendered = TerminalANSIParser.render(
+      transcript, fromCursor: transcriptFromCursor, columnChanges: columnChanges
+    )
     view.font = font
     view.attributedText = TerminalTextAttributes.attributed(rendered, font: font,
       defaultForeground: foreground, defaultBackground: background)
     if unchangedText, NSMaxRange(selection) <= view.attributedText.length { view.selectedRange = selection }
     view.accessibilityValue = rendered.plainText
     context.coordinator.transcript = transcript
+    context.coordinator.transcriptFromCursor = transcriptFromCursor
+    context.coordinator.columnChanges = columnChanges
     context.coordinator.font = font
     context.coordinator.foreground = foreground
     context.coordinator.background = background
@@ -125,6 +139,8 @@ struct TerminalTextSurface: UIViewRepresentable {
 
   final class Coordinator {
     var transcript = ""
+    var transcriptFromCursor: Int64 = 0
+    var columnChanges: [TerminalCursorColumnChange] = []
     var font: UIFont?
     var foreground: UIColor?
     var background: UIColor?

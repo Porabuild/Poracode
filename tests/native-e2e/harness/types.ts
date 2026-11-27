@@ -169,6 +169,11 @@ export interface ControlServerOptions {
   readonly host?: string;
   readonly port?: number;
   readonly capability: string;
+  /**
+   * Opt-in hook for authentic iOS simulator keyboard qualification. Only the
+   * enabled mock harness supplies it; when absent the route is disabled.
+   */
+  readonly pressSimulatorKey?: (key: string, shift: boolean) => Promise<void>;
 }
 
 export interface CoverageEvidence {

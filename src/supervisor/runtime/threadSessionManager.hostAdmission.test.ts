@@ -24,6 +24,8 @@ import { controlledThreadLaunchSchema } from "@/shared/contracts/threadExecution
 
 interface FakePty {
   pid: number;
+  cols?: number;
+  rows?: number;
   killed: boolean;
   exitEmitted: boolean;
   dataHandlers: Array<(data: string) => void>;
@@ -1114,16 +1116,18 @@ describe("ThreadSessionManager shell admission", () => {
     const resize = vi.spyOn(pty, "resize");
     const target = { version: 1 as const, terminalId, projectLocation, worktreePath };
 
+    pty.cols = 48;
+    pty.rows = 24;
     pty.dataHandlers[0]?.(`${"a".repeat(50_000)}tail`);
-    await expect(
-      manager.controlWorkspaceTerminal({ ...target, command: { action: "read" } }),
-    ).resolves.toMatchObject({
+    const read = await manager.controlWorkspaceTerminal({ ...target, command: { action: "read" } });
+    expect(read).toMatchObject({
       action: "read",
       data: `${"a".repeat(49_996)}tail`,
       fromCursor: 4,
       toCursor: 50_004,
       truncated: true,
     });
+    expect(read).not.toHaveProperty("columnChanges");
     await expect(
       manager.controlWorkspaceTerminal({
         ...target,
@@ -1142,6 +1146,17 @@ describe("ThreadSessionManager shell admission", () => {
       command: { action: "resize", cols: 90, rows: 25 },
     });
     expect(resize).toHaveBeenCalledExactlyOnceWith(90, 25);
+    pty.cols = 90;
+    pty.rows = 25;
+    pty.dataHandlers[0]?.("🐱");
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-output",
+        data: "🐱",
+        outputLength: 50_006,
+        terminalColumns: 90,
+      }),
+    );
     await expect(
       manager.controlWorkspaceTerminal({ ...target, command: { action: "close" } }),
     ).resolves.toEqual({ action: "close", confirmed: true });
@@ -1150,6 +1165,14 @@ describe("ThreadSessionManager shell admission", () => {
       type: "thread-exited",
       threadId: terminalId,
       exitCode: 0,
+    });
+    expect(manager.readTerminalSnapshot(terminalId)).toMatchObject({
+      processState: "exited",
+      toCursor: 50_006,
+      columnChanges: [
+        { fromCursor: 0, columns: 48 },
+        { fromCursor: 50_004, columns: 90 },
+      ],
     });
     expect(manager.getTerminalShellSnapshots()).toEqual([]);
 

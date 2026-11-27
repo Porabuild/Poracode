@@ -9,6 +9,16 @@ struct SettingsModelVisibilityView: View {
   @FocusState private var searchFocused: Bool
   @State private var selectedSurfaces: [String: String] = [:]
 
+  private var showsSearchActionsInset: Bool {
+    searchFocused && UIDevice.current.userInterfaceIdiom == .phone
+  }
+
+  private var actionsTitle: String {
+    controller.isSaving ? SettingsUIStrings.saving : ModelVisibilityStrings.actions
+  }
+
+  private var actionsSymbol: String { controller.isSaving ? "hourglass" : "eye" }
+
   var body: some View {
     let hidden = catalog.effectiveHidden(saved: controller.composition.document.document?.hiddenModels ?? [:])
     let groups = catalog.groups.filter { $0.rows.contains { $0.matches(search) } }
@@ -49,23 +59,33 @@ struct SettingsModelVisibilityView: View {
       .modifier(ModelVisibilitySearchFocus(focus: $searchFocused))
       .navigationTitle(SettingsUIStrings.visibleModels)
       .navigationBarTitleDisplayMode(.inline)
+      .poracodeComposerInset {
+        if showsSearchActionsInset {
+          PoracodeBottomActionDock {
+            PoracodeCircleMenu {
+              visibilityActions
+            } label: {
+              Image(systemName: actionsSymbol)
+            }
+            .accessibilityLabel(actionsTitle)
+            .disabled(!controller.canEdit)
+            .accessibilityIdentifier("native-e2e.settings.models.actions")
+          }
+        }
+      }
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button(SettingsUIStrings.done, systemImage: "checkmark") { dismiss() }
             .accessibilityIdentifier("native-e2e.settings.models.done")
         }
-        // The centered iPad sheet's bottom bar can be covered by the keyboard.
-        ToolbarItem(placement: searchFocused && UIDevice.current.userInterfaceIdiom == .pad
-          ? .topBarLeading : .bottomBar) {
-          PoracodeToolbarMenu(
-            title: controller.isSaving ? SettingsUIStrings.saving : ModelVisibilityStrings.actions,
-            systemImage: controller.isSaving ? "hourglass" : "eye"
-          ) {
-            Button(ModelVisibilityStrings.showAll, systemImage: "eye") { setAll(visible: true) }
-            Button(ModelVisibilityStrings.hideAll, systemImage: "eye.slash") { setAll(visible: false) }
+        if !showsSearchActionsInset {
+          // The centered iPad sheet's bottom bar can be covered by the keyboard.
+          ToolbarItem(placement: searchFocused && UIDevice.current.userInterfaceIdiom == .pad
+            ? .topBarLeading : .bottomBar) {
+            PoracodeToolbarMenu(title: actionsTitle, systemImage: actionsSymbol) { visibilityActions }
+              .disabled(!controller.canEdit)
+              .accessibilityIdentifier("native-e2e.settings.models.actions")
           }
-          .disabled(!controller.canEdit)
-          .accessibilityIdentifier("native-e2e.settings.models.actions")
         }
       }
       .poracodeUseKeyboardLayoutGuide()
@@ -78,6 +98,11 @@ struct SettingsModelVisibilityView: View {
       }
       .onChange(of: controller.isCurrent) { _, current in if !current { dismiss() } }
     }
+  }
+
+  @ViewBuilder private var visibilityActions: some View {
+    Button(ModelVisibilityStrings.showAll, systemImage: "eye") { setAll(visible: true) }
+    Button(ModelVisibilityStrings.hideAll, systemImage: "eye.slash") { setAll(visible: false) }
   }
 
   private func rows(in group: ModelVisibilityGroup) -> [ModelVisibilityRow] {

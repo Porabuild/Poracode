@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 function tempDir(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  const dir = mkdtempSync(join(realpathSync.native(tmpdir()), prefix));
   dirs.push(dir);
   return dir;
 }

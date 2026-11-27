@@ -37,9 +37,18 @@ extension NativeFamilyJourneyUITests {
       "WSL display changes must not change the native machine's order")
     try await moveReviewerToTop()
     let reset = app.buttons["native-e2e.settings.provider-order.reset"]
-    XCTAssertTrue(reset.waitForExistence(timeout: 5)); reset.tap()
+    XCTAssertTrue(reset.waitForExistence(timeout: 5))
+    let refresh = app.buttons["native-e2e.settings.agents.discover"]
+    let list = app.collectionViews["native-e2e.settings.agents.list"]
+    for _ in 0..<3 where !reset.isHittable || (refresh.exists && reset.frame.intersects(refresh.frame)) {
+      let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.72))
+      let end = start.withOffset(CGVector(dx: 0, dy: -list.frame.height * 0.08))
+      start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+    }
+    try await poll { reset.isHittable && (!refresh.exists || !reset.frame.intersects(refresh.frame)) }
+    try await tapNativeToolbarActionAfterDisplayTransition(reset)
     let main = providerOrderRow("codex"), reviewer = providerOrderRow("fixture-reviewer")
-    try await poll { main.frame.midY < reviewer.frame.midY }
+    try await poll { !reset.exists && main.frame.midY < reviewer.frame.midY }
     try await moveReviewerToTop()
     preferenceProof("machine-specific-provider-order")
     let localOperations = Array(try await preferenceOperationIDs().dropFirst(journalStart))

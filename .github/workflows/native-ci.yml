@@ -284,11 +284,18 @@ jobs:
           retention-days: 7
 
   ios_ui:
-    name: iOS XCUITest wire-lab journey
+    name: iOS XCUITest wire-lab journey (shard ${{ matrix.shard }}/6)
     needs: [changes, ios]
     if: ${{ needs.changes.outputs.ios == 'true' && needs.changes.outputs.full == 'true' }}
     runs-on: macos-26
     timeout-minutes: 60
+    # Six mock shards leave time to finalize Xcode results within the 30m
+    # XCTest budget. Keep fail-fast off so the aggregate covers every case.
+    # The first shard also builds and runs the single real-peer qualification.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -304,12 +311,16 @@ jobs:
       - name: Build test native dependencies
         # The mock journey is pure Node, but the E.2 real-peer leg below runs
         # the production host, whose PTY sessions need node-pty (install runs
-        # with --ignore-scripts).
+        # with --ignore-scripts). The real-peer leg runs only on shard 1, so
+        # only that shard needs this rebuild.
+        if: ${{ matrix.shard == 1 }}
         run: scripts/ci-rebuild-node-pty.sh
 
       - name: Build the production headless host
         # Required by the E.2 real-peer family journey: the real harness boots
-        # dist/main/server.cjs with the strict checkout-shape layout.
+        # dist/main/server.cjs with the strict checkout-shape layout. That leg
+        # runs only on shard 1, so only that shard builds the host.
+        if: ${{ matrix.shard == 1 }}
         run: |
           bun run codex-protocol:gen
           bun run build:electron
@@ -338,22 +349,52 @@ jobs:
           xcrun simctl list runtimes
           xcrun simctl list runtimes -j | grep -q 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
 
+      - name: Install iOS simulator hardware input
+        # XCTest's simulated shortcuts can be dropped across keyboard and
+        # navigation transitions. Use matching, pinned idb release artifacts
+        # for the simulator-only mock leg.
+        run: |
+          input_root="$RUNNER_TEMP/poracode-idb"
+          mkdir -p "$input_root"
+          cd "$input_root"
+          artifact_root=https://github.com/meta/idb/releases/download/v1.7.7
+          curl --fail --silent --show-error --location --retry 3 --remote-name "$artifact_root/fb_idb-1.7.7-py3-none-any.whl"
+          curl --fail --silent --show-error --location --retry 3 --remote-name "$artifact_root/idb-companion.macos-arm64.tar.gz"
+          shasum -a 256 -c <<'CHECKSUMS'
+          df8f0babb02acb347b3da601439a2f009f3b0f74713c40c606e84c2f1294d82b  fb_idb-1.7.7-py3-none-any.whl
+          d0e4e10a7bbd85a6ce67966acb5fca0a87fd14cd026b79f8ec3ee6c338f4a166  idb-companion.macos-arm64.tar.gz
+          CHECKSUMS
+          tar -xzf idb-companion.macos-arm64.tar.gz
+          python3 -m venv client
+          client/bin/python -m pip install --disable-pip-version-check --only-binary=:all: ./fb_idb-1.7.7-py3-none-any.whl
+          client/bin/idb ui key --help > /dev/null
+          ./idb_companion --version
+          printf '%s\n' "$input_root/client/bin" "$input_root" >> "$GITHUB_PATH"
+
       # The mock leg drives the mock wire-lab harness (pure Node: no headless
-      # host needed by the journey itself). It starts the harness, builds the
-      # NativeE2ETests UI runner for the fixed simulator, injects the control
-      # URL/capability through a generated xctestrun file, runs the full
-      # NativeJourneyUITests + NativeFamilyJourneyUITests set, and prunes its
-      # own per-run artifacts. This stays the fast path.
+      # host needed by the journey itself). It builds the NativeE2ETests UI
+      # runner for the fixed simulator before starting the harness, injects the
+      # control URL/capability through a generated xctestrun file, runs its
+      # compiled shard of the full NativeJourneyUITests + NativeFamilyJourneyUITests
+      # set (enumerated from the built xctestrun before the harness starts), and
+      # prunes its own per-run artifacts. This stays the fast path.
       - name: Run the iOS XCUITest wire-lab journey (mock peer)
         env:
           # Slot 1 like scripts/ci-android-api37.sh: slot 0's base port
           # (49152) is claimed by macOS system services on runner images.
           PORACODE_NATIVE_E2E_SLOT: "1"
+          NATIVE_E2E_IOS_HID: "1"
           NATIVE_E2E_STARTUP_TIMEOUT_MS: "60000"
-          # Includes clean build-for-testing time before XCUITest starts. The
-          # previous five-minute floor expired during a 12-minute CI compile
-          # and deliberately stopped the control server under every test.
+          # build-for-testing now runs before the harness is spawned, so this
+          # budget covers the XCTest run alone (no clean-compile time). The
+          # harness owns a bounded test budget from the moment it starts; keep
+          # compile work ahead of it rather than raising this ceiling.
           NATIVE_E2E_TEST_TIMEOUT_MS: "1800000"
+          # Evidence-based sharding: each job enumerates the compiled mock
+          # cases and runs exactly its own round-robin slice, keeping the
+          # unchanged 30m XCTest budget. The unsharded real-peer leg below
+          # never sets this env.
+          NATIVE_E2E_IOS_SHARD: "${{ matrix.shard }}/6"
         run: node scripts/native-e2e.mjs ios-ui
 
       # E.2 real-peer leg: the same journey against the production headless
@@ -364,6 +405,10 @@ jobs:
       # credential (never a workflow env var), and injects peerMode/pairing/
       # control into the 0o600 xctestrun file.
       - name: Run the iOS real-peer family journey (real host)
+        # Real-peer qualification stays once (shard 1 only); it uses the two
+        # production-host builds above and never sets a shard env, so its
+        # -only-testing selectors run unsharded.
+        if: ${{ matrix.shard == 1 }}
         env:
           PORACODE_NATIVE_E2E_SLOT: "1"
           NATIVE_E2E_PEER_MODE: "real"
@@ -376,7 +421,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ios-ui-journey-${{ github.run_attempt }}
+          name: ios-ui-journey-${{ matrix.shard }}-${{ github.run_attempt }}
           path: .tmp/native-e2e/ios-ui-*/
           if-no-files-found: warn
           retention-days: 7

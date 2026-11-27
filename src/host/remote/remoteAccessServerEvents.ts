@@ -709,6 +709,7 @@ function broadcastTerminalOutput(
         reliable.watchId,
         event.terminalInstanceId,
         event.outputLength,
+        event.terminalColumns,
       );
       sendRaw(host, client, JSON.stringify(tagged));
       continue;

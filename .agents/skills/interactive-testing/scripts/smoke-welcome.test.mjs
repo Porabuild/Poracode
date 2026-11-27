@@ -127,6 +127,69 @@ await test("uses guarded pointer input, observes dismissal and never writes the 
   assert(state.events.every((event) => event.x === 50 && event.y === 30));
 });
 
+await test("dismisses the covering discovery portal before the welcome CTA", async (t) => {
+  const state = fixture(t);
+  const { document } = state.window;
+  const portal = document.createElement("div");
+  portal.className = "fixed inset-0 z-[60]";
+  portal.setAttribute("role", "region");
+  const discovery = document.createElement("button");
+  discovery.setAttribute("data-discovery-primary-action", "");
+  discovery.textContent = "Done (10s)";
+  discovery.scrollIntoView = () => {};
+  discovery.getBoundingClientRect = () => ({ x: 300, y: 300, width: 100, height: 40 });
+  portal.append(discovery);
+  document.body.append(portal);
+  const root = document.querySelector("#root");
+  root.setAttribute("inert", "");
+  state.hit = () => (portal.isConnected ? discovery : state.button.querySelector("span"));
+  state.onPress = () => {
+    if (portal.isConnected) {
+      portal.remove();
+      root.removeAttribute("inert");
+    } else {
+      state.gate.remove();
+    }
+  };
+  const result = await state.run();
+  assert.equal(result.dismissed, true);
+  assert.equal(result.evidence.discoveryDismissals, 1);
+  assert.equal(result.evidence.dispatchedActions, 1);
+  assert.equal(result.evidence.actionAttempts, 1);
+  assert.deepEqual(state.opened, ["smoke-project"]);
+  assert.equal(state.window.localStorage.getItem("poracode-welcome-seen-v16"), null);
+  assert.deepEqual(
+    state.events.map((event) => `${event.type}:${event.x},${event.y}`),
+    [
+      "mouseMoved:350,320",
+      "mousePressed:350,320",
+      "mouseReleased:350,320",
+      "mouseMoved:50,30",
+      "mousePressed:50,30",
+      "mouseReleased:50,30",
+    ],
+  );
+  assert(
+    result.evidence.snapshots.some(
+      (snapshot) =>
+        snapshot.phase === "discovery-action" && snapshot.state.discoveryPrimary?.actionable,
+    ),
+  );
+});
+
+await test("inert welcome coverage without the discovery portal still fails", async (t) => {
+  const state = fixture(t);
+  state.window.document.querySelector("#root").setAttribute("inert", "");
+  await assert.rejects(state.run(), (error) => {
+    assert.match(error.message, /inert/);
+    const evidence = evidenceOf(error);
+    assert.equal(evidence.dispatchedActions, 0);
+    assert.equal(evidence.discoveryDismissals, 0);
+    return true;
+  });
+  assert.deepEqual(state.events, []);
+});
+
 await test("distinguishes the shared backdrop from an already absent fixed overlay", async (t) => {
   const state = fixture(t);
   state.gate.remove();

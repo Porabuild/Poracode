@@ -86,6 +86,9 @@ export async function startMockHarness(input?: {
     host: input?.control?.host ?? LOOPBACK_HOST,
     port: input?.control?.port ?? 0,
     capability,
+    ...(input?.control?.pressSimulatorKey
+      ? { pressSimulatorKey: input.control.pressSimulatorKey }
+      : {}),
   });
   await control.start();
   cleanup.add(() => control.stop());

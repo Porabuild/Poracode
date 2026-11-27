@@ -98,20 +98,8 @@ struct ProjectFileDetailView: View {
   }
 
   private var editableContent: some View {
-    Group {
-      if let selectedLine {
-        ProjectLinkedTextEditor(text: $editor.draft, line: selectedLine, isEditable: true)
-      } else {
-        TextEditor(text: $editor.draft)
-          .font(.system(.body, design: .monospaced))
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-      }
-    }
-      .focusedValue(\.nativeCommandFocus, .init(role: .editor, isTextInput: true))
+    ProjectLinkedTextEditor(text: $editor.draft, line: selectedLine, isEditable: true)
       .padding(.horizontal, 8)
-      .accessibilityLabel(ProjectWorkspaceStrings.editorLabel)
-      .accessibilityIdentifier("native-e2e.project-file-editor")
   }
 
   private func readOnlyContent(_ content: String) -> some View {

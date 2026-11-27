@@ -36,6 +36,7 @@ internal object RichTerminalWatchPolicy {
             generation = generation,
             toCursor = durable.toCursor,
             transcript = durable.transcript,
+            columnChanges = durable.columnChanges,
         )
     }
 
@@ -53,6 +54,7 @@ internal object RichTerminalWatchPolicy {
             generation = generation,
             toCursor = durable.toCursor,
             transcript = durable.transcript,
+            columnChanges = durable.columnChanges,
         )
     }
 

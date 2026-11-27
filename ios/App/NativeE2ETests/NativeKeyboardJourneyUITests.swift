@@ -193,7 +193,7 @@ extension NativeFamilyJourneyUITests {
         let (_, response) = try await URLSession.shared.data(from: url)
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
       } else {
-        app.typeKey("f", modifierFlags: .command)
+        try await typeNativeE2EKey("f", modifiers: .command)
       }
     }
     try await openFindByKeyboard()
@@ -278,7 +278,7 @@ extension NativeFamilyJourneyUITests {
     _ = try await control(path: "/v1/checkpoints/keyboard-workspace-ready", method: "POST")
     try await pairUntilHome()
 
-    app.typeKey("k", modifierFlags: .command)
+    try await typeNativeE2EKey("k", modifiers: .command)
     let search = app.searchFields.firstMatch
     XCTAssertTrue(search.waitForExistence(timeout: 5))
     search.typeText("Open Settings")
@@ -286,7 +286,7 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(settingsCommand.waitForExistence(timeout: 5)); settingsCommand.tap()
     let closeSettings = app.buttons["native-e2e.settings.close"]
     XCTAssertTrue(closeSettings.waitForExistence(timeout: 5)); closeSettings.tap()
-    app.typeKey("k", modifierFlags: .command)
+    try await typeNativeE2EKey("k", modifiers: .command)
     XCTAssertTrue(search.waitForExistence(timeout: 5))
     search.typeText("Fixture")
     let result = app.buttons["native-e2e.search-thread.thread-fixture-001"]
@@ -294,7 +294,7 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 10))
     keyboardProof("search-result-opened")
 
-    app.typeKey("e", modifierFlags: [.command, .shift])
+    try await typeNativeE2EKey("e", modifiers: [.command, .shift])
     let file = app.descendants(matching: .any)["native-e2e.project-file.README.md"].firstMatch
     let openedFiles = file.waitForExistence(timeout: 10)
     keyboardProof("workspace-after-files-shortcut")
@@ -319,18 +319,23 @@ extension NativeFamilyJourneyUITests {
     let openedEditor = editor.waitForExistence(timeout: 10)
     keyboardProof("file-after-row-tap")
     XCTAssertTrue(openedEditor)
+    let originalText = try XCTUnwrap(editor.value as? String)
+    let edit = " Keyboard save proof"
     // The sheet's text view extends beneath its chrome. Focus the text line.
     if UIDevice.current.userInterfaceIdiom == .pad {
       editor.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.12)).tap()
     } else {
-      editor.tap()
+      editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)).tap()
     }
-    editor.typeText(" Keyboard save proof")
+    app.typeText(edit)
+    if UIDevice.current.userInterfaceIdiom == .phone {
+      XCTAssertEqual(editor.value as? String, originalText + edit)
+    }
     let closeDetail = app.buttons["native-e2e.project-workspace.close-detail"]
     if !closeDetail.exists {
       closeKeyboardEditorPage()
       XCTAssertTrue(file.waitForExistence(timeout: 5))
-      app.typeKey("e", modifierFlags: [.command, .shift])
+      try await typeNativeE2EKey("e", modifiers: [.command, .shift])
       let confirmDiscard = app.alerts["Discard unsaved changes?"]
       XCTAssertTrue(confirmDiscard.waitForExistence(timeout: 5))
       confirmDiscard.buttons["Cancel"].tap()
@@ -339,8 +344,11 @@ extension NativeFamilyJourneyUITests {
       XCTAssertTrue((editor.value as? String)?.contains("Keyboard save proof") == true)
       editor.tap()
     }
-    app.typeKey("s", modifierFlags: .command)
-    try await waitForObservedOperation(hostID: "primary", operationID: "procedure:writeProjectFile")
+    let saveOperation = "procedure:writeProjectFile"
+    let writesBeforeShortcut = try await journalCount(hostID: "primary", operationID: saveOperation)
+    keyboardProof("editor-before-keyboard-save")
+    try await typeNativeE2EKey("s", modifiers: .command)
+    try await waitForJournal(hostID: "primary", operationID: saveOperation, count: writesBeforeShortcut + 1)
     app.typeKey("v", modifierFlags: [.control, .shift])
     XCTAssertTrue(app.staticTexts["File contents"].waitForExistence(timeout: 5))
     XCTAssertFalse(editor.isHittable)
@@ -352,10 +360,14 @@ extension NativeFamilyJourneyUITests {
       closeKeyboardEditorPage()
     }
     XCTAssertTrue(file.waitForExistence(timeout: 5))
-    app.typeKey("p", modifierFlags: .command)
-    try await poll { !file.isHittable && self.app.staticTexts["Fixture response"].isHittable }
-    app.typeKey("g", modifierFlags: [.command, .shift])
-    try await waitForObservedOperation(hostID: "primary", operationID: "procedure:getGitStatus")
+    try await typeNativeE2EKey("p", modifiers: .command)
+    let threadActions = app.descendants(matching: .any).matching(identifier: "native-e2e.thread.actions").firstMatch
+    try await poll { !file.isHittable && threadActions.isHittable && self.app.staticTexts["Fixture response"].isHittable }
+    let gitOperation = "procedure:getGitStatus"
+    let gitReadsBeforeShortcut = try await journalCount(hostID: "primary", operationID: gitOperation)
+    try await typeNativeE2EKey("g", modifiers: [.command, .shift])
+    XCTAssertTrue(app.buttons["native-e2e.git.panel-menu"].waitForExistence(timeout: 5))
+    try await waitForJournal(hostID: "primary", operationID: gitOperation, count: gitReadsBeforeShortcut + 1)
     keyboardProof("git-opened-with-shortcut")
   }
 
@@ -486,7 +498,7 @@ extension NativeFamilyJourneyUITests {
     XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
     XCTAssertEqual(keys.value as? String, "Command+Shift+J")
     XCTAssertTrue(save.isEnabled); XCTAssertTrue(save.isHittable)
-    XCTAssertGreaterThanOrEqual(save.frame.height, 44)
+    assertNativeToolbarActionMinimumSize(save)
     if app.keyboards.firstMatch.exists { XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY) }
     keyboardProof("shortcut-editor-above-keyboard")
     save.tap()
@@ -722,7 +734,7 @@ extension NativeFamilyJourneyUITests {
     var flags: XCUIElement.KeyModifierFlags = []
     if command { flags.insert(.command) }
     if shift { flags.insert(.shift) }
-    app.typeKey(XCUIKeyboardKey(rawValue: name), modifierFlags: flags)
+    try await typeNativeE2EKey(name, modifiers: flags)
   }
 
   private func keyboardProof(_ name: String) {
