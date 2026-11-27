@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "Акцент"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "Прийняти все"
+msgid "Accept analytics and crash reports"
+msgstr "Дозволити аналітику та звіти про збої"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "Додати до синхронізації"
 msgid "Include memory when a thread starts."
 msgstr "Додавати пам'ять на старті треду."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17529,6 +17530,7 @@ msgstr "Надіслати ввід у термінал"
 msgid "Sending {sent} of {total}…"
 msgstr "Надіслано {sent} з {total}…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21106,6 +21108,7 @@ msgstr "Спробувати"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Вмикайте або вимикайте встановлені плагіни для потоків цього проєкту. Власний вибір плагінів у потоці й надалі має пріоритет; запущені потоки застосують зміни під час наступного запуску."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "Увімкніть звіти про збої, щоб включити нативні дампи."

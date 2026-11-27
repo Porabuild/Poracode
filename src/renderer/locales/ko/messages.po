@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "강조색"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "모두 수락"
+msgid "Accept analytics and crash reports"
+msgstr "제품 분석 및 충돌 보고서 허용"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "동기화에 포함"
 msgid "Include memory when a thread starts."
 msgstr "스레드가 시작될 때 메모리를 포함합니다."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17529,6 +17530,7 @@ msgstr "터미널에 입력 보내기"
 msgid "Sending {sent} of {total}…"
 msgstr "{total} 중 {sent} 보내는 중…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21106,6 +21108,7 @@ msgstr "지금 사용해보기"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "이 프로젝트의 스레드에서 설치된 플러그인을 켜거나 끕니다. 스레드 자체의 플러그인 선택이 계속 우선하며, 실행 중인 스레드는 다음 실행 시 변경 사항을 적용합니다."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "네이티브 충돌 덤프를 포함하려면 충돌 보고서를 켜세요."

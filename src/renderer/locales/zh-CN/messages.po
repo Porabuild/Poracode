@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "强调色"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "全部接受"
+msgid "Accept analytics and crash reports"
+msgstr "允许产品分析和崩溃报告"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "加入同步"
 msgid "Include memory when a thread starts."
 msgstr "会话开始时带上记忆。"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17528,6 +17529,7 @@ msgstr "发送终端输入"
 msgid "Sending {sent} of {total}…"
 msgstr "正在发送 {sent} / {total}…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21105,6 +21107,7 @@ msgstr "立即试用"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "为此项目中的线程开启或关闭已安装的插件。线程自身的插件选择仍然优先；正在运行的线程会在下次启动时应用更改。"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "开启崩溃报告以包含原生崩溃转储。"

@@ -1208,8 +1208,8 @@ msgid "Accent"
 msgstr "アクセント"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "すべて受け入れる"
+msgid "Accept analytics and crash reports"
+msgstr "分析とクラッシュレポートを許可"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9494,6 +9494,7 @@ msgstr "同期に追加"
 msgid "Include memory when a thread starts."
 msgstr "スレッド開始時にメモリを含める。"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17527,6 +17528,7 @@ msgstr "ターミナルに入力を送信"
 msgid "Sending {sent} of {total}…"
 msgstr "{total} 中 {sent} を送信しています…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21104,6 +21106,7 @@ msgstr "試してみる"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "このプロジェクトのスレッドで、インストール済みプラグインをオンまたはオフにします。スレッド自身のプラグイン選択が引き続き優先され、実行中のスレッドは次回の起動時に変更を適用します。"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "ネイティブクラッシュダンプを含めるには、クラッシュレポートをオンにしてください。"

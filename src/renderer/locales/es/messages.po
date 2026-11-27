@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "Acento"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "Aceptar todo"
+msgid "Accept analytics and crash reports"
+msgstr "Aceptar analítica e informes de fallos"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "Incluir en la sincronización"
 msgid "Include memory when a thread starts."
 msgstr "Incluir la memoria al iniciar un hilo."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17529,6 +17530,7 @@ msgstr "Enviar entrada al terminal"
 msgid "Sending {sent} of {total}…"
 msgstr "Enviando {sent} de {total}…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21106,6 +21108,7 @@ msgstr "Probar ahora"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Activa o desactiva los plugins instalados para los hilos de este proyecto. Las opciones de plugins de cada hilo siguen teniendo prioridad; los hilos en ejecución aplican los cambios en su próximo inicio."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "Activa los informes de fallos para incluir volcados nativos."

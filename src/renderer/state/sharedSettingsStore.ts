@@ -218,8 +218,8 @@ interface SharedSettingsState extends SharedSettings {
     key: K,
     value: SharedSettings["privacy"][K],
   ) => void;
-  /** Records the first-run telemetry choice and both stream decisions at once. */
-  setTelemetryConsent: (consent: { productAnalytics: boolean; crashReports: boolean }) => void;
+  /** Records all first-run telemetry choices together. */
+  setTelemetryConsent: (consent: Omit<SharedSettings["privacy"], "consentDecided">) => void;
   /**
    * Update one supervisor host execution-slot bound. Each value is a
    * nonnegative finite **safe** integer with no ceiling; `0` stays explicitly
@@ -1127,9 +1127,13 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     persistSettings(selectSharedSettings(get()));
   },
   setTelemetryConsent: (consent) => {
-    // The ordinary first-run choice never grants raw memory consent; that
-    // needs its own Settings toggle after crash reports are enabled.
-    set({ privacy: { ...consent, nativeCrashDumps: false, consentDecided: true } });
+    set({
+      privacy: {
+        ...consent,
+        nativeCrashDumps: consent.crashReports && consent.nativeCrashDumps,
+        consentDecided: true,
+      },
+    });
     persistSettings(selectSharedSettings(get()));
   },
   setHostResourceAdmissionSetting: (key, value) => {

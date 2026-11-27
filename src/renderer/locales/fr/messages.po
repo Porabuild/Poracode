@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "Accent"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "Tout accepter"
+msgid "Accept analytics and crash reports"
+msgstr "Accepter l’analyse et les rapports de plantage"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "Inclure dans la synchronisation"
 msgid "Include memory when a thread starts."
 msgstr "Inclure la mémoire au démarrage d'un fil."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17528,6 +17529,7 @@ msgstr "Envoyer une entrée au terminal"
 msgid "Sending {sent} of {total}…"
 msgstr "Envoi de {sent} sur {total}…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21105,6 +21107,7 @@ msgstr "Essayer"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Activez ou désactivez les plugins installés pour les fils de ce projet. Les choix de plugins propres à un fil restent prioritaires ; les fils en cours appliquent les changements à leur prochain lancement."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "Activez les rapports de plantage pour inclure les vidages natifs."

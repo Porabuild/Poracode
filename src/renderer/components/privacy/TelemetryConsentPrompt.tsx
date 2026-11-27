@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -24,13 +24,18 @@ function TelemetryDocLink() {
   );
 }
 
-function ConsentChoices(props: {
+type ConsentChoicesProps = {
   productAnalytics: boolean;
   crashReports: boolean;
+  nativeCrashDumps: boolean;
   onProductAnalyticsChange: (value: boolean) => void;
   onCrashReportsChange: (value: boolean) => void;
-}) {
+  onNativeCrashDumpsChange: (value: boolean) => void;
+};
+
+function ConsentChoices(props: ConsentChoicesProps) {
   const { t } = useLingui();
+  const nativeDumpsDescriptionId = useId();
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-4">
@@ -58,7 +63,27 @@ function ConsentChoices(props: {
           aria-describedby="consent-crash-description"
           aria-label={t`Crash reports`}
           isSelected={props.crashReports}
-          onChange={props.onCrashReportsChange}
+          onChange={(value) => {
+            props.onCrashReportsChange(value);
+            if (!value) props.onNativeCrashDumpsChange(false);
+          }}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{t`Include native crash dumps`}</p>
+          <p className="text-xs text-muted" id={nativeDumpsDescriptionId}>
+            {props.crashReports
+              ? t`Sends memory snapshots to Sentry that may contain sensitive data.`
+              : t`Turn on crash reports to include native dumps.`}
+          </p>
+        </div>
+        <ToggleSwitch
+          aria-describedby={nativeDumpsDescriptionId}
+          aria-label={t`Include native crash dumps`}
+          isSelected={props.nativeCrashDumps}
+          isDisabled={!props.crashReports}
+          onChange={props.onNativeCrashDumpsChange}
         />
       </div>
     </div>
@@ -66,12 +91,7 @@ function ConsentChoices(props: {
 }
 
 /** Inline consent controls shown on the first-launch welcome screen. */
-export function WelcomeTelemetryChoices(props: {
-  productAnalytics: boolean;
-  crashReports: boolean;
-  onProductAnalyticsChange: (value: boolean) => void;
-  onCrashReportsChange: (value: boolean) => void;
-}) {
+export function WelcomeTelemetryChoices(props: ConsentChoicesProps) {
   return (
     <div className="w-full max-w-[460px] space-y-3 text-left">
       <p className="text-xs text-muted">
@@ -88,9 +108,9 @@ export function WelcomeTelemetryChoices(props: {
 
 /**
  * One-time opt-in ask, shown after the first-launch welcome (or at startup for
- * installs that predate consent). Accept all turns both streams on, Save
- * choices keeps the switch states, No thanks keeps both off; closing without
- * choosing asks again next launch, and any button records the decision.
+ * installs that predate consent). Save choices records the switch states.
+ * The bulk opt-in covers analytics and scrubbed crash reports only. No thanks
+ * turns every stream off. Closing without choosing asks again next launch.
  *
  * The prompt is a non-modal card pinned to the bottom-right rather than a
  * full-window dialog, so it never blocks navigation while undecided.
@@ -111,6 +131,7 @@ export function TelemetryConsentPrompt() {
   const [welcomeGone] = useState(isWelcomeSeen);
   const [productAnalytics, setProductAnalytics] = useState(false);
   const [crashReports, setCrashReports] = useState(false);
+  const [nativeCrashDumps, setNativeCrashDumps] = useState(false);
   const seeded = useRef(false);
   const promptRef = useRef<HTMLDivElement>(null);
 
@@ -131,6 +152,7 @@ export function TelemetryConsentPrompt() {
     const stored = useSharedSettings.getState().privacy;
     setProductAnalytics(stored?.productAnalytics ?? false);
     setCrashReports(stored?.crashReports ?? false);
+    setNativeCrashDumps(stored?.crashReports === true && stored.nativeCrashDumps);
   }, [open]);
 
   // Escape dismisses only while keyboard focus is inside the card. A global
@@ -189,31 +211,45 @@ export function TelemetryConsentPrompt() {
       <ConsentChoices
         productAnalytics={productAnalytics}
         crashReports={crashReports}
+        nativeCrashDumps={nativeCrashDumps}
         onProductAnalyticsChange={setProductAnalytics}
         onCrashReportsChange={setCrashReports}
+        onNativeCrashDumpsChange={setNativeCrashDumps}
       />
       <TelemetryDocLink />
       <div className="flex flex-wrap justify-end gap-2">
         <Button
           size="sm"
           variant="ghost"
-          onPress={() => setTelemetryConsent({ productAnalytics: false, crashReports: false })}
+          onPress={() =>
+            setTelemetryConsent({
+              productAnalytics: false,
+              crashReports: false,
+              nativeCrashDumps: false,
+            })
+          }
         >
           {t`No thanks`}
         </Button>
         <Button
           size="sm"
           variant="secondary"
-          onPress={() => setTelemetryConsent({ productAnalytics, crashReports })}
+          onPress={() => setTelemetryConsent({ productAnalytics, crashReports, nativeCrashDumps })}
         >
           {t`Save choices`}
         </Button>
         <Button
           size="sm"
           variant="primary"
-          onPress={() => setTelemetryConsent({ productAnalytics: true, crashReports: true })}
+          onPress={() =>
+            setTelemetryConsent({
+              productAnalytics: true,
+              crashReports: true,
+              nativeCrashDumps: false,
+            })
+          }
         >
-          {t`Accept all`}
+          {t`Accept analytics and crash reports`}
         </Button>
       </div>
     </div>,
