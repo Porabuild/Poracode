@@ -83,13 +83,26 @@ describe("theme presets", () => {
     }
   });
 
-  it("aligns dark selected sidebar rows with raised surfaces while keeping hover a lighter wash", () => {
+  it("keeps dark selected sidebar rows stronger than hover", () => {
     for (const preset of APP_THEME_PRESETS) {
-      expect(preset.dark["--sidebar-row-active"]).toBe(preset.dark["--surface-secondary"]);
+      const backdrop = preset.dark["--sidebar-panel-background"]!;
+      const foreground = preset.dark["--foreground"]!;
+      const hover = mixHex(foreground, backdrop, 0.035);
+      expect(contrastRatio(preset.dark["--sidebar-row-active"]!, backdrop)).toBeGreaterThan(
+        contrastRatio(hover, backdrop),
+      );
       expect(preset.dark["--sidebar-row-hover"]).toContain("transparent");
-      expect(preset.dark["--sidebar-row-hover"]).toContain(" 9%,");
+      expect(preset.dark["--sidebar-row-hover"]).toContain(" 3.5%,");
       expect(preset.light["--sidebar-row-hover"]).toContain(" 6%,");
+      expect(preset.light["--sidebar-row-active"]).toContain(" 11%,");
     }
+    // Representative: Catppuccin keeps the raised panel, One needs the floor.
+    const catppuccin = getThemePreset("catppuccin").dark;
+    expect(catppuccin["--sidebar-row-active"]).toBe(catppuccin["--content-surface-fill"]);
+    const one = getThemePreset("one").dark;
+    expect(one["--sidebar-row-active"]).toBe(
+      mixHex(one["--foreground"]!, one["--sidebar-panel-background"]!, 0.075),
+    );
   });
 
   it("uses a translucent foreground wash for fields so they step cleanly from any surface", () => {

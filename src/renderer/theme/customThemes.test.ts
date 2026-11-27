@@ -56,11 +56,11 @@ describe("custom theme application", () => {
     expect(vars["--composer-surface"]).toBe(vars["--content-surface-fill"]);
     expect(vars["--field-background"]).toContain("transparent");
     expect(vars["--sidebar-panel-background"]).toBe(THEME_SPECS[0]!.dark.content);
-    // Without an authored override, the selected sidebar row uses the same
-    // raised fill as the composer/cards; hover stays a lighter transparent wash.
-    expect(vars["--sidebar-row-active"]).toBe(vars["--surface-secondary"]);
+    // Without an authored override, the default dark fixture lands on the
+    // 7.5% foreground floor because its panel sits too close to the backdrop.
+    expect(vars["--sidebar-row-active"]).toBe("#1d1d22");
     expect(vars["--sidebar-row-hover"]).toContain("transparent");
-    expect(vars["--sidebar-row-hover"]).toContain(" 9%,");
+    expect(vars["--sidebar-row-hover"]).toContain(" 3.5%,");
     expect(buildVariant(THEME_SPECS[0]!.light, "light")["--sidebar-row-hover"]).toContain(" 6%,");
     // A literal expression avoids --row-active -> --sidebar-row-active -> --row-active cycles.
     expect(vars["--sidebar-row-active"]).not.toContain("var(--row-active)");
