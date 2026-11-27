@@ -2,6 +2,7 @@ package com.poracode.app.push
 
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostRecord
+import com.poracode.app.model.RemoteThread
 import com.poracode.app.session.AppSession
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,9 +11,48 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
+/**
+ * What [PushRouteSession.prepare] decided. The open (and any off-page row
+ * install) happens only at the coordinator's resolved open, after its
+ * generation check, so a stale or superseded read can never mutate a newly
+ * selected host. [Unavailable] asks for a generic outcome to be surfaced, also
+ * gated by that generation. [Drop] fails closed with no side effects.
+ */
+sealed interface PushPreparation {
+    /**
+     * Cleared to open. When the target was outside the loaded catalog page,
+     * [offPageRow] (captured with [pageStartedSeq]) is installed + pinned at the
+     * open so terminal presentation is resolved from the row.
+     */
+    data class Open(
+        val route: PushRouteV1,
+        val offPageRow: RemoteThread? = null,
+        val pageStartedSeq: Long = 0L,
+    ) : PushPreparation
+
+    /** A previously known host/thread cannot be opened: show a generic outcome. */
+    data object Unavailable : PushPreparation
+
+    /** Unknown/unpaired/stale/malformed: fail closed with no outcome. */
+    data object Drop : PushPreparation
+}
+
+/**
+ * Result of the host-scoped exact-ID thread head read for an off-page push
+ * target. [Stale] means the selected host/profile or the API incarnation
+ * changed during the read: the response must not touch the current host.
+ */
+sealed interface PushOffPageResolution {
+    data class Found(val row: RemoteThread, val pageStartedSeq: Long) : PushOffPageResolution
+    data object Unavailable : PushOffPageResolution
+    data object Stale : PushOffPageResolution
+}
+
 interface PushRouteSession {
-    suspend fun prepare(route: PushRouteV1): PushRouteV1?
-    fun open(prepared: PushRouteV1)
+    suspend fun prepare(route: PushRouteV1): PushPreparation
+    fun open(prepared: PushPreparation.Open)
+    /** Surface a localized, generic "cannot be opened" outcome (no remote strings). */
+    fun showUnavailable()
 }
 
 /** Host registry view needed to decide whether a tap crosses hosts. */
@@ -77,7 +117,7 @@ class PushRouteCoordinator(
             }
             PushRouteUiPolicy.Decision.ImmediateOpen -> {
                 _pendingConfirmation.value = null
-                openIfCurrent(route, mine)
+                resolveAndOpen(route, mine)
             }
         }
     }
@@ -94,7 +134,7 @@ class PushRouteCoordinator(
             catalog.hosts,
         )
         if (decision is PushRouteUiPolicy.Decision.Drop) return false
-        return openIfCurrent(pending.route, mine)
+        return resolveAndOpen(pending.route, mine)
     }
 
     /** Cancel leaves the current host and thread unchanged. */
@@ -104,29 +144,59 @@ class PushRouteCoordinator(
 
     fun generationForTests(): Long = generation.get()
 
-    private suspend fun openIfCurrent(route: PushRouteV1, mine: Long): Boolean {
-        val prepared = session.prepare(route) ?: return false
-        if (generation.get() != mine) return false
-        session.open(prepared)
-        return true
-    }
+    /**
+     * Preparation may suspend on a bounded exact-ID read. The generation check
+     * gates BOTH the open (and its off-page row install) and the unavailable
+     * outcome, so a superseding notification can never apply a stale result to
+     * the newly selected host.
+     */
+    private suspend fun resolveAndOpen(route: PushRouteV1, mine: Long): Boolean =
+        when (val preparation = session.prepare(route)) {
+            is PushPreparation.Open -> {
+                if (generation.get() != mine) {
+                    false
+                } else {
+                    session.open(preparation)
+                    true
+                }
+            }
+            PushPreparation.Unavailable -> {
+                if (generation.get() != mine) {
+                    false
+                } else {
+                    session.showUnavailable()
+                    false
+                }
+            }
+            PushPreparation.Drop -> false
+        }
 }
 
+/**
+ * AppSession-backed route session. After the authorized selection and bounded
+ * snapshot refresh, a target outside the loaded page is resolved with one
+ * bounded exact-ID head read (see [AppSession.resolvePushOffPageThread]). The
+ * row is installed only at [open], so a stale read cannot alter a newly
+ * selected host, and [AppSession.openThread] resolves presentation from the
+ * installed row (preserving terminal handling). A previously known host/thread
+ * that cannot be opened produces a generic, localized unavailable outcome.
+ */
 class AppSessionPushRouteSession(
     private val session: AppSession,
     private val timeoutMs: Long = 20_000,
+    private val unavailableMessage: () -> String,
 ) : PushRouteSession {
-    override suspend fun prepare(route: PushRouteV1): PushRouteV1? {
+    override suspend fun prepare(route: PushRouteV1): PushPreparation {
         val connectionId = runCatching { ClientConnectionId(route.clientConnectionId) }
-            .getOrNull() ?: return null
+            .getOrNull() ?: return PushPreparation.Drop
         val host = withTimeoutOrNull(timeoutMs) {
             session.state.first { state ->
                 state.hostCatalog.hosts.any { it.connectionId == connectionId } ||
                     state.phase == AppSession.Phase.NeedsPairing ||
                     state.phase == AppSession.Phase.LocalStoreInconsistent
             }.hostCatalog.hosts.firstOrNull { it.connectionId == connectionId }
-        } ?: return null
-        if (host.desktopId != route.desktopId) return null
+        } ?: return PushPreparation.Unavailable
+        if (host.desktopId != route.desktopId) return PushPreparation.Drop
         if (session.state.value.hostCatalog.selectedConnectionId != connectionId) {
             session.selectHost(connectionId)
         }
@@ -136,19 +206,51 @@ class AppSessionPushRouteSession(
                     state.profile?.desktopId == route.desktopId &&
                     state.phase == AppSession.Phase.Ready
             }
-        } ?: return null
-        if (selected.profile?.desktopId != route.desktopId) return null
-        if (!session.refreshSnapshotForPush()) return null
+        } ?: return PushPreparation.Unavailable
+        if (selected.profile?.desktopId != route.desktopId) return PushPreparation.Drop
+        if (!session.refreshSnapshotForPush()) return PushPreparation.Unavailable
         val refreshed = session.state.value
         if (refreshed.hostCatalog.selectedConnectionId != connectionId ||
             refreshed.profile?.desktopId != route.desktopId
-        ) return null
-        val threadId = route.threadId ?: return null
-        if (refreshed.snapshot?.threads?.none { it.id == threadId } != false) return null
-        return route
+        ) return PushPreparation.Drop
+        val threadId = route.threadId ?: return PushPreparation.Drop
+        if (refreshed.snapshot?.threads?.any { it.id == threadId } == true) {
+            return PushPreparation.Open(route)
+        }
+        return when (
+            val resolution = session.resolvePushOffPageThread(
+                connectionId,
+                route.desktopId,
+                threadId,
+            )
+        ) {
+            is PushOffPageResolution.Found -> PushPreparation.Open(
+                route,
+                offPageRow = resolution.row,
+                pageStartedSeq = resolution.pageStartedSeq,
+            )
+            PushOffPageResolution.Unavailable -> PushPreparation.Unavailable
+            PushOffPageResolution.Stale -> PushPreparation.Drop
+        }
     }
 
-    override fun open(prepared: PushRouteV1) {
-        prepared.threadId?.let(session::openThread)
+    override fun open(prepared: PushPreparation.Open) {
+        val threadId = prepared.route.threadId ?: return
+        val row = prepared.offPageRow
+        if (row == null) {
+            session.openThread(threadId)
+            return
+        }
+        // Re-validate at the resolved open: a stale exact-ID read must never
+        // install its row into a host selected after the read began.
+        val state = session.state.value
+        if (state.hostCatalog.selectedConnectionId?.value != prepared.route.clientConnectionId ||
+            state.profile?.desktopId != prepared.route.desktopId
+        ) return
+        session.installPushOffPageRow(row, prepared.pageStartedSeq, threadId)
+    }
+
+    override fun showUnavailable() {
+        session.surfacePushUnavailable(unavailableMessage())
     }
 }

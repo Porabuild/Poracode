@@ -14,6 +14,7 @@
 
 import type { Terminal, ILinkProvider, ILink, IBufferLine } from "@xterm/xterm";
 import { stripAnsi } from "@/shared/ansi";
+import type { TerminalFileLinkSource } from "./terminalProjectFileLinks";
 
 // Copied from @xterm/addon-web-links v0.12.0 (MIT license).
 // Matches http(s):// URLs, excluding unsafe/bracket characters as finals.
@@ -43,6 +44,9 @@ export class TerminalLinkProvider implements ILinkProvider {
   constructor(
     private readonly _terminal: Terminal,
     private readonly _handler: (event: MouseEvent, uri: string) => void,
+    /** Optional project-scoped `file:line[:column]` link layer. When omitted the
+     * provider keeps its original URL-only behavior (plain terminals). */
+    private readonly _fileLinkSource?: TerminalFileLinkSource,
   ) {}
 
   provideLinks(bufferLineNumber: number, callback: (links: ILink[] | undefined) => void): void {
@@ -57,6 +61,9 @@ export class TerminalLinkProvider implements ILinkProvider {
 
     let match;
     const result: ILink[] = [];
+    // String offsets of URL matches, so a file reference that falls inside a URL
+    // is never double-linked (wrapped HTTP URL precedence is preserved).
+    const urlRanges: Array<[number, number]> = [];
 
     while ((match = rex.exec(line))) {
       const text = stripAnsi(match[0]);
@@ -67,6 +74,7 @@ export class TerminalLinkProvider implements ILinkProvider {
 
       if (startY === -1 || startX === -1 || endY === -1 || endX === -1) continue;
 
+      urlRanges.push([match.index, match.index + match[0].length]);
       result.push({
         range: {
           start: { x: startX + 1, y: startY + 1 },
@@ -76,6 +84,31 @@ export class TerminalLinkProvider implements ILinkProvider {
         activate: this._handler,
       });
     }
+
+    // Additive project-file/line layer. Coordinates are mapped with the same
+    // ANSI/wrap-aware `_mapStrIdx` used for URLs, so styled and soft-wrapped
+    // compiler output underlines the correct cells.
+    const fileLinkSource = this._fileLinkSource;
+    if (fileLinkSource) {
+      for (const ref of fileLinkSource.findRefs(line)) {
+        const refEnd = ref.start + ref.text.length;
+        if (urlRanges.some(([start, end]) => ref.start < end && start < refEnd)) continue;
+
+        const [startY, startX] = this._mapStrIdx(startLineIndex, 0, ref.start);
+        const [endY, endX] = this._mapStrIdx(startY, startX, ref.text.length);
+        if (startY === -1 || startX === -1 || endY === -1 || endX === -1) continue;
+
+        result.push({
+          range: {
+            start: { x: startX + 1, y: startY + 1 },
+            end: { x: endX, y: endY + 1 },
+          },
+          text: ref.text,
+          activate: () => fileLinkSource.activate(ref),
+        });
+      }
+    }
+
     return result;
   }
 

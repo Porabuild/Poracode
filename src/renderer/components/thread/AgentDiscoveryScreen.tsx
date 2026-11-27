@@ -1,5 +1,5 @@
 import { ContentSurface } from "@/renderer/components/common/ContentSurface";
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Check, EyeOff, RefreshCw, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -11,10 +11,16 @@ import { WelcomeBackdrop } from "@/renderer/components/common/WelcomeBackdrop";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { readBridge } from "@/renderer/bridge";
+import { friendlyError } from "@/shared/messages";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
 import { agentEnvForStatus } from "@/shared/machines";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
+import { refreshHostAgentAuthStatus } from "@/renderer/actions/hostAgentAuthActions";
 import { refreshDiscoveredAgent } from "@/renderer/actions/agentDiscoveryActions";
 import type { AgentStatus } from "@/shared/contracts";
 import {
@@ -23,6 +29,7 @@ import {
   profileRowLabel,
   type AgentDiscoveryGroup,
 } from "./agentDiscoveryGroups";
+import { resolveDiscoverySignIn, type DiscoverySignInContext } from "./agentDiscoverySignIn";
 import { AgentDiscoveryRadar } from "./AgentDiscoveryRadar";
 import { AgentDiscoveryDoneButton } from "./AgentDiscoveryDoneButton";
 import { prefersReducedMotion, useDiscoveryCardMotion } from "./useDiscoveryCardMotion";
@@ -155,6 +162,114 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
         next.delete(group.kind);
         return next;
       }),
+    );
+  };
+
+  // Direct sign-in from the row that needs it. The action is resolved from the
+  // row's OWN status, so it can never address a different provider, account or
+  // environment than the card the user pressed.
+  const projects = useAppStore((state) => state.projects);
+  const isBrowserClient = isBrowserClientRuntime();
+  const signInContext: DiscoverySignInContext = {
+    isBrowserClient,
+    isWindows: readBridge().platform === "win32",
+    projects,
+  };
+
+  function handleSignIn(status: AgentStatus) {
+    const signIn = resolveDiscoverySignIn(status, signInContext);
+    if (signIn.kind === "notNeeded" || signIn.kind === "browserFallback") return;
+
+    // Terminal login owns a full-window overlay. Start it, then end the
+    // discovery modal only when it actually opened, so the login UX can take
+    // focus while the project/composer flow continues behind it.
+    if (signIn.kind === "terminal") {
+      const opened = runAgentLoginCommand({
+        label: status.label,
+        status,
+        command: signIn.command,
+        project: signIn.project,
+        ...(signIn.env ? { env: signIn.env } : {}),
+        onCommandComplete: (exitCode) => {
+          // Re-probe only this agent/env through the authoritative host path,
+          // the same selective refresh the composer's auth dock uses, so the
+          // thread is usable as soon as sign-in succeeds. The exact local
+          // project carries no remote id, so this always refreshes this host.
+          void refreshHostAgentAuthStatus(status, signIn.project.remoteServerId)
+            .then(() => {
+              if (exitCode === 0) toast.success(t`${status.label} authenticated.`);
+            })
+            .catch(() => undefined);
+        },
+      });
+      if (opened) props.onHide();
+      return;
+    }
+
+    props.onHide();
+    if (signIn.kind === "settings") {
+      usePanelStore.getState().openSettings();
+      return;
+    }
+
+    // Agent-owned ACP auth. The OAuth/sign-in window is external; dismiss
+    // discovery first so returning lands on the ready composer.
+    void (async () => {
+      try {
+        await readBridge().authenticateAcpAgent({
+          agentKind: status.kind,
+          methodId: signIn.methodId,
+          ...signIn.target,
+        });
+        await refreshHostAgentAuthStatus(status, undefined);
+        toast.success(t`${status.label} authenticated.`);
+      } catch (error) {
+        toast.danger(
+          error instanceof Error
+            ? friendlyError(error)
+            : t`Unable to authenticate ${status.label}.`,
+        );
+      }
+    })();
+  }
+
+  // The signed-out status slot is the only sign-in affordance: one restrained
+  // text action in place of the ordinary status, with the amber dot and the
+  // row's geometry intact. Browser/remote clients and rows needing no sign-in
+  // keep ordinary, non-interactive status text.
+  const renderStatusSlot = (
+    status: AgentStatus,
+    badge: { label: MessageDescriptor; toneClass: string },
+    className: string,
+  ): ReactNode => {
+    const signIn = resolveDiscoverySignIn(status, signInContext);
+    const actionable = signIn.kind !== "notNeeded" && signIn.kind !== "browserFallback";
+    const dot = <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />;
+    if (!actionable) {
+      return (
+        <span className={`agent-discovery-row__status ${className}`}>
+          {dot}
+          {t(badge.label)}
+        </span>
+      );
+    }
+    const isSettings = signIn.kind === "settings";
+    return (
+      <button
+        type="button"
+        className={`agent-discovery-row__status group cursor-pointer rounded-sm bg-transparent p-0 text-left outline-none focus-visible:focus-ring ${className}`}
+        aria-label={
+          isSettings
+            ? t`Add credentials for ${status.label} in Settings`
+            : t`Sign in to ${status.label}`
+        }
+        onClick={() => handleSignIn(status)}
+      >
+        {dot}
+        <span className="underline-offset-2 group-hover:underline">
+          {isSettings ? t`Settings` : t`Sign in`}
+        </span>
+      </button>
     );
   };
 
@@ -342,6 +457,12 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                 // status found, the profiles are the rows instead.
                 const showDetail = rows.detail.length > 0;
                 const headerBadge = !multiEnv && rows.base ? foundBadge(rows.base) : undefined;
+                // A browser/remote client has no local login surface. Give one
+                // clear, actionable hint for the whole card instead of a row of
+                // misleading "Sign in" buttons; Refresh is the action.
+                const showBrowserHint =
+                  isBrowserClient &&
+                  group.statuses.some((status) => status.authState === "missing");
                 return (
                   // Keep columns symmetric while streaming so every card shares
                   // the exact same reveal without overlapping. Once scanning
@@ -368,17 +489,13 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                           <span className="block truncate text-[13.5px] font-medium leading-snug text-foreground">
                             {label}
                           </span>
-                          {headerBadge ? (
-                            <span
-                              className={`agent-discovery-row__status mt-0.5 text-[11.5px] font-medium ${headerBadge.toneClass}`}
-                            >
-                              <span
-                                aria-hidden="true"
-                                className="size-1.5 shrink-0 rounded-full bg-current"
-                              />
-                              {t(headerBadge.label)}
-                            </span>
-                          ) : null}
+                          {headerBadge && rows.base
+                            ? renderStatusSlot(
+                                rows.base,
+                                headerBadge,
+                                `mt-0.5 text-[11.5px] font-medium ${headerBadge.toneClass}`,
+                              )
+                            : null}
                         </div>
                         <Button
                           isIconOnly
@@ -394,6 +511,11 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                           <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
                         </Button>
                       </div>
+                      {showBrowserHint ? (
+                        <p className="mt-2 text-[11.5px] leading-snug text-muted">
+                          {t`Sign in on the paired desktop, then refresh.`}
+                        </p>
+                      ) : null}
                       {/* Each profile and, in a multi-env scan, each machine
                             with the agent gets a secondary row carrying its
                             own status. */}
@@ -434,15 +556,11 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                                     {namePart ? `· ${envPart}` : envPart}
                                   </span>
                                 ) : null}
-                                <span
-                                  className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
-                                >
-                                  <span
-                                    aria-hidden="true"
-                                    className="size-1.5 shrink-0 rounded-full bg-current"
-                                  />
-                                  {t(badge.label)}
-                                </span>
+                                {renderStatusSlot(
+                                  status,
+                                  badge,
+                                  `shrink-0 text-xs font-medium ${badge.toneClass}`,
+                                )}
                               </li>
                             );
                           })}

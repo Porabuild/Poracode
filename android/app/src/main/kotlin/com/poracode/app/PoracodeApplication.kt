@@ -270,7 +270,12 @@ class PoracodeApplication : Application() {
             stateStore = pushStateStore,
             registration = registration,
             routes = PushRouteCoordinator(
-                AppSessionPushRouteSession(session),
+                AppSessionPushRouteSession(
+                    session,
+                    unavailableMessage = {
+                        this@PoracodeApplication.getString(R.string.push_route_unavailable)
+                    },
+                ),
             ) {
                 val catalog = session.state.value.hostCatalog
                 PushRouteHostCatalog(catalog.selectedConnectionId, catalog.hosts)

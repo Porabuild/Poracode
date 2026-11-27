@@ -52,6 +52,7 @@ import { getThreadMap } from "./useThread";
 // Paint the recent viewport first. Continuations keep their normal page size,
 // and the host still completes any tool group crossing this initial boundary.
 const INITIAL_HISTORY_TIMELINE_ENTRIES = 20;
+const RECENT_HISTORY_LOOKUP_BUDGET_MS = 25;
 
 /** A thread row, or the identity of one a host owns that is not in the store yet. */
 export interface HostThreadEntity {
@@ -95,14 +96,14 @@ async function readHistoryPage(
   client: RemoteDesktopClient | undefined,
 ): Promise<Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>> {
   const cacheAuthority = host.recentHistoryKey;
-  // Allow IndexedDB to open during startup layout; a blocked cache still gives
-  // way to a full host read after a bounded wait.
+  // This cache can save the body transfer, but it does not own the transcript.
+  // Start the authoritative request promptly when local storage is busy.
   let cacheDeadline: ReturnType<typeof setTimeout> | undefined;
   const cached = cacheAuthority
     ? await Promise.race([
         readRecentHistory(cacheAuthority, host.hostId),
         new Promise<null>((resolve) => {
-          cacheDeadline = setTimeout(() => resolve(null), 100);
+          cacheDeadline = setTimeout(() => resolve(null), RECENT_HISTORY_LOOKUP_BUDGET_MS);
         }),
       ]).finally(() => clearTimeout(cacheDeadline))
     : null;

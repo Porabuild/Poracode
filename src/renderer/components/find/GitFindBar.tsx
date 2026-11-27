@@ -1,5 +1,5 @@
-import { useEffect, useEffectEvent, useRef } from "react";
-import { useLingui } from "@lingui/react/macro";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useGitFindStore } from "@/renderer/state/gitFindStore";
 import { FindBar } from "./FindBar";
 import { useFindBarChrome } from "./useFindBarChrome";
@@ -11,10 +11,12 @@ import {
   setFindHighlights,
 } from "./findText";
 import {
+  findOversizedDiffMatches,
   gitDiffSearchLines,
   readGitDiffSearchLines,
   type GitDiffSearchEntry,
   type GitDiffSearchLine,
+  type OversizedDiffMatch,
 } from "./gitDiffSearch";
 
 interface GitFindBarProps {
@@ -24,6 +26,20 @@ interface GitFindBarProps {
   diffMode?: number;
   /** Full-content identity, including location and explicit refreshes. */
   contentKey?: string;
+}
+
+interface OversizedFindHit extends OversizedDiffMatch {
+  readonly filePath: string;
+}
+
+interface OversizedFindResult {
+  readonly entries: GitDiffSearchEntry[];
+  readonly query: string;
+  readonly matchCase: boolean;
+  readonly revision: string;
+  readonly matches: ReadonlyMap<string, readonly OversizedFindHit[]>;
+  /** A bounded oversized scan reached its cap, so the result is incomplete. */
+  readonly capped: boolean;
 }
 
 /** Aggregate diffs are searched from patch data; single-file views use the DOM. */
@@ -40,7 +56,9 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
   const { t } = useLingui();
   const inputRef = useRef<HTMLInputElement>(null);
   const rangesRef = useRef<Range[]>([]);
-  const matchesRef = useRef<{ key: string; selector: string; occurrence: number }[]>([]);
+  const matchesRef = useRef<
+    { key: string; selector: string | null; occurrence: number; preview?: OversizedFindHit }[]
+  >([]);
   const snapshotsRef = useRef(
     new Map<
       string,
@@ -48,6 +66,8 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
     >(),
   );
   const pendingRevealRef = useRef(false);
+  const [preview, setPreview] = useState<OversizedFindHit | null>(null);
+  const [largeSearch, setLargeSearch] = useState<OversizedFindResult | null>(null);
 
   const query = useGitFindStore((state) => state.query);
   const caseSensitive = useGitFindStore((state) => state.caseSensitive);
@@ -60,14 +80,25 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
   const close = useGitFindStore((state) => state.close);
   const setMatchCount = useGitFindStore((state) => state.setMatchCount);
 
+  const currentLargeSearch =
+    largeSearch?.entries === entries &&
+    largeSearch?.query === query &&
+    largeSearch.matchCase === caseSensitive &&
+    largeSearch.revision === contentKey
+      ? largeSearch
+      : null;
+  const searchingLargeDiffs =
+    !!query && !currentLargeSearch && !!entries?.some((entry) => entry.tooLarge && entry.rawDiff);
+
   const paint = useEffectEvent((index: number) => {
     const container = containerRef.current;
     if (entries && container) {
       const match = matchesRef.current[index];
+      setPreview(match?.preview ?? null);
       const section = match
         ? container.querySelector(`[data-diff-key="${CSS.escape(match.key)}"]`)
         : null;
-      const line = match && section?.querySelector(match.selector);
+      const line = match?.selector ? section?.querySelector(match.selector) : null;
       const current =
         line && match
           ? (buildMatchRanges(line, query, caseSensitive)[match.occurrence] ?? null)
@@ -105,6 +136,7 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
       if (!container || !searchQuery) {
         rangesRef.current = [];
         matchesRef.current = [];
+        setPreview(null);
         clearFindHighlights();
         setMatchCount(0);
         return;
@@ -138,6 +170,14 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
             for (let occurrence = 0; occurrence < count; occurrence++)
               matches.push({ key, selector: line.selector, occurrence });
           }
+          for (const hit of currentLargeSearch?.matches.get(key) ?? []) {
+            matches.push({
+              key,
+              selector: null,
+              occurrence: 0,
+              preview: hit,
+            });
+          }
         }
         matchesRef.current = matches;
         setMatchCount(matches.length);
@@ -146,6 +186,8 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
             (match) =>
               match.key === previousMatch.key &&
               match.selector === previousMatch.selector &&
+              match.preview?.side === previousMatch.preview?.side &&
+              match.preview?.line === previousMatch.preview?.line &&
               match.occurrence === previousMatch.occurrence,
           );
           if (index >= 0) useGitFindStore.setState({ currentIndex: index });
@@ -159,9 +201,52 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
   );
 
   useEffect(() => {
+    if (!query || !entries?.some((entry) => entry.tooLarge && entry.rawDiff)) return;
+    const controller = new AbortController();
+    void (async () => {
+      const matches = new Map<string, readonly OversizedFindHit[]>();
+      let capped = false;
+      for (const entry of entries) {
+        if (!entry.tooLarge || !entry.rawDiff) continue;
+        const result = await findOversizedDiffMatches(
+          entry.rawDiff,
+          query,
+          caseSensitive,
+          controller.signal,
+        );
+        capped = capped || result.capped;
+        matches.set(
+          `${entry.staged ? "s" : "u"}:${entry.filePath}`,
+          result.matches.map((hit) => ({ ...hit, filePath: entry.filePath })),
+        );
+      }
+      if (!controller.signal.aborted)
+        setLargeSearch({
+          entries,
+          query,
+          matchCase: caseSensitive,
+          revision: contentKey,
+          matches,
+          capped,
+        });
+    })().catch(() => {
+      if (!controller.signal.aborted)
+        setLargeSearch({
+          entries,
+          query,
+          matchCase: caseSensitive,
+          revision: contentKey,
+          matches: new Map(),
+          capped: false,
+        });
+    });
+    return () => controller.abort();
+  }, [entries, query, caseSensitive, contentKey]);
+
+  useEffect(() => {
     pendingRevealRef.current = true;
-    rebuild(query, caseSensitive, entries, diffMode, contentKey);
-  }, [query, caseSensitive, entries, diffMode, contentKey]);
+    rebuild(query, caseSensitive, entries, diffMode, contentKey, currentLargeSearch !== null);
+  }, [query, caseSensitive, entries, diffMode, contentKey, currentLargeSearch]);
 
   useEffect(() => {
     pendingRevealRef.current = true;
@@ -210,12 +295,41 @@ function ActiveGitFind({ containerRef, entries, diffMode = 1, contentKey = "" }:
         caseSensitive={caseSensitive}
         onToggleCaseSensitive={toggleCaseSensitive}
         matchCount={matchCount}
+        matchCountCapped={currentLargeSearch?.capped ?? false}
         currentIndex={currentIndex}
         onNext={next}
         onPrev={prev}
         onClose={close}
         placeholder={t`Find in diff`}
       />
+      {searchingLargeDiffs ? (
+        <div
+          role="status"
+          className="mt-1 rounded-lg border border-border bg-overlay px-3 py-2 text-xs text-muted"
+        >
+          <Trans>Searching large diffs…</Trans>
+        </div>
+      ) : null}
+      {preview && currentLargeSearch ? (
+        <aside
+          aria-live="polite"
+          className="mt-1 max-w-[min(24rem,80vw)] rounded-lg border border-border bg-overlay px-3 py-2 text-xs"
+        >
+          <p className="break-words font-medium">
+            {preview.side === "old" ? (
+              <Trans>
+                {preview.filePath}, old line {preview.line}
+              </Trans>
+            ) : (
+              <Trans>
+                {preview.filePath}, new line {preview.line}
+              </Trans>
+            )}
+          </p>
+          <p className="mt-1 break-words font-mono text-muted">{preview.hunk}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words font-mono">{preview.text}</p>
+        </aside>
+      ) : null}
     </div>
   );
 }

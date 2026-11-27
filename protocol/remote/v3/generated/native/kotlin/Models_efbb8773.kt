@@ -131,12 +131,14 @@ data class RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b(
 }
 
 @Serializable
-data class RoutethreadU2DHistoryU2DItemResponse_69f5ba498b(
+data class RoutethreadU2DHistoryU2DItemResponse_14b515d6a4(
     @SerialName("item") val item: RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b,
+    @SerialName("position") val position: RemoteField<Long> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("item", "RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("position", "Long", false, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

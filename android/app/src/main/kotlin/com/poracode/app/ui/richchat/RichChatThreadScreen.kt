@@ -78,6 +78,9 @@ internal fun RichChatThreadScreen(
     handoffAgents: List<AgentStatusEntry> = emptyList(),
     onOpenProjectUtility: (HomeProjectUtility) -> Unit = {},
     projectName: String? = null, hostName: String? = null, hostOnline: Boolean = false,
+    /** Selected host has no live connection; drives the in-thread Reconnect retry. */
+    hostOffline: Boolean = false,
+    onReconnect: () -> Unit = {},
     project: RemoteProject? = null,
     projectRuntime: ProjectSessionRuntime? = null,
     browserMirror: BrowserMirrorComposition? = null,
@@ -443,6 +446,8 @@ internal fun RichChatThreadScreen(
                         if (lease != null) runtime.chat.readHistoryGapIfSupported(lease)
                     }
                 },
+                hostOffline = hostOffline,
+                onReconnect = onReconnect,
             )
             RichChatThreadConfirmDialogs(
                 runtime = runtime,

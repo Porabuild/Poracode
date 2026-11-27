@@ -78,6 +78,8 @@ internal fun HomeScreen(
     onRefreshModelVisibility: () -> Unit,
     threads: List<HostPresentation.UnifiedThreadItem>,
     onRefresh: () -> Unit,
+    /** Explicit retry of the selected host's live connection from the in-thread banner. */
+    onReconnect: () -> Unit,
     onUnpair: () -> Unit,
     onOpenThread: (String) -> Unit,
     onCloseThread: () -> Unit,
@@ -290,6 +292,14 @@ internal fun HomeScreen(
         val openHostOnline = openItem != null &&
             openItem.connectionId == state.hostCatalog.selectedConnectionId &&
             state.socketState == RemoteWebSocketClient.ConnectionState.Online
+        // A host that is reconnecting/failed but not session-expired. Exclude
+        // the initial Connecting phase (a connect pass is already in flight)
+        // and SessionExpired (owned by the re-pair flow, never force-reconnect).
+        val openHostOffline = openItem != null &&
+            !openHostOnline &&
+            !state.sessionExpired &&
+            state.socketState != RemoteWebSocketClient.ConnectionState.SessionExpired &&
+            state.socketState != RemoteWebSocketClient.ConnectionState.Connecting
 
         val threadDetail: @Composable (
             showBack: Boolean,
@@ -346,6 +356,8 @@ internal fun HomeScreen(
                 projectName = openItem?.project?.name,
                 hostName = openItem?.hostName,
                 hostOnline = openHostOnline,
+                hostOffline = openHostOffline,
+                onReconnect = onReconnect,
                 project = openItem?.project,
                 projectRuntime = projectRuntime,
                 browserMirror = browserMirror,

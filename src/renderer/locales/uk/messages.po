@@ -210,6 +210,8 @@ msgstr "{0} о {time}"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} authenticated."
@@ -464,6 +466,18 @@ msgstr "{0} використано"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Idle"
 msgstr "{0}, Очікування"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, new line {1}"
+msgstr "{0}, новий рядок {1}"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, old line {1}"
+msgstr "{0}, старий рядок {1}"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
@@ -1498,6 +1512,11 @@ msgstr "Додати контекстне вікно"
 msgid "Add credentials before this thread can run."
 msgstr "Додайте облікові дані, перш ніж цей тред зможе запуститися."
 
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Add credentials for {0} in Settings"
+msgstr "Додати облікові дані {0} у налаштуваннях"
+
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Додати резервний варіант"
@@ -2045,10 +2064,6 @@ msgid "An agent is fixing this PR."
 msgstr "Агент виправляє цей PR."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "An environment variable on this machine keeps both options off."
-#~ msgstr "Змінна середовища на цій машині тримає обидві опції вимкненими."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "An environment variable on this machine keeps telemetry off."
 msgstr "Змінна середовища на цьому комп’ютері вимикає телеметрію."
 
@@ -2067,17 +2082,6 @@ msgstr "Слідчий знаходить першопричину, а випр�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "An MCP server with this name already exists."
 msgstr "Сервер MCP із такою назвою вже існує."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Anonymous feature-use events. No prompts, code, or location."
-#~ msgstr "Анонімні події використання функцій. Без промптів, коду й місцезнаходження."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Anonymous product analytics"
-#~ msgstr "Анонімна аналітика продукту"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -2362,6 +2366,10 @@ msgstr "Просити сеанси не писати окрему пам'ять
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
 msgstr "Запитувати за потреби"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Assistant"
+msgstr "Асистент"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
@@ -2898,10 +2906,6 @@ msgstr "Вибрати батьківську папку"
 #: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Browse full library"
 msgstr "Переглянути всю бібліотеку"
-
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Browse Ollama library"
-#~ msgstr "Переглянути бібліотеку Ollama"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
@@ -4713,6 +4717,7 @@ msgid "Confused"
 msgstr "Збентеження"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -4791,6 +4796,7 @@ msgstr "Підключення..."
 #: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
@@ -5388,11 +5394,6 @@ msgstr "Охоплення"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Coverage across reported currencies"
 msgstr "Охоплення всіх зазначених валют"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Crash diagnostics with personal data removed."
-#~ msgstr "Діагностика збоїв без персональних даних."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -6848,11 +6849,6 @@ msgstr "Завантажено {0}."
 msgid "Downloading"
 msgstr "Триває завантаження"
 
-#. placeholder {0}: run.tag
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Downloading {0}…"
-#~ msgstr "Завантажується {0}…"
-
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
@@ -7544,6 +7540,10 @@ msgstr "Щогодини"
 msgid "Every hour at {0} minutes past"
 msgstr "Щогодини о {0} хв."
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Exact match"
+msgstr "Точний збіг"
+
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Exactly what is collected, and how to turn it off."
 msgstr "Що саме збирається і як це вимкнути."
@@ -7954,12 +7954,6 @@ msgstr "Обране"
 #: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Вибране"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
-#~ msgstr "Події використання, пов’язані з випадковим ID інсталяції. Без промптів, коду й місцеположення."
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
@@ -10997,6 +10991,10 @@ msgstr "Враховувати регістр"
 msgid "Match your system, or force light or dark."
 msgstr "Підлаштовуватися під систему або примусово світла чи темна."
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Matched message in history"
+msgstr "Знайдене повідомлення в історії"
+
 #: src/renderer/components/common/effortLabel.ts
 msgid "Max"
 msgstr "Максимальний"
@@ -11368,6 +11366,10 @@ msgstr "Дії з повідомленням"
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Message search unavailable"
 msgstr "Пошук повідомлень недоступний"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Message text unavailable"
+msgstr "Текст повідомлення недоступний"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
@@ -12124,6 +12126,10 @@ msgstr "Наступна категорія"
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "Наступний чат"
+
+#: src/renderer/commands/registry.ts
+msgid "Next chat in workspace"
+msgstr "Наступний чат у робочій області"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
@@ -12968,18 +12974,9 @@ msgstr "Ollama недоступна на вибраному хості. Запу
 msgid "Ollama model download progress"
 msgstr "Перебіг завантаження моделі Ollama"
 
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Ollama model tag"
-#~ msgstr "Теґ моделі Ollama"
-
 #: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
 msgid "Ollama models"
 msgstr "Моделі Ollama"
-
-#. placeholder {0}: props.hostLabel
-#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
-#~ msgid "Ollama on {0}"
-#~ msgstr "Ollama на {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 msgid "Ollama on {machineHostLabel}"
@@ -13784,6 +13781,7 @@ msgstr "Спарені пристрої"
 msgid "Pairing access"
 msgstr "Доступ спарювання"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Підключення протерміновано — підключіть знову, щоб відновити з'єднання."
@@ -14258,10 +14256,6 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode ненадовго розблоковує цей Mac на час активного ходу керування комп'ютером, закриває всі дисплеї під час роботи й знову блокує його, коли хід завершується. Будь-яке натискання клавіші чи рух вказівника на цьому Mac одразу блокує його. Для встановлення потрібно один раз підтвердити дію від імені адміністратора. Якщо Mac керується вашою організацією, спершу погодьте це з ІТ-відділом."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-#~ msgstr "Poracode може надсилати анонімну аналітику використання й звіти про збої. Без промптів, коду, назв файлів і виводу термінала."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 msgid "Poracode can send product analytics and crash reports."
 msgstr "Poracode може надсилати аналітику продукту та звіти про збої."
 
@@ -14334,10 +14328,6 @@ msgstr "Лише в Poracode"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode пам'ятає вподобання й виправлення між провайдерами. Запис починається після ходу. Щоденний прохід їх об'єднує. Навички з повторюваної роботи лишаються пропозиціями, доки ви їх не схвалите."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-#~ msgstr "Poracode нічого не надсилає, доки ви це не увімкнете. Промпти, код і назви файлів — ніколи."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14523,6 +14513,7 @@ msgstr "Запобігати сну системи"
 #: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FirstDiffHunk.tsx
 msgid "Preview"
 msgstr "Попередній перегляд"
 
@@ -14543,6 +14534,10 @@ msgstr "Попередня категорія"
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
 msgstr "Попередній чат"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous chat in workspace"
+msgstr "Попередній чат у робочій області"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
@@ -15271,6 +15266,7 @@ msgstr "Нещодавно оновлені"
 msgid "Recents"
 msgstr "Нещодавні"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Reconnect"
 msgstr "Перепідключити"
@@ -15295,6 +15291,10 @@ msgstr "Повторне підключення до термінала…"
 #: src/renderer/components/devices/LiveDevicePreview.tsx
 msgid "Reconnecting to the device…"
 msgstr "Повторне підключення до пристрою…"
+
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
+msgid "Reconnecting to the server…"
+msgstr "Повторне підключення до сервера…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
@@ -16305,6 +16305,10 @@ msgstr "Повторити з правами адміністратора"
 msgid "Return to app"
 msgstr "Повернутися до програми"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Return to conversation"
+msgstr "Повернутися до розмови"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Reusable guidance delivered across supported agents."
 msgstr "Багаторазові інструкції для всіх підтримуваних агентів."
@@ -17082,12 +17086,6 @@ msgstr "Прокрутити вниз"
 msgid "Scroll to prompt: {preview}"
 msgstr "Прокрутити до промпту: {preview}"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
-#~ msgstr "Очищену діагностику збоїв надіслано до Sentry. Нативні дампи збоїв — окремий вибір."
-
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK установлено"
@@ -17300,6 +17298,10 @@ msgstr "Пошук…"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Пошук файлів…"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Searching large diffs…"
+msgstr "Пошук у великих diff…"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Searching saved messages…"
@@ -17662,6 +17664,7 @@ msgstr "Зафіксовано під час запуску цієї сесії 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -18060,6 +18063,7 @@ msgstr "Допоміжна модель"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "Увійти"
@@ -18077,6 +18081,10 @@ msgstr "Потрібен вхід"
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Увійдіть на спареному настільному комп’ютері, а потім оновіть цей статус."
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Sign in on the paired desktop, then refresh."
+msgstr "Увійдіть на спареному комп'ютері, потім оновіть."
+
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -18090,6 +18098,7 @@ msgstr "Потрібен вхід"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in to {0}"
 msgstr "Увійти в {0}"
 
@@ -19025,12 +19034,20 @@ msgid "Switch to the next chat"
 msgstr "Перейти до наступного чату"
 
 #: src/renderer/commands/registry.ts
+msgid "Switch to the next chat in this workspace"
+msgstr "Перейти до наступного чату в цій робочій області"
+
+#: src/renderer/commands/registry.ts
 msgid "Switch to the next tab"
 msgstr "Перейти до наступної вкладки"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous chat"
 msgstr "Перейти до попереднього чату"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat in this workspace"
+msgstr "Перейти до попереднього чату в цій робочій області"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous tab"
@@ -21136,6 +21153,8 @@ msgstr "Введіть відповідь…"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to authenticate {0}."
@@ -23048,6 +23067,10 @@ msgstr "Учора: {prompts, plural, one {# запит} few {# запити} ma
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
 msgstr "Учора: {prompts, plural, one {# запит} few {# запити} many {# запитів} other {# запиту}} · лідер {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "You"
+msgstr "Ви"
 
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "You coded across {count} connected environments this week"

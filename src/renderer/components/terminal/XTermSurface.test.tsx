@@ -191,6 +191,10 @@ vi.mock("./TerminalLinkProvider", () => ({
   TerminalLinkProvider: class MockTerminalLinkProvider {},
 }));
 
+vi.mock("./terminalProjectFileLinks", () => ({
+  createTerminalFileLinkSource: () => ({ findRefs: () => [], activate: () => undefined }),
+}));
+
 // ── bridge mock ──────────────────────────────────────────────────
 state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent) => void) => {
   state.eventListeners.push(listener);

@@ -41,6 +41,7 @@ import {
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
+import { buildWorkspaceThreadOrder } from "@/renderer/views/MainView/parts/Sidebar/parts/workspaceThreadOrder";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import {
@@ -481,6 +482,28 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
     visibleLimit: Number.MAX_SAFE_INTEGER,
   }).flatMap((row) => (row.kind === "thread" ? [row.thread.id] : []));
 
+  const index = orderedIds.indexOf(current.id);
+  if (index === -1) return;
+  const delta = direction === "next" ? 1 : -1;
+  const nextId = orderedIds[(index + delta + orderedIds.length) % orderedIds.length];
+  if (nextId && nextId !== current.id) openThread(nextId);
+}
+
+/**
+ * Workspace-wide twin of {@link switchToAdjacentThread} ("Next/Previous chat in
+ * workspace"): cycles every navigable thread in the active workspace instead of
+ * stopping at the current thread's project. The order comes from the shared
+ * sidebar row model — same sort mode, grouping/layout, and project order, with
+ * worktree groups expanded and the "See more" cap lifted — so collapsed and
+ * overflowed rows are reachable just as they are for the project-local command.
+ * Archived, auxiliary, disabled/hidden, and out-of-workspace rows are excluded.
+ * Wraps at both ends like the project-local command.
+ */
+export function switchToAdjacentThreadInWorkspace(
+  current: Thread,
+  direction: "next" | "previous",
+): void {
+  const orderedIds = buildWorkspaceThreadOrder();
   const index = orderedIds.indexOf(current.id);
   if (index === -1) return;
   const delta = direction === "next" ? 1 : -1;

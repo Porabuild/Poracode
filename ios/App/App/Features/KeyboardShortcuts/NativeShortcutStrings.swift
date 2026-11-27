@@ -46,6 +46,7 @@ enum NativeShortcutStrings {
     "browser.focus-address-bar": "Focus Address Bar", "browser.toggle": "Toggle Browser",
     "browser.tab.new": "New Browser Tab", "thread.star": "Star Thread", "thread.rename": "Rename Thread",
     "thread.next": "Next Thread", "thread.previous": "Previous Thread",
+    "thread.nextInWorkspace": "Next Thread in Workspace", "thread.previousInWorkspace": "Previous Thread in Workspace",
     "thread.recent.next": "Next Recent Thread", "thread.recent.previous": "Previous Recent Thread",
     "tab.next": "Next Tab", "tab.previous": "Previous Tab", "composer.toggle-work-plan": "Toggle Plan",
     "composer.cycle-effort": "Cycle Effort", "composer.toggle-fast": "Toggle Fast",

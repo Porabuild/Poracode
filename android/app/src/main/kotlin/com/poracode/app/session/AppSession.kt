@@ -10,6 +10,7 @@ import com.poracode.app.transport.RemoteApiGatewayFactory
 import com.poracode.app.transport.RemoteEventSocket
 import com.poracode.app.transport.RemoteEventSocketFactory
 import com.poracode.app.transport.RemoteWebSocketClient
+import com.poracode.app.push.PushOffPageResolution
 import com.poracode.app.push.PushRouteV1
 import com.poracode.app.push.RemoteUserNotificationPresentationCenter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -196,6 +197,8 @@ class AppSession(
     internal fun resyncPendingForTests(): Boolean = resync.pending
     internal fun socketForTests(): RemoteEventSocket? = live.webSocket
     internal fun sessionGenerationForTests(): Int = owner.sessionGeneration
+    /** Simulates an API-incarnation change (e.g. a host switch) for push-guard tests. */
+    internal fun bumpApiIdentityForTests(): Int = owner.bumpApiIdentity()
     internal fun authoritativeRefreshRequiredForTests(): Boolean =
         resync.authoritativeRefreshRequired
 
@@ -217,6 +220,19 @@ class AppSession(
 
     fun clearGlobalError() {
         _state.update { it.copy(globalError = null) }
+    }
+
+    /**
+     * Explicit in-thread offline-banner retry. Captures the current selected
+     * host and incarnation at tap time and re-triggers that host's live socket
+     * through the lifecycle's generation-safe reconnect ladder. Auth, the
+     * current thread, cached text, draft and pending requests are untouched.
+     */
+    fun reconnectSelectedHost() {
+        val snapshot = _state.value
+        val connectionId = snapshot.hostCatalog.selectedConnectionId ?: return
+        if (snapshot.sessionExpired) return
+        live.reconnectSelectedHost(connectionId, owner.sessionGeneration)
     }
     fun onLocalNetworkPermissionGranted() = lifecycleCoordinator.onLocalNetworkPermissionGranted()
 
@@ -250,6 +266,41 @@ class AppSession(
         scope.launch { hosts.refreshHostSnapshots() }
     }
     internal suspend fun refreshSnapshotForPush(): Boolean = kotlinx.coroutines.CompletableDeferred<Boolean>().let { result -> live.refreshSnapshot { result.complete(it) } ?: return false; result.await() }
+
+    /**
+     * Bounded, host-scoped exact-ID thread head read for a push target outside
+     * the loaded catalog page. Delegates to the thread controller, which fences
+     * the result against a host/profile switch and an API-incarnation change
+     * during the read; the row is never installed here.
+     */
+    internal suspend fun resolvePushOffPageThread(
+        connectionId: com.poracode.app.model.ClientConnectionId,
+        desktopId: String,
+        threadId: String,
+    ): PushOffPageResolution =
+        threads.resolvePushOffPageThread(connectionId, desktopId, threadId)
+
+    /**
+     * Installs an off-page row through the catalog's scoped ownership and then
+     * opens it. Installing the row first lets [ThreadController.openThread]
+     * resolve terminal presentation from that row. Called only at the resolved
+     * open, after the coordinator's generation check, so a stale read cannot
+     * mutate a newly selected host.
+     */
+    internal fun installPushOffPageRow(
+        row: com.poracode.app.model.RemoteThread,
+        pageStartedSeq: Long,
+        threadId: String,
+    ) {
+        catalog.pinThreadRow(row, pageStartedSeq)
+        openThread(threadId)
+    }
+
+    /** Generic, localized "cannot be opened" outcome on the existing error surface. */
+    internal fun surfacePushUnavailable(message: String) {
+        _state.update { it.copy(globalError = message) }
+    }
+
     fun openThread(id: String) {
         val parts = com.poracode.app.model.CompositeRemoteId(id).decode()
         if (parts == null) {

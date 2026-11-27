@@ -36,6 +36,7 @@ import {
   openNewThread,
   openNewThreadSideBySide,
   switchToAdjacentThread,
+  switchToAdjacentThreadInWorkspace,
   toggleStarThread,
 } from "@/renderer/actions/threadActions";
 import {
@@ -297,6 +298,31 @@ function baseCommands(): AppCommand[] {
       run: () => {
         const thread = resolveActiveContext().thread;
         if (thread) switchToAdjacentThread(thread, "previous");
+      },
+    },
+    {
+      id: "thread.nextInWorkspace",
+      title: msg`Next chat in workspace`,
+      subtitle: msg`Switch to the next chat in this workspace`,
+      group: msg`Thread`,
+      // Discoverable and user-bindable, but deliberately ships no default chord
+      // (no collision with thread.next/previous). Shares their chat-shell scope
+      // and yields to the editor/terminal/in-app browser on any custom binding.
+      when: "hasThread && !editorFocus && !terminalFocus && !browserFocus",
+      run: () => {
+        const thread = resolveActiveContext().thread;
+        if (thread) switchToAdjacentThreadInWorkspace(thread, "next");
+      },
+    },
+    {
+      id: "thread.previousInWorkspace",
+      title: msg`Previous chat in workspace`,
+      subtitle: msg`Switch to the previous chat in this workspace`,
+      group: msg`Thread`,
+      when: "hasThread && !editorFocus && !terminalFocus && !browserFocus",
+      run: () => {
+        const thread = resolveActiveContext().thread;
+        if (thread) switchToAdjacentThreadInWorkspace(thread, "previous");
       },
     },
     {

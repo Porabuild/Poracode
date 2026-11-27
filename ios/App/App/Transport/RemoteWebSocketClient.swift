@@ -511,6 +511,15 @@ actor RemoteWebSocketClient {
         _ = reason
     }
 
+    /// Explicit user-triggered reconnect from an in-thread offline banner.
+    /// Reuses the generation-safe force-reconnect ladder (which keeps the
+    /// event-stream cursor, transcript, draft and pending requests), so rapid
+    /// taps dedupe to one connection attempt and automatic reconnect stays in
+    /// place. Auth is never touched.
+    func reconnectNow() async {
+        await forceReconnect(reason: "user requested reconnect")
+    }
+
     private func scheduleReconnect(minimumDelayMs: Double) async {
         guard !stopped, !resyncSuspended else { return }
         let gen = generationGate.generation

@@ -176,11 +176,11 @@ describe("readHostThreadHistory", () => {
       read.mockResolvedValue({ negotiation: "bounded", page: page() });
       const pending = readHostThreadHistory({ id: VIEW });
       try {
-        await vi.advanceTimersByTimeAsync(50);
+        await vi.advanceTimersByTimeAsync(24);
         expect(read).not.toHaveBeenCalled();
         expect(useAppStore.getState().runtimeItemIdsByThread[VIEW]).toBeUndefined();
         if (cacheState === "ready") lookup.resolve(cached);
-        else await vi.advanceTimersByTimeAsync(50);
+        else await vi.advanceTimersByTimeAsync(1);
         await pending;
         expect(read).toHaveBeenCalledWith(
           HOST_ID,

@@ -1,5 +1,6 @@
 package com.poracode.app.session
 
+import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteEnvironmentDescriptor
@@ -496,4 +497,22 @@ class LiveConnectionController(
 
     fun refreshSnapshot(onResult: ((Boolean) -> Unit)? = null): kotlinx.coroutines.Job? =
         snapshotRefresher.refresh(onResult)
+
+    /**
+     * Explicit in-thread offline-banner retry. Re-triggers the selected host's
+     * live socket through its generation-safe reconnect ladder. Fenced to the
+     * captured host + session incarnation so a tap from a previous host cannot
+     * open a duplicate connection; the socket's force-reconnect generation gate
+     * dedupes rapid taps and keeps the event-stream cursor, so the current
+     * thread, cached text, draft and pending requests are untouched and the
+     * automatic reconnect stays in place. Auth is never replaced; a retired
+     * session is left to the existing re-pair flow.
+     */
+    fun reconnectSelectedHost(connectionId: ClientConnectionId, generation: Int) {
+        val socket = webSocket ?: return
+        if (!owner.isCurrentSession(generation)) return
+        if (state().hostCatalog.selectedConnectionId != connectionId) return
+        if (state().sessionExpired) return
+        socket.forceReconnect("user requested reconnect")
+    }
 }

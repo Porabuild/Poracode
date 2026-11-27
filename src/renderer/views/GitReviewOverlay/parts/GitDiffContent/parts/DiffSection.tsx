@@ -10,6 +10,7 @@ import { buildInWorker, diffFileFromBundle } from "../../diffBuildClient";
 import { FileHeader } from "./FileHeader";
 import { entryKey, type DiffEntry } from "./diffHelpers";
 import { DiffAnnotationView } from "../../DiffAnnotationView";
+import { FirstDiffHunk, firstDiffHunk } from "./FirstDiffHunk";
 
 export function DiffSection(props: {
   entry: DiffEntry;
@@ -76,6 +77,7 @@ export function DiffSection(props: {
   // Keep an open comment editor alive when its file leaves the viewport.
   const renderBody = (visible && nearViewport && !collapsed) || editing;
   const hasDiff = !entry.loading && !entry.tooLarge && !!entry.rawDiff.trim();
+  const preview = renderBody && hasDiff && !ready ? firstDiffHunk(entry.rawDiff) : null;
   useEffect(() => {
     if (!renderBody || !hasDiff || ready) return;
     let cancelled = false;
@@ -184,8 +186,11 @@ export function DiffSection(props: {
               />
             </div>
           ) : renderBody && (entry.loading || (hasDiff && !ready)) ? (
-            <div className="flex h-16 items-center justify-center">
-              <PixelLoader />
+            <div aria-busy="true">
+              {preview ? <FirstDiffHunk text={preview} /> : null}
+              <div className="flex h-12 items-center justify-center">
+                <PixelLoader />
+              </div>
             </div>
           ) : renderBody ? (
             <div className="px-4 py-3 text-xs text-muted">

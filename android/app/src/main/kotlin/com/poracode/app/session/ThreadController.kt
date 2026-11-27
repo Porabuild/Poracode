@@ -1,7 +1,10 @@
 package com.poracode.app.session
 
+import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.RemoteThreadSnapshot
+import com.poracode.app.push.PushOffPageResolution
 import com.poracode.app.protocol.GlobalCursorPolicy
 import com.poracode.app.protocol.RemoteAccessScopes
 import com.poracode.app.protocol.ThreadHydrationCoordinator
@@ -365,6 +368,53 @@ class ThreadController(
             bounded = boundedHistoryReads(),
             ioDispatcher = ioDispatcher,
         )
+    }
+
+    /**
+     * Host-scoped exact-ID thread head read for a push target outside the loaded
+     * catalog page. One bounded shallow history read (or the legacy exact call),
+     * fenced against a host/profile switch and an API-incarnation change during
+     * the read. Never installs the row: the caller installs it at the resolved
+     * open so a stale response cannot mutate a newly selected host.
+     */
+    suspend fun resolvePushOffPageThread(
+        connectionId: ClientConnectionId,
+        desktopId: String,
+        threadId: String,
+    ): PushOffPageResolution {
+        val before = state()
+        if (before.hostCatalog.selectedConnectionId != connectionId ||
+            before.profile?.desktopId != desktopId
+        ) return PushOffPageResolution.Stale
+        val apiIdentity = owner.apiIdentity
+        val startedSeq = currentEventSeq()
+        val row = try {
+            fetchThreadHead(threadId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        val after = state()
+        if (after.hostCatalog.selectedConnectionId != connectionId ||
+            after.profile?.desktopId != desktopId ||
+            !owner.isCurrentApi(apiIdentity)
+        ) return PushOffPageResolution.Stale
+        return if (row == null) PushOffPageResolution.Unavailable
+        else PushOffPageResolution.Found(row, startedSeq)
+    }
+
+    /** One bounded shallow exact-ID head read; returns the resolved row or null. */
+    private suspend fun fetchThreadHead(id: String): RemoteThread? {
+        val client = api() ?: return null
+        val snapshot = loadThreadHistoryTail(
+            api = client,
+            threadId = id,
+            targetTimelineEntryCount = 1,
+            bounded = boundedHistoryReads(),
+            ioDispatcher = ioDispatcher,
+        )
+        return snapshot.thread.takeIf { it.id == id }
     }
 
     /**

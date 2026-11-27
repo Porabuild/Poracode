@@ -462,6 +462,8 @@ class FakeSocket : RemoteEventSocket {
     @Volatile
     var startCount: Int = 0
     @Volatile
+    var forceReconnectCount: Int = 0
+    @Volatile
     var armSuspendedCount: Int = 0
     @Volatile
     var unauthorizedCount: Int = 0
@@ -603,6 +605,10 @@ class FakeSocket : RemoteEventSocket {
         destroyed = true
         started = false
         listenerRef.set(null)
+    }
+
+    override fun forceReconnect(reason: String) {
+        forceReconnectCount += 1
     }
 
     fun emitState(state: RemoteWebSocketClient.ConnectionState, detail: String? = null) {

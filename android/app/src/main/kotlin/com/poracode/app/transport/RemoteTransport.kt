@@ -334,6 +334,15 @@ interface RemoteEventSocket {
 
     fun destroy()
 
+    /**
+     * Explicit, generation-safe, user-triggered reconnect through the socket's
+     * own ladder. Default no-op for sockets without a live reconnect surface
+     * (test doubles). The production client keeps the event-stream cursor, so
+     * the current thread, cached text, draft and pending requests survive and
+     * the automatic reconnect stays in place.
+     */
+    fun forceReconnect(reason: String) {}
+
     interface Listener {
         fun onStateChanged(state: RemoteWebSocketClient.ConnectionState, detail: String? = null)
 

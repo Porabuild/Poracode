@@ -93,6 +93,8 @@ export type BrowseHostDirectoryPayload = z.infer<typeof browseHostDirectoryPaylo
 
 export interface SearchProjectTreeResult {
   entries: ProjectTreeEntry[];
+  /** The caller requested a fast subset and should still load the full search. */
+  provisional?: true;
 }
 
 export const searchProjectTreePayloadSchema = z.object({
@@ -102,6 +104,8 @@ export const searchProjectTreePayloadSchema = z.object({
   // Additive filter: absent preserves the released mixed-entry search. Older
   // hosts ignore it, so callers still filter returned entries before display.
   entryType: z.enum(["file", "directory"]).optional(),
+  // Optional early result request. Legacy hosts return ordinary results.
+  provisional: z.literal(true).optional(),
   searchConfig: searchConfigSchema.optional(),
 });
 export type SearchProjectTreePayload = z.infer<typeof searchProjectTreePayloadSchema>;

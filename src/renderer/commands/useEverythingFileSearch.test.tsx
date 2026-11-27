@@ -1,11 +1,17 @@
 import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project, SearchProjectTreeResult } from "@/shared/contracts";
+import type {
+  Project,
+  SearchProjectTreePayload,
+  SearchProjectTreeResult,
+} from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useEverythingFileSearch } from "./useEverythingFileSearch";
 
-const search = vi.hoisted(() => vi.fn<() => Promise<SearchProjectTreeResult>>());
+const search = vi.hoisted(() =>
+  vi.fn<(input: SearchProjectTreePayload) => Promise<SearchProjectTreeResult>>(),
+);
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({ searchProjectTree: search, platform: "darwin" }),
   isRemoteSession: () => false,
@@ -46,6 +52,25 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("unified file search", () => {
+  it("shows early matching files while the full ranked search is running", async () => {
+    const full = deferred();
+    search.mockResolvedValueOnce({ ...files("direct.ts"), provisional: true });
+    search.mockReturnValueOnce(full.promise);
+    const { result } = renderHook(() => useEverythingFileSearch(input));
+
+    await debounce();
+    expect(result.current.entries[0]?.name).toBe("direct.ts");
+    expect(result.current.loading).toBe(true);
+    expect(search.mock.calls[0]?.[0].provisional).toBe(true);
+    expect(search.mock.calls[1]?.[0].provisional).toBeUndefined();
+
+    await act(async () => {
+      full.resolve(files("best.ts"));
+    });
+    expect(result.current.entries[0]?.name).toBe("best.ts");
+    expect(result.current.loading).toBe(false);
+  });
+
   it("debounces typing and drops obsolete in-flight results", async () => {
     const first = deferred();
     const second = deferred();

@@ -55,6 +55,7 @@ export const browseHostDirectoryResultSchema = z.object({
 
 export const searchProjectTreeResultSchema = z.object({
   entries: z.array(projectTreeEntrySchema),
+  provisional: z.literal(true).optional(),
 });
 
 export const readProjectFileResultSchema = z.object({

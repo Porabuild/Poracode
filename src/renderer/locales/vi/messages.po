@@ -210,6 +210,8 @@ msgstr "{0} lúc {time}"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} authenticated."
@@ -464,6 +466,18 @@ msgstr "Đã dùng {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "{0}, Idle"
 msgstr "{0}, Nhàn rỗi"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, new line {1}"
+msgstr "{0}, dòng mới {1}"
+
+#. placeholder {0}: preview.filePath
+#. placeholder {1}: preview.line
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "{0}, old line {1}"
+msgstr "{0}, dòng cũ {1}"
 
 #. placeholder {0}: tab.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
@@ -1498,6 +1512,11 @@ msgstr "Thêm cửa sổ ngữ cảnh"
 msgid "Add credentials before this thread can run."
 msgstr "Thêm thông tin xác thực trước khi chuỗi này có thể chạy."
 
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Add credentials for {0} in Settings"
+msgstr "Thêm thông tin xác thực {0} trong Cài đặt"
+
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Thêm phương án dự phòng"
@@ -2045,10 +2064,6 @@ msgid "An agent is fixing this PR."
 msgstr "Một tác nhân đang sửa PR này."
 
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "An environment variable on this machine keeps both options off."
-#~ msgstr "Một biến môi trường trên máy này giữ cả hai tùy chọn ở trạng thái tắt."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "An environment variable on this machine keeps telemetry off."
 msgstr "Một biến môi trường trên máy này giữ telemetry ở trạng thái tắt."
 
@@ -2067,17 +2082,6 @@ msgstr "Người điều tra tìm nguyên nhân gốc, người sửa lỗi đư
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "An MCP server with this name already exists."
 msgstr "Máy chủ MCP có tên này đã tồn tại."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Anonymous feature-use events. No prompts, code, or location."
-#~ msgstr "Sự kiện sử dụng tính năng ẩn danh. Không có prompt, mã hay vị trí."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Anonymous product analytics"
-#~ msgstr "Phân tích sản phẩm ẩn danh"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another automation is already using this conversation."
@@ -2362,6 +2366,10 @@ msgstr "Nhờ phiên không ghi thêm bộ nhớ riêng của nhà cung cấp l�
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
 msgstr "Hỏi khi cần"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Assistant"
+msgstr "Trợ lý"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
@@ -2898,10 +2906,6 @@ msgstr "Duyệt tìm thư mục mẹ"
 #: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
 msgid "Browse full library"
 msgstr "Duyệt toàn bộ thư viện"
-
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Browse Ollama library"
-#~ msgstr "Duyệt thư viện Ollama"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode/OpenCodePluginManager.tsx
@@ -4713,6 +4717,7 @@ msgid "Confused"
 msgstr "Bối rối"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -4791,6 +4796,7 @@ msgstr "Đang kết nối..."
 #: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
@@ -5388,11 +5394,6 @@ msgstr "Phạm vi bao phủ"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Coverage across reported currencies"
 msgstr "Phạm vi của các loại tiền được báo cáo"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Crash diagnostics with personal data removed."
-#~ msgstr "Chẩn đoán sự cố không có dữ liệu cá nhân."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
@@ -6848,11 +6849,6 @@ msgstr "Đã tải xuống {0}."
 msgid "Downloading"
 msgstr "Đang tải xuống"
 
-#. placeholder {0}: run.tag
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Downloading {0}…"
-#~ msgstr "Đang tải xuống {0}…"
-
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
@@ -7544,6 +7540,10 @@ msgstr "Mỗi giờ"
 msgid "Every hour at {0} minutes past"
 msgstr "Mỗi giờ vào phút thứ {0}"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Exact match"
+msgstr "Khớp chính xác"
+
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Exactly what is collected, and how to turn it off."
 msgstr "Chính xác những gì được thu thập và cách tắt."
@@ -7954,12 +7954,6 @@ msgstr "Yêu thích"
 #: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Yêu thích"
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Feature-use events tied to a random installation ID. No prompts, code, or location."
-#~ msgstr "Sự kiện sử dụng gắn với ID cài đặt ngẫu nhiên. Không có lời nhắc, mã hoặc vị trí."
 
 #: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Feedback"
@@ -10997,6 +10991,10 @@ msgstr "Phân biệt chữ hoa/thường"
 msgid "Match your system, or force light or dark."
 msgstr "Theo hệ thống của bạn, hoặc buộc dùng giao diện sáng hoặc tối."
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Matched message in history"
+msgstr "Tin nhắn khớp trong lịch sử"
+
 #: src/renderer/components/common/effortLabel.ts
 msgid "Max"
 msgstr "Tối đa"
@@ -11368,6 +11366,10 @@ msgstr "Thao tác tin nhắn"
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Message search unavailable"
 msgstr "Không thể tìm kiếm tin nhắn"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Message text unavailable"
+msgstr "Không có nội dung văn bản của tin nhắn"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
@@ -12124,6 +12126,10 @@ msgstr "Danh mục tiếp theo"
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "Cuộc trò chuyện tiếp theo"
+
+#: src/renderer/commands/registry.ts
+msgid "Next chat in workspace"
+msgstr "Cuộc trò chuyện tiếp theo trong không gian làm việc"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
@@ -12968,18 +12974,9 @@ msgstr "Không thể kết nối tới Ollama trên máy chủ đã chọn. Hãy
 msgid "Ollama model download progress"
 msgstr "Tiến trình tải mô hình Ollama xuống"
 
-#: src/renderer/views/SettingsOverlay/parts/OllamaModelDownloadPanel.tsx
-#~ msgid "Ollama model tag"
-#~ msgstr "Thẻ mô hình Ollama"
-
 #: src/renderer/components/providers/opencode/OpenCodeLocalModelsSettings.tsx
 msgid "Ollama models"
 msgstr "Mô hình Ollama"
-
-#. placeholder {0}: props.hostLabel
-#: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
-#~ msgid "Ollama on {0}"
-#~ msgstr "Ollama trên {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileDialog.tsx
 msgid "Ollama on {machineHostLabel}"
@@ -13784,6 +13781,7 @@ msgstr "Thiết bị đã ghép đôi"
 msgid "Pairing access"
 msgstr "Quyền ghép nối"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Ghép đôi đã hết hạn — hãy ghép đôi lại để kết nối."
@@ -14258,10 +14256,6 @@ msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers
 msgstr "Poracode mở khóa máy Mac này trong chốc lát cho một lượt Sử dụng máy tính đang chạy, che mọi màn hình trong lúc làm việc và khóa lại khi lượt kết thúc. Bất kỳ lần nhấn phím hay di chuyển con trỏ nào trên máy Mac này sẽ khóa máy ngay lập tức. Việc cài đặt cần quản trị viên phê duyệt một lần. Trên máy Mac do tổ chức của bạn quản lý, hãy hỏi bộ phận IT trước."
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#~ msgid "Poracode can send anonymous usage analytics and crash reports. No prompts, code, file names, or terminal output."
-#~ msgstr "Poracode có thể gửi phân tích sử dụng ẩn danh và báo cáo sự cố. Không có prompt, mã, tên tệp hay đầu ra terminal."
-
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 msgid "Poracode can send product analytics and crash reports."
 msgstr "Poracode có thể gửi phân tích sản phẩm và báo cáo sự cố."
 
@@ -14334,10 +14328,6 @@ msgstr "Chỉ Poracode"
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
 msgstr "Poracode nhớ sở thích và chỉnh sửa giữa các nhà cung cấp. Việc ghi bắt đầu khi lượt kết thúc. Một lượt mỗi ngày sẽ gộp chúng. Kỹ năng học từ công việc lặp lại vẫn là gợi ý cho đến khi bạn duyệt."
-
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#~ msgid "Poracode sends nothing unless you turn it on. No prompts, code, or file names — ever."
-#~ msgstr "Poracode không gửi gì trừ khi bạn bật lên. Prompt, mã hay tên tệp — không bao giờ."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
@@ -14523,6 +14513,7 @@ msgstr "Ngăn hệ thống chuyển sang chế độ ngủ"
 #: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FirstDiffHunk.tsx
 msgid "Preview"
 msgstr "Xem trước"
 
@@ -14543,6 +14534,10 @@ msgstr "Danh mục trước"
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
 msgstr "Cuộc trò chuyện trước"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous chat in workspace"
+msgstr "Cuộc trò chuyện trước trong không gian làm việc"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
@@ -15271,6 +15266,7 @@ msgstr "Cập nhật gần đây"
 msgid "Recents"
 msgstr "Gần đây"
 
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Reconnect"
 msgstr "Kết nối lại"
@@ -15295,6 +15291,10 @@ msgstr "Đang kết nối lại với terminal…"
 #: src/renderer/components/devices/LiveDevicePreview.tsx
 msgid "Reconnecting to the device…"
 msgstr "Đang kết nối lại với thiết bị…"
+
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
+msgid "Reconnecting to the server…"
+msgstr "Đang kết nối lại với máy chủ…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
@@ -16305,6 +16305,10 @@ msgstr "Thử lại với quản trị viên"
 msgid "Return to app"
 msgstr "Quay lại ứng dụng"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "Return to conversation"
+msgstr "Trở về cuộc trò chuyện"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Reusable guidance delivered across supported agents."
 msgstr "Hướng dẫn tái sử dụng được cung cấp cho mọi agent được hỗ trợ."
@@ -17082,12 +17086,6 @@ msgstr "Cuộn xuống dưới cùng"
 msgid "Scroll to prompt: {preview}"
 msgstr "Cuộn đến lời nhắc: {preview}"
 
-#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-#: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Scrubbed crash diagnostics sent to Sentry. Native crash dumps are a separate choice."
-#~ msgstr "Chẩn đoán sự cố đã làm sạch được gửi đến Sentry. Bản kết xuất sự cố gốc là lựa chọn riêng."
-
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "Đã cài SDK"
@@ -17300,6 +17298,10 @@ msgstr "Tìm kiếm…"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Đang tìm tệp…"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Searching large diffs…"
+msgstr "Đang tìm trong các diff lớn…"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Searching saved messages…"
@@ -17662,6 +17664,7 @@ msgstr "Được cố định khi phiên này bắt đầu — hãy tạo luồn
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -18060,6 +18063,7 @@ msgstr "Mô hình phụ"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "Đăng nhập"
@@ -18077,6 +18081,10 @@ msgstr "Cần đăng nhập"
 msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Đăng nhập trên máy tính đã ghép đôi, rồi làm mới trạng thái này."
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Sign in on the paired desktop, then refresh."
+msgstr "Đăng nhập trên máy tính đã ghép đôi, sau đó làm mới."
+
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -18090,6 +18098,7 @@ msgstr "Yêu cầu đăng nhập"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in to {0}"
 msgstr "Đăng nhập vào {0}"
 
@@ -19025,12 +19034,20 @@ msgid "Switch to the next chat"
 msgstr "Chuyển đến cuộc trò chuyện tiếp theo"
 
 #: src/renderer/commands/registry.ts
+msgid "Switch to the next chat in this workspace"
+msgstr "Chuyển đến cuộc trò chuyện tiếp theo trong không gian làm việc này"
+
+#: src/renderer/commands/registry.ts
 msgid "Switch to the next tab"
 msgstr "Chuyển đến tab tiếp theo"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous chat"
 msgstr "Chuyển đến cuộc trò chuyện trước"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat in this workspace"
+msgstr "Chuyển đến cuộc trò chuyện trước trong không gian làm việc này"
 
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous tab"
@@ -21136,6 +21153,8 @@ msgstr "Nhập câu trả lời…"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to authenticate {0}."
@@ -23048,6 +23067,10 @@ msgstr "Hôm qua: {prompts, plural, one {# prompt} other {# prompt}} · {compact
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
 msgstr "Hôm qua: {prompts, plural, one {# prompt} other {# prompt}} · {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchFocusView.tsx
+msgid "You"
+msgstr "Bạn"
 
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "You coded across {count} connected environments this week"

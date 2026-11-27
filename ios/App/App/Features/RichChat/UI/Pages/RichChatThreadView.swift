@@ -188,7 +188,7 @@ struct RichChatThreadView: View {
           .padding(.horizontal, 16)
           .padding(.vertical, 8)
       }
-      RichChatStatusView(suite: suite)
+      RichChatStatusView(suite: suite, session: session)
       RichChatResponsiveLayout(
         breakpoint: pageState.isAuxiliary ? .infinity : 960,
         isInspectorVisible: isInspectorVisible,

@@ -134,6 +134,29 @@ describe("saved message navigation", () => {
     });
   });
 
+  it("carries the palette text as an optional highlight query", async () => {
+    useAppStore.setState({ threads: [thread("saved")] });
+    await openConversationSearchHit(hit("saved"), "  needle at 40  ");
+    expect(useConversationSearchTarget.getState().target).toMatchObject({
+      threadId: "saved",
+      itemId: "message",
+      query: "needle at 40",
+    });
+    expect(mocks.open).toHaveBeenCalledWith("saved", {
+      focusComposer: false,
+      switchWorkspace: true,
+      reopenRuntime: false,
+      standalone: true,
+    });
+    // Direct calls without a query keep the exact legacy target shape.
+    await openConversationSearchHit(hit("saved"));
+    expect(useConversationSearchTarget.getState().target).toEqual({
+      threadId: "saved",
+      itemId: "message",
+      source: { kind: "managed", activationSeq: 1 },
+    });
+  });
+
   it("does not steal a pending user navigation while resolving an unopened chat", async () => {
     const pending = deferred<"present">();
     mocks.existence.mockReturnValueOnce(pending.promise);

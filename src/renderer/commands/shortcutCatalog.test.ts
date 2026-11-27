@@ -254,6 +254,28 @@ describe("shortcut catalog", () => {
     }
   });
 
+  it("exposes workspace chat commands as editable, unbound Thread rows", () => {
+    for (const platform of PLATFORMS) {
+      const rows = buildShortcutRows(
+        buildCommandRegistry(),
+        DEFAULT_KEYBINDINGS.keybindings,
+        platform,
+        resolveLabel,
+      );
+
+      for (const id of ["thread.nextInWorkspace", "thread.previousInWorkspace"] as const) {
+        const row = rows.find((item) => item.id === id);
+        expect(row?.editable).toBe(true);
+        expect(row?.commandId).toBe(id);
+        expect(row?.section).toBe("thread");
+        expect(row?.contexts).toContain("thread");
+        // No default chord: the row is bindable via "Set shortcut" with no collision.
+        expect(row?.keys).toEqual([]);
+        expect(row?.defaultBindings).toEqual([]);
+      }
+    }
+  });
+
   it("exposes next/previous tab as editable general rows scoped to editor and terminal", () => {
     for (const platform of PLATFORMS) {
       const rows = buildShortcutRows(

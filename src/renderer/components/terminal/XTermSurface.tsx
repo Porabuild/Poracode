@@ -6,6 +6,10 @@ import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { TerminalLinkProvider } from "./TerminalLinkProvider";
+import {
+  createTerminalFileLinkSource,
+  type TerminalProjectFileScope,
+} from "./terminalProjectFileLinks";
 import { resolveTerminalColor } from "./terminalColors";
 import { TerminalReplayGate } from "./terminalReplayGate";
 import { TerminalWriteQueue } from "./terminalWriteQueue";
@@ -137,6 +141,13 @@ export const XTermSurface = forwardRef<
     fixedTerminalSize?: TerminalSize;
     /** Whether a visual fit should resize the backing PTY. */
     resizeTerminalOnFit?: boolean;
+    /**
+     * Immutable project/worktree scope for PTYs that are not Thread rows
+     * (DevTerminal tab shells). Captured at mount and resolved by this id at
+     * activation — never the currently selected project. Plain/global terminals
+     * omit it and keep URL-only behavior.
+     */
+    projectFileScope?: TerminalProjectFileScope;
     /** Translate touch drags into xterm wheel events for mobile/PWA terminals. */
     touchScrollEnabled?: boolean;
     /** Keep touch gestures from focusing xterm's hidden textarea. */
@@ -188,6 +199,7 @@ export const XTermSurface = forwardRef<
     visible = true,
     fixedTerminalSize,
     resizeTerminalOnFit = true,
+    projectFileScope,
     touchScrollEnabled = false,
     suppressTouchKeyboard = false,
     themeBackgroundVar = "--content-background",
@@ -772,9 +784,17 @@ export const XTermSurface = forwardRef<
       terminal.open(screen);
     }
     const linkDisposable = terminal.registerLinkProvider(
-      new TerminalLinkProvider(terminal, (_event, uri) => {
-        openLink(uri);
-      }),
+      new TerminalLinkProvider(
+        terminal,
+        (_event, uri) => {
+          openLink(uri);
+        },
+        // Resolve file:line refs from the PTY's own project/worktree. Thread
+        // terminals use their row; DevTerminal tab shells use the immutable
+        // explicit scope captured at mount. Plain/global terminals keep
+        // URL-only behavior.
+        createTerminalFileLinkSource(terminalId, projectFileScope),
+      ),
     );
     const focusTerminalOnPointerDown = (event: PointerEvent) => {
       if (suppressTouchKeyboard && event.pointerType === "touch") {
@@ -1394,6 +1414,7 @@ export const XTermSurface = forwardRef<
         <div className="poracode-terminal-viewport relative min-h-0 flex-1">
           <div
             ref={mountRef}
+            data-terminal-id={terminalId}
             className={`poracode-terminal-pane h-full ${
               fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
             }`}

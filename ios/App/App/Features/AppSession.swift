@@ -226,6 +226,27 @@ final class AppSession {
         await sideChats.retryDisposals(session: self)
     }
 
+    /// Read-only fencing token for the selected host's current incarnation.
+    /// Bumped on host switch, re-pair, unpair or background park.
+    var hostIncarnation: Int { state.workGeneration }
+
+    /// Explicit in-thread offline-banner retry. Re-triggers the selected host's
+    /// live socket through its generation-safe reconnect ladder. Fenced to the
+    /// captured host + incarnation so a tap from a previous host (or rapid taps)
+    /// cannot open a duplicate connection. The socket's own generation gate
+    /// dedupes in-flight passes and keeps the event-stream cursor, so the
+    /// current thread, cached text, draft and pending requests are untouched;
+    /// auth is never replaced and automatic reconnect stays in place. A retired
+    /// (session-expired) host is left to the existing re-pair flow.
+    func reconnectSelectedHost(connectionID: ClientConnectionID?, generation: Int) async {
+        guard let connectionID,
+              state.phase != .sessionExpired,
+              state.selectedConnectionId == connectionID,
+              state.operationOwner.isCurrentWork(generation),
+              let socket = state.webSocket else { return }
+        await socket.reconnectNow()
+    }
+
     func threads(for projectId: String) -> [RemoteThread] {
         live.threads(for: projectId)
     }

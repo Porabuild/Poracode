@@ -19,6 +19,8 @@ interface SearchTarget {
   threadId: string;
   itemId: string;
   source: ConversationSearchSource;
+  /** Optional palette text for literal highlighting in the focused window. */
+  query?: string;
 }
 export const useConversationSearchTarget = create<{ target: SearchTarget | null }>(() => ({
   target: null,
@@ -32,7 +34,11 @@ export function isConversationSearchTargetCurrent(target: SearchTarget): boolean
     : currentRemoteServerGeneration(source.connectionKey) === source.generation;
 }
 
-export async function openConversationSearchHit(hit: ConversationSearchHit): Promise<void> {
+export async function openConversationSearchHit(
+  hit: ConversationSearchHit,
+  query?: string,
+): Promise<void> {
+  const searchText = query?.trim();
   const target = {
     threadId:
       hit.source.kind === "managed"
@@ -40,6 +46,7 @@ export async function openConversationSearchHit(hit: ConversationSearchHit): Pro
         : remoteThreadId(hit.source.connectionKey, hit.threadId),
     itemId: hit.itemId,
     source: hit.source,
+    ...(searchText ? { query: searchText } : {}),
   };
   useConversationSearchTarget.setState({ target });
   try {

@@ -53,7 +53,12 @@ export async function readHistoryItemDetails(
         throw new RemoteHttpError("runtime_item_not_found", "History item not found.", 404);
       const item = readProjectedHistoryWindow(threadId, [metadata], caps.maxWireBytes, caps)
         .projectedDesc[0]!;
-      const encoded = JSON.stringify(historyItemDetailSchema.parse({ item }));
+      // `position` is the host's canonical transcript index for this row. It is
+      // surfaced once, outside the stored item, so a positioned reader can open
+      // an item-centered bounded window without paging every intervening page.
+      const encoded = JSON.stringify(
+        historyItemDetailSchema.parse({ item, position: metadata.position }),
+      );
       const sizes = measureCatalogBody(encoded);
       if (!catalogSizesFit(sizes, caps))
         throw historyItemTooLarge("runtime_item", itemId, sizes, caps);

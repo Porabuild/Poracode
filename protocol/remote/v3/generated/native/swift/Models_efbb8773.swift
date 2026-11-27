@@ -151,15 +151,18 @@ public struct RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b: Codable, S
   }
 }
 
-public struct RoutethreadU2DHistoryU2DItemResponse_69f5ba498b: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DHistoryU2DItemResponse_14b515d6a4: Codable, Sendable, RemoteModelMetadata {
   public var item: RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b
+  public var position: RemoteField<Int64> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "item", typeName: "RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "position", typeName: "Int64", required: false, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case item = "item"
+    case position = "position"
   }
 }
 

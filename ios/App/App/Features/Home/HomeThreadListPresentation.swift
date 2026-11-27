@@ -101,12 +101,15 @@ struct HomeThreadListScope {
 
 enum HomeThreadListPresentation {
   static func keyboardOrder(
-    from items: [UnifiedThreadListItem], currentID: String, groupsDone: Bool = true
+    from items: [UnifiedThreadListItem], currentID: String, groupsDone: Bool = true,
+    workspaceWide: Bool = false
   ) -> [String] {
     guard let current = items.first(where: { $0.id == currentID }) else { return [] }
-    let project = items.filter { $0.connectionID == current.connectionID && $0.project.id == current.project.id }
-    let active = entries(from: project.filter { !$0.thread.isDone })
-    let doneThreads = project.filter { $0.thread.isDone }
+    let scoped = workspaceWide ? items : items.filter {
+      $0.connectionID == current.connectionID && $0.project.id == current.project.id
+    }
+    let active = entries(from: scoped.filter { !$0.thread.isDone })
+    let doneThreads = scoped.filter { $0.thread.isDone }
     let done = groupsDone ? entries(from: doneThreads) : doneThreads.map(HomeThreadListEntry.thread)
     return (active + done).flatMap { entry in
       switch entry {

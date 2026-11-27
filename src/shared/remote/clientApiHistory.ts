@@ -3,6 +3,7 @@ import {
   HISTORY_DEFER_FILE_CHANGE_BODIES,
   HISTORY_DETAILS_PROJECTION,
   historyItemDetailSchema,
+  type HistoryItemDetail,
 } from "./historyPresentation";
 import { persistedPromptIndexSchema } from "../ipc/schemas";
 import { parseResponse } from "./clientParse";
@@ -107,11 +108,12 @@ export abstract class RemoteClientHistoryApi extends RemoteClientExperimentsApi 
     );
     return parseResponse(persistedPromptIndexSchema, body, "history prompt index");
   }
-  async threadHistoryItem(
+  /** Same authorized, byte-bounded, fenced detail read for both entry points. */
+  private async readHistoryItemDetail(
     threadId: string,
     itemId: string,
-    options: { readonly signal?: AbortSignal } = {},
-  ) {
+    options: { readonly signal?: AbortSignal },
+  ): Promise<HistoryItemDetail> {
     const search = new URLSearchParams({
       notices: "v1",
       maxBytes: String(this.maxResponseBodyBytes),
@@ -125,6 +127,29 @@ export abstract class RemoteClientHistoryApi extends RemoteClientExperimentsApi 
     const result = parseResponse(historyItemDetailSchema, body, "history item details");
     if (result.item.id !== itemId)
       throw new Error("History detail response has a different item identity.");
-    return result.item;
+    return result;
+  }
+
+  /** The stored row only. Preserved for every existing deferred-body caller. */
+  async threadHistoryItem(
+    threadId: string,
+    itemId: string,
+    options: { readonly signal?: AbortSignal } = {},
+  ) {
+    return (await this.readHistoryItemDetail(threadId, itemId, options)).item;
+  }
+
+  /**
+   * Located item: the same authorized, fenced detail route, also returning the
+   * host's canonical `position` when it provides one. An older host omits it;
+   * callers then keep bounded paging. Lets a deep conversation match open with
+   * one exact item + one item-centered bounded read instead of every older page.
+   */
+  async threadHistoryLocatedItem(
+    threadId: string,
+    itemId: string,
+    options: { readonly signal?: AbortSignal } = {},
+  ): Promise<HistoryItemDetail> {
+    return this.readHistoryItemDetail(threadId, itemId, options);
   }
 }
