@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "Màu nhấn"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "Chấp nhận tất cả"
+msgid "Accept analytics and crash reports"
+msgstr "Cho phép phân tích và báo cáo sự cố"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "Thêm vào đồng bộ hóa"
 msgid "Include memory when a thread starts."
 msgstr "Đưa bộ nhớ vào khi chuỗi bắt đầu."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17529,6 +17530,7 @@ msgstr "Gửi dữ liệu vào terminal"
 msgid "Sending {sent} of {total}…"
 msgstr "Đang gửi {sent} trên {total}…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21106,6 +21108,7 @@ msgstr "Dùng thử"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Bật hoặc tắt plugin đã cài đặt cho các luồng trong dự án này. Lựa chọn plugin riêng của luồng vẫn được ưu tiên; các luồng đang chạy sẽ áp dụng thay đổi ở lần khởi chạy tiếp theo."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "Bật báo cáo sự cố để bao gồm bản kết xuất sự cố gốc."

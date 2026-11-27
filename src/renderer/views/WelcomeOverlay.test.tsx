@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
@@ -40,6 +40,7 @@ describe("WelcomeOverlay", () => {
     render(<WelcomeOverlay />);
 
     expect(screen.queryByText("Where do you want to begin?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Include native crash dumps" })).toBeNull();
     await waitFor(() => expect(useWelcomeGateStore.getState().backgroundWorkReleased).toBe(true));
   });
 
@@ -73,6 +74,56 @@ describe("WelcomeOverlay", () => {
 
     expect(document.querySelector(".poracode-welcome-page")).toBeNull();
     expect(openDraft).toHaveBeenCalledWith(HOME_PROJECT_ID);
+  });
+
+  it("records all three desktop welcome choices after settings hydrate", async () => {
+    runtime.browser = false;
+    runtime.localBackend = true;
+    const { privacy, sharedSettingsHydrated } = useSharedSettings.getState();
+    const undecided = {
+      productAnalytics: false,
+      crashReports: false,
+      nativeCrashDumps: false,
+      consentDecided: false,
+    };
+    const cachedPrivacy = { ...undecided, crashReports: true, nativeCrashDumps: true };
+    const openDraft = vi.fn<() => void>();
+    const previousApp = useAppStore.getState();
+    useAppStore.setState({
+      projects: [
+        {
+          id: HOME_PROJECT_ID,
+          name: "Home",
+          location: { kind: "posix", path: "/tmp/home" },
+          createdAt: "2026-09-13T00:00:00.000Z",
+        },
+      ],
+      openDraft,
+    });
+    useSharedSettings.setState({ privacy: cachedPrivacy, sharedSettingsHydrated: false });
+
+    try {
+      render(<WelcomeOverlay />);
+      const dumps = screen.getByRole("switch", { name: "Include native crash dumps" });
+      expect(dumps).not.toBeChecked();
+      fireEvent.click(screen.getByRole("switch", { name: "Product analytics" }));
+      fireEvent.click(dumps);
+      fireEvent.click(screen.getByText("Ask Question"));
+      expect(useSharedSettings.getState().privacy).toEqual(cachedPrivacy);
+
+      await act(async () => {
+        useSharedSettings.setState({ privacy: undecided, sharedSettingsHydrated: true });
+      });
+      expect(useSharedSettings.getState().privacy).toEqual({
+        productAnalytics: true,
+        crashReports: true,
+        nativeCrashDumps: true,
+        consentDecided: true,
+      });
+    } finally {
+      useSharedSettings.setState({ privacy, sharedSettingsHydrated });
+      useAppStore.setState({ projects: previousApp.projects, openDraft: previousApp.openDraft });
+    }
   });
 
   it("prefers the local canonical Home when a mirrored Home is listed first", () => {

@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "Vurgu"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "Tümünü kabul et"
+msgid "Accept analytics and crash reports"
+msgstr "Analitiği ve çökme raporlarını kabul et"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "Senkronizasyona ekle"
 msgid "Include memory when a thread starts."
 msgstr "İş parçacığı başlarken belleği ekle."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17529,6 +17530,7 @@ msgstr "Terminale girdi gönder"
 msgid "Sending {sent} of {total}…"
 msgstr "{total} içinden {sent} gönderiliyor…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21106,6 +21108,7 @@ msgstr "Şimdi dene"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Bu projedeki iş parçacıkları için yüklü eklentileri açın veya kapatın. İş parçacığının kendi eklenti seçimleri yine önceliklidir; çalışan iş parçacıkları değişiklikleri bir sonraki başlatmada uygular."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "Yerel çökme dökümlerini dahil etmek için çökme raporlarını açın."

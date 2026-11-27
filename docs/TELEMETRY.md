@@ -16,9 +16,11 @@ machine; it is kept in sync with the code by
   reports off also revokes the native-dump choice. Turning crash reports back
   on requires a fresh, separate dump opt-in. Turning a switch off stops sending
   immediately and drops anything still queued — no restart needed. Until you
-  choose, a prompt at startup offers Accept all, Save choices, or No thanks.
-  Closing it keeps everything off and asks again next launch. Accept all never
-  enables native crash dumps.
+  choose, all three switches are available on the first-launch welcome screen
+  or in the startup prompt. In the prompt, **Save choices** applies the switches,
+  **Accept analytics and crash reports** enables those two streams, and
+  **No thanks** keeps all three off. Enable native crash dumps with their own switch
+  and save your choices. Closing the prompt without a choice asks again next launch.
 - **Environment variables** win over the switches and are meant for managed
   or CI environments:
 

@@ -49,6 +49,10 @@ export function WelcomeOverlay() {
   const [telemetryCrashReports, setTelemetryCrashReports] = useState(
     () => useSharedSettings.getState().privacy?.crashReports ?? false,
   );
+  const [telemetryNativeCrashDumps, setTelemetryNativeCrashDumps] = useState(() => {
+    const { privacy, sharedSettingsHydrated } = useSharedSettings.getState();
+    return sharedSettingsHydrated && privacy?.crashReports === true && privacy.nativeCrashDumps;
+  });
   const openDraft = useAppStore((state) => state.openDraft);
   const browserClient = isBrowserClientRuntime();
   // Browser clients have no local backend: there is no local home scope or
@@ -115,6 +119,7 @@ export function WelcomeOverlay() {
       const choice = {
         productAnalytics: telemetryAnalytics,
         crashReports: telemetryCrashReports,
+        nativeCrashDumps: telemetryNativeCrashDumps,
       };
       void whenSharedSettingsHydrated().then(() => {
         if (!useSharedSettings.getState().privacy?.consentDecided) {
@@ -285,8 +290,10 @@ export function WelcomeOverlay() {
               <WelcomeTelemetryChoices
                 productAnalytics={telemetryAnalytics}
                 crashReports={telemetryCrashReports}
+                nativeCrashDumps={telemetryNativeCrashDumps}
                 onProductAnalyticsChange={setTelemetryAnalytics}
                 onCrashReportsChange={setTelemetryCrashReports}
+                onNativeCrashDumpsChange={setTelemetryNativeCrashDumps}
               />
             </div>
           ) : null}

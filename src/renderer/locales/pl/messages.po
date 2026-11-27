@@ -1209,8 +1209,8 @@ msgid "Accent"
 msgstr "Akcent"
 
 #: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
-msgid "Accept all"
-msgstr "Akceptuj wszystko"
+msgid "Accept analytics and crash reports"
+msgstr "Zezwól na analitykę i raporty o awariach"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -9495,6 +9495,7 @@ msgstr "Uwzględnij w synchronizacji"
 msgid "Include memory when a thread starts."
 msgstr "Dołączaj pamięć przy starcie wątku."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include native crash dumps"
@@ -17529,6 +17530,7 @@ msgstr "Wyślij dane do terminala"
 msgid "Sending {sent} of {total}…"
 msgstr "Wysyłanie {sent} z {total}…"
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sends memory snapshots to Sentry that may contain sensitive data."
@@ -21106,6 +21108,7 @@ msgstr "Wypróbuj"
 msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
 msgstr "Włączaj lub wyłączaj zainstalowane wtyczki dla wątków w tym projekcie. Własne wybory wtyczek wątku nadal mają pierwszeństwo; uruchomione wątki zastosują zmiany przy następnym uruchomieniu."
 
+#: src/renderer/components/privacy/TelemetryConsentPrompt.tsx
 #: src/renderer/views/SettingsOverlay/parts/PrivacySettings.tsx
 msgid "Turn on crash reports to include native dumps."
 msgstr "Włącz raporty o awariach, aby uwzględnić natywne zrzuty."
