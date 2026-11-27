@@ -130,6 +130,70 @@ describe("buildCrewHelperOptions", () => {
     expect(options.modelLabelOf({ agentKind: "claude", model: "opus-5.5" })).toBe("Claude");
   });
 
+  it("uses the structured GUI catalog when routing is unavailable", () => {
+    const devin = status("devin", "Devin", "ultrafast-high", "medium");
+    devin.capabilities = {
+      ...devin.capabilities,
+      models: [
+        { id: "ultrafast-low", label: "Ultrafast Low" },
+        { id: "ultrafast-medium", label: "Ultrafast Medium" },
+        { id: "ultrafast-high", label: "Ultrafast High" },
+      ],
+      presentationMode: "terminal",
+      presentationModes: ["terminal", "gui"],
+      efforts: ["Low", "Medium", "High"],
+      modelEfforts: Object.fromEntries(
+        ["ultrafast-low", "ultrafast-medium", "ultrafast-high"].map((id) => [
+          id,
+          ["Low", "Medium", "High"],
+        ]),
+      ),
+      defaultEffort: "Medium",
+      presentationCapabilities: {
+        gui: {
+          models: [{ id: "nemotron-3-ultra-high", label: "Nemotron 3 Ultra" }],
+          efforts: ["low", "medium", "high"],
+          modelEfforts: { "nemotron-3-ultra-high": ["low", "medium", "high"] },
+          defaultEffort: "medium",
+        },
+      },
+    };
+
+    const options = buildCrewHelperOptions({ statuses: [devin], settings });
+
+    expect(options.providers).toHaveLength(1);
+    expect(options.providers[0]).toMatchObject({ kind: "devin", presentationMode: "gui" });
+    expect(options.providers[0]!.capabilities.models).toEqual([
+      { id: "nemotron-3-ultra-high", label: "Nemotron 3 Ultra" },
+    ]);
+    expect(options.selectionFor("devin", "nemotron-3-ultra-high")).toEqual({
+      agentKind: "devin",
+      model: "nemotron-3-ultra-high",
+      effort: "medium",
+    });
+  });
+
+  it("folds provider model variants into the composer Fast control", () => {
+    const grok = status("grok", "Grok", "grok-4.7", "medium");
+    grok.capabilities.models = [
+      { id: "grok-4.7", label: "Grok 4.7" },
+      { id: "grok-4.7-build-fast", label: "Grok 4.7 Fast" },
+    ];
+
+    const options = buildCrewHelperOptions({ statuses: [grok], settings });
+
+    expect(options.providers[0]!.capabilities.models.map((model) => model.id)).toEqual([
+      "grok-4.7",
+    ]);
+    expect(options.providers[0]!.capabilities.fastModels).toContain("grok-4.7");
+    expect(options.selectionFor("grok", "grok-4.7-build-fast")).toEqual({
+      agentKind: "grok",
+      model: "grok-4.7",
+      effort: "medium",
+      fast: true,
+    });
+  });
+
   it("prefers the cheapest tier, then the lead's provider within that tier", () => {
     const options = buildCrewHelperOptions({
       statuses: [

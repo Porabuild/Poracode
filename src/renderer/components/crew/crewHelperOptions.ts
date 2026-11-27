@@ -6,8 +6,7 @@ import {
   isCrossagentProviderEnabled,
   presentedCrossagentCapabilities,
 } from "@/shared/crossagentVisibility";
-import type { AgentStatus } from "@/shared/contracts";
-import { modelSelectionFor } from "@/shared/agentSelection";
+import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import { pickCheaperHelperModel, type HelperModelLead } from "@/shared/modelTier";
 import type {
   CrossagentExecution,
@@ -19,11 +18,14 @@ import { readBridge, isRemoteSession } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { crewModelLabelOf } from "./crewComposerModel";
+import { initialCrewMemberSelection } from "./crewMemberSelection";
+import { projectProviderComposerCapabilities } from "@/renderer/components/providers/modelConfig";
 import {
   statusToMenuProvider,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
 import type { CrewMemberSelection } from "@/shared/crew";
+import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 
 type HelperVisibilitySettings = Pick<
   SharedSettings,
@@ -32,11 +34,22 @@ type HelperVisibilitySettings = Pick<
 
 const EMPTY_CROSSAGENT_ROUTING: CrossagentRoutingState = { ranked: [], providers: [] };
 
+/** Helpers are spawned through structured runtimes when the provider exposes one. */
+function helperExecutionForCapabilities(capabilities: AgentCapability): CrossagentExecution {
+  return (capabilities.presentationModes ?? [capabilities.presentationMode]).includes("gui")
+    ? "structured"
+    : "one-shot";
+}
+
 export interface CrewHelperOptions {
   providers: ProviderModelMenuProvider[];
   ranked: readonly CrossagentRoutingSnapshotEntry[];
   modelLabelOf: (selection: CrewMemberSelection) => string;
-  selectionFor: (agentKind: string, model: string) => CrewMemberSelection | undefined;
+  selectionFor: (
+    agentKind: string,
+    model: string,
+    selectionIntent?: ProviderModelSelectionIntent,
+  ) => CrewMemberSelection | undefined;
   /**
    * A new helper's model: the cheapest tier available, never the lead's exact
    * model, preferring the lead's own provider within a tier.
@@ -73,10 +86,11 @@ export function buildCrewHelperOptions(input: {
       }
       const execution: CrossagentExecution = entry.execution;
       const presented = presentedCrossagentCapabilities(execution, status.capabilities);
+      const projected = projectProviderComposerCapabilities(entry.kind, presented);
       const filtered = filterCrossagentCapabilities(
         entry.kind,
         execution,
-        presented,
+        projected,
         input.settings,
       );
       const rankedModelIds = rankedModelsByKind.get(entry.kind);
@@ -98,18 +112,24 @@ export function buildCrewHelperOptions(input: {
       ) {
         continue;
       }
-      const extraHidden = new Set(input.settings.crossagentHiddenModels[status.kind] ?? []);
-      const providerHidden = new Set([
-        ...(input.settings.hiddenModels[status.kind] ?? []),
-        ...(input.settings.hiddenModels[`${status.kind}-acp`] ?? []),
-      ]);
-      const models = status.capabilities.models.filter(
-        (model) => !providerHidden.has(model.id) && !extraHidden.has(model.id),
+      // Without routing metadata the roster still has to show the lane helpers
+      // actually spawn in. In particular dual-presentation providers expose a
+      // different model catalog on their structured runtime than on the CLI
+      // surface (`Nemotron` versus encoded `Ultrafast` ids for Devin).
+      const execution = helperExecutionForCapabilities(status.capabilities);
+      const presented = presentedCrossagentCapabilities(execution, status.capabilities);
+      const projected = projectProviderComposerCapabilities(status.kind, presented);
+      const filtered = filterCrossagentCapabilities(
+        status.kind,
+        execution,
+        projected,
+        input.settings,
       );
-      if (models.length === 0) continue;
+      if (filtered.models.length === 0) continue;
       providers.push({
         ...statusToMenuProvider(status),
-        capabilities: { ...status.capabilities, models },
+        capabilities: filtered,
+        ...(execution === "structured" ? { presentationMode: "gui" as const } : {}),
       });
     }
   }
@@ -122,16 +142,14 @@ export function buildCrewHelperOptions(input: {
     ),
   );
 
-  const selectionFor = (agentKind: string, model: string): CrewMemberSelection | undefined => {
+  const selectionFor = (
+    agentKind: string,
+    model: string,
+    selectionIntent: ProviderModelSelectionIntent = "exact",
+  ): CrewMemberSelection | undefined => {
     const provider = providers.find((candidate) => candidate.kind === agentKind);
-    if (!provider?.capabilities.models.some((candidate) => candidate.id === model))
-      return undefined;
-    const selection = modelSelectionFor(provider.capabilities, model);
-    return {
-      agentKind,
-      model,
-      ...(selection.reasoning.default ? { effort: selection.reasoning.default } : {}),
-    };
+    if (!provider) return undefined;
+    return initialCrewMemberSelection(provider.capabilities, agentKind, model, selectionIntent);
   };
   const modelLabelOf = (selection: CrewMemberSelection) =>
     crewModelLabelOf(input.labelStatuses ?? input.statuses, selection);
