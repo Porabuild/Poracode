@@ -146,7 +146,7 @@ class TerminalTextBuffer(
             scalarCursor += charCount
             index += charCount
         }
-        trimLines()
+        reserveCells()
     }
 
     /** Usable observed width (20...400); anything else is an unknown span. */
@@ -323,7 +323,7 @@ class TerminalTextBuffer(
         wrapPending = false
         if (advanceRow(softWrapped = true)) renderedCells += 1
         cursorColumn = 0
-        trimLines()
+        reserveCells()
     }
 
     private fun activeLine(): Line = lines[activeLineIndex]
@@ -367,7 +367,7 @@ class TerminalTextBuffer(
         if (advanceRow(softWrapped = false)) renderedCells += 1
         if (columns == null) cursorColumn = 0
         wrapPending = false
-        trimLines()
+        reserveCells()
     }
 
     private fun backspace() {
@@ -401,11 +401,7 @@ class TerminalTextBuffer(
         renderedCells = 0
     }
 
-    private fun trimLines() {
-        reserveCells(0)
-    }
-
-    private fun reserveCells(additional: Int) {
+    private fun reserveCells(additional: Int = 0) {
         while (lines.size > 1 &&
             (renderedCells + additional > MAX_RENDERED_CELLS || lines.size > maxLines)
         ) {
@@ -441,7 +437,6 @@ class TerminalTextBuffer(
         inControlString = false
         controlStringEscape = false
         canJoinPrevious = false
-        wrapPending = false
         columns = null
         lastScalarCursor = -1L
         source = ""
