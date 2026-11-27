@@ -1609,14 +1609,11 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --segment: #2e2f33;
     --border: oklch(0.31 0.006 286 / 0.9);
     --separator: oklch(0.3 0.006 286 / 0.85);
-    /* Brighter selected-row wash on dark so non-sidebar list items read as a
-       clearer, whiter highlight. The sidebar intentionally opts out: its
-       selected row uses the shared raised surface fill instead, while its
-       transparent hover wash sits one step lighter so the two states remain
-       distinguishable without a bright slab. */
+    /* Dark list rows use a brighter selection wash. Sidebar selection matches
+       the composer and uses a faint foreground wash on hover. */
     --row-active: color-mix(in oklab, var(--foreground) 20%, transparent);
-    --sidebar-row-hover: color-mix(in oklab, var(--foreground) 9%, transparent);
-    --sidebar-row-active: var(--surface-secondary);
+    --sidebar-row-hover: color-mix(in oklab, var(--foreground) 3.5%, transparent);
+    --sidebar-row-active: var(--content-surface-fill);
 
     /* App-specific */
     --sidebar-background: #0e0e14;
@@ -2541,7 +2538,7 @@ html[data-compact-layout] .poracode-sidebar-group-last-thread::before {
 }
 
 html[data-compact-layout] .poracode-sidebar-thread-row:active {
-  background: var(--row-active, var(--row-hover));
+  background: var(--sidebar-thread-press, var(--row-active, var(--row-hover)));
 }
 
 html[data-compact-layout] .poracode-sidebar-touch-row {
@@ -4009,12 +4006,16 @@ html[data-native-material="on"] .poracode-shell main {
 }
 html[data-sidebar-glass="on"][data-theme="dark"]
   .poracode-sidebar-aside:not(.poracode-sidebar-aside--overlay) {
-  /* The opaque dark selected fill would read as a solid slab on glass, so
-     let more of the sidebar material show through while retaining separation
-     from the lighter hover wash. */
-  --row-active: var(
+  /* Compact pointer press feedback is separate from the selected wash. */
+  --sidebar-thread-press: var(
     --sidebar-row-active-override,
     color-mix(in oklab, var(--foreground) 12%, transparent)
+  );
+  /* Let the glass show through the default selection wash. Themes can supply
+     a selected fill of their own. */
+  --row-active: var(
+    --sidebar-row-active-override,
+    color-mix(in oklab, var(--foreground) 7.5%, transparent)
   );
 }
 /* Faint tint so sidebar text/icons stay legible over the live OS blur. The

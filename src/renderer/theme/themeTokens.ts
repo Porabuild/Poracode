@@ -103,6 +103,18 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
   // Reserve room for both readable metadata and a visibly stronger primary label.
   const readablePanel = contrastRatio(fg, tintedPanel) >= 9 ? tintedPanel : surface;
   const panel = mode === "dark" ? mixHex("#000000", readablePanel, 0.05) : readablePanel;
+  // Docked sidebar backdrop: the color the sidebar panel paints over, shared by
+  // --sidebar-panel-background and the selected row below.
+  const sidebarBackdrop = spec.sidebarFill ? sidebar : content;
+  // Dark selection prefers the derived raised panel, but some palettes leave
+  // that panel closer to the backdrop than a faint foreground wash; fall back
+  // to the 7.5% wash there so the selected fill stays stronger than hover.
+  // Explicit authored fills still win.
+  const minimumSidebarActive = mixHex(fg, sidebarBackdrop, 0.075);
+  const darkSidebarActive =
+    contrastRatio(sidebarBackdrop, panel) < contrastRatio(sidebarBackdrop, minimumSidebarActive)
+      ? minimumSidebarActive
+      : panel;
   const overlayApprox = mixHex(fg, surface, mode === "light" ? 0.07 : 0.02);
   const fieldTintPct = FIELD_TINT_PCT[mode];
   const fieldTintFraction = fieldTintPct / 100;
@@ -166,17 +178,15 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--border": border,
     "--separator": fade(border, 75),
     "--sidebar-background": sidebar,
-    "--sidebar-panel-background": spec.sidebarFill ? sidebar : content,
-    // Sidebar hover stays a translucent foreground wash so translucent
-    // sidebars keep the material visible; dark lifts it one step above the
-    // selected fill so the two states remain distinguishable.
-    "--sidebar-row-hover": fade(fg, mode === "light" ? 6 : 9),
+    "--sidebar-panel-background": sidebarBackdrop,
+    // A translucent hover wash keeps the sidebar material visible.
+    "--sidebar-row-hover": fade(fg, mode === "light" ? 6 : 3.5),
     // Resolve the selected fill here; referring back to --row-active would
-    // cycle when a sidebar scopes --row-active to this token. Dark uses the
-    // same derived raised fill as cards/composer unless the palette authors
-    // an explicit selected-row color, which still takes precedence.
+    // cycle when a sidebar scopes --row-active to this token. Dark prefers the
+    // raised panel (or the 7.5% fallback above); an explicit selected-row
+    // color still takes precedence. Light stays a wash.
     "--sidebar-row-active":
-      spec.sidebarRowActive ?? (mode === "light" ? fade(fg, 11) : mix(surface, 92, fg)),
+      spec.sidebarRowActive ?? (mode === "light" ? fade(fg, 11) : darkSidebarActive),
     // Explicit authored fills also take precedence over the glass-sidebar wash.
     "--sidebar-row-active-override": spec.sidebarRowActive ?? "",
     "--content-background": content,

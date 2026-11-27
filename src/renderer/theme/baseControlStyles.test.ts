@@ -331,6 +331,28 @@ describe("base control styles", () => {
     );
   });
 
+  it("keeps dark sidebar selection, glass override, and compact press tokens scoped", () => {
+    const dark = ruleFor('[data-theme="dark"]');
+    expect(dark).toContain(
+      "--sidebar-row-hover: color-mix(in oklab, var(--foreground) 3.5%, transparent);",
+    );
+    expect(dark).toContain("--sidebar-row-active: var(--content-surface-fill);");
+    expect(styles).toMatch(
+      /html\[data-sidebar-glass="on"\]\[data-theme="dark"\]\s*\.poracode-sidebar-aside:not\(\.poracode-sidebar-aside--overlay\)\s*\{/,
+    );
+    const glass = ruleFor(".poracode-sidebar-aside:not(.poracode-sidebar-aside--overlay)");
+    expect(glass).toMatch(
+      /--row-active:\s*var\(\s*--sidebar-row-active-override,\s*color-mix\(in oklab, var\(--foreground\) 7\.5%, transparent\)\s*\);/,
+    );
+    expect(glass).toMatch(
+      /--sidebar-thread-press:\s*var\(\s*--sidebar-row-active-override,\s*color-mix\(in oklab, var\(--foreground\) 12%, transparent\)\s*\);/,
+    );
+    const compactActive = ruleFor("html[data-compact-layout] .poracode-sidebar-thread-row:active");
+    expect(compactActive).toContain(
+      "background: var(--sidebar-thread-press, var(--row-active, var(--row-hover)));",
+    );
+  });
+
   it("defers bottom-sheet enter keyframes until the backdrop is revealed", () => {
     expect(ruleFor(".m-sheet-backdrop:not([data-entered]):not([data-closing])")).toContain(
       "opacity: 0",
