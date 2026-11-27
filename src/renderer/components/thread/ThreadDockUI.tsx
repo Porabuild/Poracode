@@ -202,10 +202,13 @@ export function ThreadDockCountBadge({
   );
 }
 
+export const THREAD_DOCK_SUMMARY_RING_SIZE = 18;
+
 export function ThreadDockProgressRing({
   percent,
   size = 16,
   radius = 6,
+  strokeWidth = 1.65,
   progressStroke = "var(--foreground)",
   showZeroProgress = false,
   className = "",
@@ -228,6 +231,7 @@ export function ThreadDockProgressRing({
       width={size}
       height={size}
       viewBox="0 0 16 16"
+      strokeWidth={strokeWidth}
       aria-hidden="true"
       {...rest}
     >
@@ -237,7 +241,6 @@ export function ThreadDockProgressRing({
         r={radius}
         fill="none"
         stroke="color-mix(in oklab, var(--foreground) 18%, transparent)"
-        strokeWidth="1.65"
       />
       {showProgress ? (
         <circle
@@ -246,7 +249,6 @@ export function ThreadDockProgressRing({
           r={radius}
           fill="none"
           stroke={progressStroke}
-          strokeWidth="1.65"
           strokeLinecap="round"
           strokeDasharray={`${progress} ${circumference}`}
           transform="rotate(-90 8 8)"
