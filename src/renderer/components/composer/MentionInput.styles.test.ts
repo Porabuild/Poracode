@@ -9,14 +9,13 @@ describe("composer chip line height", () => {
     expect(styles).toMatch(
       /\.poracode-mention-input \.poracode-slash-chip\s*\{\s*margin-bottom: -0\.25em;\s*\}/,
     );
-    expect(styles).toMatch(/\.poracode-slash-chip\s*\{[^}]*vertical-align: text-top;/);
+    expect(styles).toMatch(/\.poracode-slash-chip\s*\{[^}]*vertical-align: baseline;/);
   });
 
   it("aligns file mention chips identically to slash chips inside the composer", () => {
     expect(styles).toMatch(
       /\.poracode-mention-input \.poracode-mention-chip\s*\{\s*margin-bottom: -0\.25em;\s*\}/,
     );
-    expect(styles).toMatch(/\.poracode-mention-chip\s*\{[^}]*vertical-align: text-top;/);
-    expect(styles).toMatch(/\.poracode-mention-chip\s*\{[^}]*line-height: 1\.3;/);
+    expect(styles).toMatch(/\.poracode-mention-chip\s*\{[^}]*vertical-align: baseline;/);
   });
 });

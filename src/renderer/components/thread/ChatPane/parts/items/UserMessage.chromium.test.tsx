@@ -5,6 +5,11 @@ import type { CanonicalContentBlock } from "@/shared/contracts";
 import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { ThreadComposer } from "@/renderer/components/thread/ThreadComposer";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
+import {
+  findInlineTextMatch,
+  measureInlineBaseline,
+  measureTextBaseline,
+} from "@/renderer/testUtils/inlineLayout";
 import { UserMessage } from "./UserMessage";
 
 afterEach(cleanup);
@@ -84,9 +89,13 @@ it("keeps the fallback composer editor unframed inside the light composer shell"
   }
 });
 
-it.each([390, 800])(
-  "aligns goal and slash chips identically to skill, MCP, thread, file, and link chips at %i px",
-  async (width) => {
+it.each([
+  { width: 390, fontSize: "14px" },
+  { width: 800, fontSize: "14px" },
+  { width: 800, fontSize: "16px", fontFamily: '"Segoe UI", Arial, sans-serif' },
+])(
+  "aligns goal and slash chips identically to skill, MCP, thread, file, and link chips (%o)",
+  async ({ width, fontSize, fontFamily }) => {
     const { page } = (await import("vitest/browser")) as unknown as {
       page: { viewport: (width: number, height: number) => Promise<void> };
     };
@@ -137,7 +146,14 @@ it.each([390, 800])(
       },
     ];
     const { container } = renderWithI18n(
-      <div style={{ "--lc-chat-font-size": "14px" } as React.CSSProperties}>
+      <div
+        style={
+          {
+            "--lc-chat-font-size": fontSize,
+            ...(fontFamily ? { fontFamily } : {}),
+          } as React.CSSProperties
+        }
+      >
         {cases.map((entry) => (
           <div key={entry.label} data-chip-case={entry.label}>
             <UserMessage
@@ -165,31 +181,36 @@ it.each([390, 800])(
         ".poracode-slash-chip, .poracode-inline-path-chip",
       );
       const chip = entry.label === "link" ? chips?.[chips.length - 1] : chips?.[0];
-      if (!body || !chip) throw new Error(`Missing chip for ${entry.label}`);
-      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
-      let textRect: DOMRect | null = null;
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const idx = node.textContent?.indexOf("Decrease") ?? -1;
-        if (idx >= 0) {
-          const range = document.createRange();
-          range.setStart(node, idx);
-          range.setEnd(node, idx + "Decrease".length);
-          textRect = range.getBoundingClientRect();
-          break;
-        }
-      }
-      if (!textRect) throw new Error(`Missing text for ${entry.label}`);
+      const chipName = chip?.querySelector<HTMLElement>(
+        ".poracode-slash-chip__name, .poracode-inline-path-chip__name",
+      );
+      if (!body || !chip || !chipName) throw new Error(`Missing chip for ${entry.label}`);
+      const textMatch = findInlineTextMatch(
+        body,
+        "Decrease",
+        ".poracode-slash-chip, .poracode-inline-path-chip",
+      );
       const chipRect = chip.getBoundingClientRect();
+      const textBaseline = measureTextBaseline(textMatch.node, textMatch.offset);
+      const chipBaseline = measureInlineBaseline(chipName);
       return {
         label: entry.label,
-        gapX: textRect.left - chipRect.right,
-        centerDelta: (chipRect.top + chipRect.bottom) / 2 - (textRect.top + textRect.bottom) / 2,
+        gapX: textMatch.rect.left - chipRect.right,
+        centerDelta:
+          (chipRect.top + chipRect.bottom) / 2 - (textMatch.rect.top + textMatch.rect.bottom) / 2,
+        baselineDelta: chipBaseline - textBaseline,
       };
     });
 
     const reference = measured.find((item) => item.label === "skill")!;
     for (const item of measured) {
+      expect(Math.abs(item.baselineDelta), `${item.label} baseline alignment`).toBeLessThanOrEqual(
+        0.5,
+      );
+      expect(
+        Math.abs(item.baselineDelta - reference.baselineDelta),
+        `${item.label} baseline parity with skill chip`,
+      ).toBeLessThanOrEqual(0.5);
       expect(Math.abs(item.centerDelta), `${item.label} vertical centering`).toBeLessThanOrEqual(
         0.5,
       );

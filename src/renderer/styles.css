@@ -5396,15 +5396,15 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   display: inline-flex;
   align-items: center;
   gap: 0.25em;
-  padding: 0.1em 0.3em;
+  padding: 0.13em 0.3em 0.03em;
   margin: 0 1px;
   border-radius: 0.25rem;
   background: var(--prompt-chip-fill);
   color: var(--foreground);
   font-family: inherit;
   font-size: 0.875em;
-  line-height: 1.3;
-  vertical-align: text-top;
+  line-height: normal;
+  vertical-align: baseline;
   user-select: none;
   cursor: default;
   max-width: 100%;
@@ -5416,6 +5416,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-mention-chip__icon {
+  align-self: center;
   width: 1em;
   height: 1em;
   flex-shrink: 0;
@@ -5423,6 +5424,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-mention-chip__name {
   display: inline-block;
+  align-self: baseline;
   min-width: 0;
   max-width: 20rem;
   overflow: hidden;
@@ -5462,7 +5464,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   display: inline-flex;
   align-items: center;
   gap: 0;
-  padding: 0.1em 0.3em;
+  padding: 0.13em 0.3em 0.03em;
   margin: 0 1px;
   border: 0;
   border-radius: 0.25rem;
@@ -5470,8 +5472,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   color: var(--foreground);
   font-family: inherit;
   font-size: 0.875em;
-  line-height: 1.3;
-  vertical-align: text-top;
+  line-height: normal;
+  vertical-align: baseline;
   user-select: none;
   cursor: default;
   max-width: 100%;
@@ -5512,6 +5514,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 }
 
 .poracode-slash-chip__slash {
+  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5529,6 +5532,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 
 .poracode-slash-chip__name {
   display: inline-block;
+  align-self: baseline;
   min-width: 0;
   /* Cap with a definite length only: a percentage here resolves against the
      chip's own shrink-to-fit width, is ignored during intrinsic sizing, and
@@ -5547,13 +5551,23 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   gap: 0.25em;
 }
 
+.poracode-selection-chip > [data-selection-preview] {
+  display: inline-flex;
+  align-items: baseline;
+  align-self: baseline;
+  min-width: 0;
+}
+
 .poracode-selection-chip__trigger {
   display: inline-flex;
+  align-items: baseline;
+  align-self: baseline;
   max-width: 10rem;
   min-width: 0;
 }
 
 .poracode-diff-comment-chip__delete {
+  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5595,7 +5609,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   min-width: 0;
   align-items: center;
   gap: 0.25em;
-  padding: 0.1em 0.3em;
+  padding: 0.13em 0.3em 0.03em;
   margin: 0 1px;
   border: 0;
   border-radius: 0.25rem;
@@ -5603,8 +5617,8 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
   color: var(--foreground);
   font-family: inherit;
   font-size: 0.875em;
-  line-height: 1.3;
-  vertical-align: text-top;
+  line-height: normal;
+  vertical-align: baseline;
   cursor: var(--interactive-cursor, pointer);
   transition: background 120ms ease;
 }
@@ -5630,12 +5644,14 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 }
 
 .poracode-inline-path-chip__icon {
+  align-self: center;
   width: 1em;
   height: 1em;
   flex-shrink: 0;
 }
 
 .poracode-inline-path-chip__name {
+  align-self: baseline;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5644,6 +5660,7 @@ html[data-keyboard-navigation] .poracode-thread-mention-chip:focus-visible {
 }
 
 .poracode-inline-path-chip__line {
+  align-self: baseline;
   color: var(--muted);
   white-space: nowrap;
 }
