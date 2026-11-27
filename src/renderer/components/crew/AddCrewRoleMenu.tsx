@@ -11,7 +11,11 @@ import type { CrewMemberSelection } from "@/shared/crew";
 export function AddCrewRoleMenu(props: {
   providers: ProviderModelMenuProvider[];
   isDisabled: boolean;
-  selectionFor: (agentKind: string, model: string) => CrewMemberSelection | undefined;
+  selectionFor: (
+    agentKind: string,
+    model: string,
+    selectionIntent?: "family" | "exact",
+  ) => CrewMemberSelection | undefined;
   onAdd: (selection: CrewMemberSelection) => void;
 }) {
   const { t } = useLingui();
@@ -27,7 +31,7 @@ export function AddCrewRoleMenu(props: {
         currentModel=""
         isDisabled={props.isDisabled || !hasModels}
         onChange={(next) => {
-          const selection = props.selectionFor(next.agentKind, next.model);
+          const selection = props.selectionFor(next.agentKind, next.model, next.selectionIntent);
           if (!selection) return;
           props.onAdd(selection);
         }}

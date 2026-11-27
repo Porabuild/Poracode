@@ -21,6 +21,16 @@ export function composerCapabilitiesForSession(
   return getProviderManifest(agentKind)?.projectComposerCapabilities?.(overlaid) ?? overlaid;
 }
 
+/** Provider-owned composer projection without a live session overlay. */
+export function projectProviderComposerCapabilities(
+  agentKind: string,
+  capabilities: AgentCapability,
+): AgentCapability {
+  return (
+    getProviderManifest(agentKind)?.projectComposerCapabilities?.(capabilities) ?? capabilities
+  );
+}
+
 export function normalizeProviderModelConfig<
   T extends { model?: string | undefined; fast?: boolean | undefined },
 >(

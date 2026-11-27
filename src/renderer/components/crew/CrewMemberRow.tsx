@@ -10,12 +10,13 @@ import { splitModelLabel } from "@/renderer/components/common/ProviderModelMenu/
 import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI";
-import { modelSelectionFor } from "@/shared/agentSelection";
 import type { AgentCapability } from "@/shared/contracts";
 import type { CrewMemberSelection, CrewRole } from "@/shared/crew";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { CrewRoleDetails } from "./CrewRoleDetails";
+import { crewMemberDisplayState, resolveCrewMemberSelectionEdit } from "./crewMemberSelection";
 import type { CrewRosterModel } from "./crewComposerModel";
+import type { ProviderModelSelection } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 
 /** Context lengths a member's model offers; empty unless there is a choice (2+). */
 export function contextSizesFor(
@@ -74,12 +75,11 @@ export function CrewMemberRow(props: {
           splitModelLabel(modelLabel).name,
         )
       : undefined;
-  const selectionInfo = provider
-    ? modelSelectionFor(provider.capabilities, selection.model)
+  const displayState = provider
+    ? crewMemberDisplayState(provider.capabilities, selection)
     : undefined;
-  const efforts =
-    selectionInfo?.reasoning.values.map((id) => ({ id, label: formatEffortLabel(id) })) ?? [];
-  const effortValue = selection.effort ?? selectionInfo?.reasoning.default;
+  const efforts = displayState?.efforts.map((id) => ({ id, label: formatEffortLabel(id) })) ?? [];
+  const effortValue = displayState?.effortValue;
   const reasoning = effortValue ? formatEffortLabel(effortValue) : undefined;
   const memberLabel = isLead ? t`Lead` : (role?.label ?? "");
   const contextSizes = contextSizesFor(provider?.capabilities, selection.model);
@@ -88,11 +88,13 @@ export function CrewMemberRow(props: {
     selection.model,
     selection.contextSize,
   );
-  const fastAvailable = selectionInfo?.fast.available === true;
+  const fastAvailable = displayState?.fastAvailable === true;
   const leadFastControl = isLead ? model.leadFastControl : undefined;
   // The producer descriptor owns encoded Fast (the saved carrier stays inert)
   // and the canonical family-resolved edit; helpers keep the local fallback.
-  const fastSelected = leadFastControl ? leadFastControl.isSelected : selection.fast === true;
+  const fastSelected = leadFastControl
+    ? leadFastControl.isSelected
+    : displayState?.fastSelected === true;
   const fastDisabled = leadFastControl
     ? leadFastControl.isDisabled === true ||
       Boolean(leadFastControl.disabledReason) ||
@@ -101,35 +103,44 @@ export function CrewMemberRow(props: {
     : !fastAvailable || model.isDisabled;
   const fastDisabledReason =
     leadFastControl?.disabledReason ??
-    selectionInfo?.fast.disabledReason ??
+    displayState?.fastDisabledReason ??
     t`Fast is unavailable for this model.`;
 
-  // QUICK settings: the pickers change only their own carrier — a model pick
-  // keeps effort and context length when the new model still offers them and
-  // drops Fast when the new model cannot run it.
-  function changeModel(next: { agentKind: string; model: string }) {
+  // QUICK settings go through the same model-family edit resolution as the
+  // composer: encoded effort/Fast become exact member UIDs, while independent
+  // carriers are kept only when the target model still accepts them.
+  function changeModel(next: ProviderModelSelection) {
     const nextProvider = providers.find((candidate) => candidate.kind === next.agentKind);
-    const nextModel = nextProvider?.capabilities.models.find(
-      (candidate) => candidate.id === next.model,
+    if (!nextProvider?.capabilities.models.some((candidate) => candidate.id === next.model)) return;
+    const resolved = resolveCrewMemberSelectionEdit(
+      nextProvider.capabilities,
+      selection,
+      {
+        kind: "model",
+        model: next.model,
+        ...(next.selectionIntent ? { selectionIntent: next.selectionIntent } : {}),
+      },
+      next.agentKind,
     );
-    if (!nextProvider || !nextModel) return;
-    const nextInfo = modelSelectionFor(nextProvider.capabilities, next.model);
-    const nextEffort =
-      selection.effort !== undefined && nextInfo.reasoning.values.includes(selection.effort)
-        ? selection.effort
-        : nextInfo.reasoning.default;
-    const keepsContextSize =
-      selection.contextSize !== undefined &&
-      (nextProvider.capabilities.modelContextSizes?.[next.model] ?? []).includes(
-        selection.contextSize,
-      );
-    props.onSelectionChange({
-      agentKind: next.agentKind,
-      model: next.model,
-      ...(nextEffort ? { effort: nextEffort } : {}),
-      ...(selection.fast === true && nextInfo.fast.available ? { fast: true } : {}),
-      ...(keepsContextSize ? { contextSize: selection.contextSize } : {}),
+    if (resolved) props.onSelectionChange(resolved);
+  }
+
+  function changeEffort(effort: string) {
+    if (!provider) return;
+    const resolved = resolveCrewMemberSelectionEdit(provider.capabilities, selection, {
+      kind: "effort",
+      value: effort,
     });
+    if (resolved) props.onSelectionChange(resolved);
+  }
+
+  function changeFast(fast: boolean) {
+    if (!provider) return;
+    const resolved = resolveCrewMemberSelectionEdit(provider.capabilities, selection, {
+      kind: "fast",
+      value: fast,
+    });
+    if (resolved) props.onSelectionChange(resolved);
   }
 
   const modelButton = (
@@ -142,7 +153,7 @@ export function CrewMemberRow(props: {
       currentModel={selection.model}
       {...(!model.isDraft && isLead ? { lockedAgentKind: model.lead.agentKind } : {})}
       isDisabled={model.isDisabled}
-      onChange={(next) => changeModel({ agentKind: next.agentKind, model: next.model })}
+      onChange={changeModel}
     />
   );
 
@@ -153,7 +164,7 @@ export function CrewMemberRow(props: {
         label={t`Reasoning for ${memberLabel}`}
         efforts={efforts.length > 1 ? efforts : []}
         {...(effortValue !== undefined ? { effortValue } : {})}
-        onEffortChange={(effort) => props.onSelectionChange({ ...selection, effort })}
+        onEffortChange={changeEffort}
         contextSizes={contextSizes}
         {...(contextValue !== undefined ? { contextValue } : {})}
         onContextChange={(contextSize) => props.onSelectionChange({ ...selection, contextSize })}
@@ -197,7 +208,7 @@ export function CrewMemberRow(props: {
         onChange={(fast) => {
           if (fastDisabled) return;
           if (leadFastControl?.onChange) leadFastControl.onChange(fast);
-          else props.onSelectionChange({ ...selection, fast });
+          else changeFast(fast);
         }}
       >
         <Zap className="size-3" fill={fastSelected ? "currentColor" : "none"} />

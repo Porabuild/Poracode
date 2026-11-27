@@ -169,7 +169,11 @@ export function CrewRoleDetails(props: {
                 currentAgentKind={fallback.agentKind}
                 currentModel={fallback.model}
                 onChange={(next) => {
-                  const selection = model.helperOptions.selectionFor(next.agentKind, next.model);
+                  const selection = model.helperOptions.selectionFor(
+                    next.agentKind,
+                    next.model,
+                    next.selectionIntent,
+                  );
                   if (!selection) return;
                   const nextFallbacks = [...fallbacks];
                   nextFallbacks[index] = selection;
