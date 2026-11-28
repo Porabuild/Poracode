@@ -598,6 +598,115 @@ describe("ThreadDraftView", () => {
     save.mockRestore();
   });
 
+  it("restores the remote project's last model after the host catalog catches up", async () => {
+    const settings = deferred<Awaited<ReturnType<RemoteDesktopClient["settings"]>>>();
+    const conn = "draft-model-host";
+    const remembered = { agentKind: "codex", model: "gpt-5.4-mini", worktreeMode: true };
+    const hostedProject: Project = {
+      ...remoteProject,
+      id: `remote:${conn}:project:project-1`,
+      remoteServerId: conn,
+      location: { ...project.location, remoteServerId: conn },
+      lastDraftConfig: remembered,
+    };
+    const previousProjects = useAppStore.getState().projects;
+    const previousFactory = useRemoteServersStore.getState().clientFactory;
+    useAppStore.setState({ projects: [hostedProject] });
+    const client = {
+      setTokenLifecycle: () => {},
+      settings: vi.fn<RemoteDesktopClient["settings"]>(() => settings.promise),
+      projectCommand: vi.fn<RemoteDesktopClient["projectCommand"]>(),
+    } as unknown as RemoteDesktopClient;
+    useRemoteServersStore.setState({
+      clientFactory: () => client,
+      servers: [
+        {
+          desktopId: conn,
+          label: "Remote",
+          endpoint: "http://draft-model-host.test/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: { [conn]: { status: "online", projects: [], threads: [] } },
+    });
+    onTestFinished(() => {
+      useRemoteServersStore.setState({ clientFactory: previousFactory });
+      useAppStore.setState({ projects: previousProjects });
+    });
+    const staleCatalog = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        models: [
+          { id: "gpt-6.1-sol", label: "Sol" },
+          { id: "gpt-5.4", label: "5.4" },
+        ],
+      },
+    };
+    const renderDraft = (status: AgentStatus, lastDraftConfig: typeof remembered = remembered) => (
+      <ThreadDraftView
+        project={hostedProject}
+        lastDraftConfig={lastDraftConfig}
+        agentStatuses={[status]}
+        onStart={() => {}}
+      />
+    );
+    let view = render(renderDraft(staleCatalog));
+    const picker = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+      )?.controls.find((control) => control.kind === "provider-model");
+    await waitFor(() => expect(client.settings).toHaveBeenCalled());
+    expect(picker()?.currentModel).toBeFalsy();
+    expect(useAppStore.getState().projects[0]?.lastDraftConfig).toEqual(remembered);
+    await act(async () => {
+      settings.resolve({
+        ...useSharedSettings.getState(),
+        hiddenModels: { codex: ["gpt-6.1-sol"] },
+      });
+    });
+    await waitFor(() => expect(picker()?.currentModel).toBe("gpt-5.4"));
+    expect(useAppStore.getState().projects[0]?.lastDraftConfig).toEqual(remembered);
+    expect(client.projectCommand).not.toHaveBeenCalled();
+
+    view.rerender(
+      renderDraft({
+        ...staleCatalog,
+        capabilities: {
+          ...staleCatalog.capabilities,
+          models: [...staleCatalog.capabilities.models, { id: "gpt-5.4-mini", label: "5.4 Mini" }],
+        },
+      }),
+    );
+    await waitFor(() => expect(picker()?.currentModel).toBe("gpt-5.4-mini"));
+    expect(client.projectCommand).not.toHaveBeenCalled();
+
+    const hiddenRememberedModel = {
+      agentKind: "codex",
+      model: "gpt-6.1-sol",
+      worktreeMode: false,
+    };
+    view.unmount();
+    view = render(renderDraft(staleCatalog, hiddenRememberedModel));
+    await waitFor(() => expect(picker()?.currentModel).toBe("gpt-6.1-sol"));
+    expect(client.projectCommand).not.toHaveBeenCalled();
+
+    view.unmount();
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "gpt-6.1-sol", effort: "low" } },
+    });
+    const noProjectDraft = {
+      agentKind: "codex",
+      model: "",
+      worktreeMode: false,
+    };
+    view = render(renderDraft(staleCatalog, noProjectDraft));
+    await waitFor(() => expect(picker()?.currentModel).toBe("gpt-5.4"));
+    console.log("QA phase provider default filtered");
+    expect(client.projectCommand).not.toHaveBeenCalled();
+  });
+
   it("persists an explicit selection without turning a later catalog correction into another edit", async () => {
     const storage = composerDraftStorage()!;
     const save = vi.spyOn(storage, "saveSelection");
