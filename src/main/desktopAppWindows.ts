@@ -229,6 +229,8 @@ export function openThreadFromTray(
   stateOverride?: ShellStateStore,
   navigation?: ThreadWindowNavigation,
 ): void {
+  // A quit in progress creates no window: there is no backend left for it to load.
+  if (desktopApp.isQuitting) return;
   desktopApp.pendingThreadOpenRequest = { threadId, ...(navigation ? { navigation } : {}) };
   showAndFocusWindow(ensureMainWindow(true, stateOverride));
   flushTrayThreadOpen();

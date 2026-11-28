@@ -233,7 +233,8 @@ if (!hasSingleInstanceLock) {
   app.quit();
 } else {
   app.on("second-instance", (_event, commandLine) => {
-    if (!app.isReady()) return;
+    // An instance that is quitting brings nothing back for a new launch.
+    if (!app.isReady() || desktopApp.isQuitting) return;
     if (
       desktopApp.poracodePaths &&
       shouldStartMinimized(

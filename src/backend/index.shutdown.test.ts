@@ -6,9 +6,12 @@ import {
   type BackendHostRequest,
   type BackendNativeRequest,
 } from "@/shared/backendHostProtocol";
+import { LATE_SHUTDOWN_EXIT_MS } from "./shutdownEscalation";
 
 const state = vi.hoisted(() => ({
   closed: false,
+  supervisorJoined: false,
+  diagnosticsStop: null as null | (() => Promise<void>),
   configureKey: vi.fn<() => void>(),
   order: [] as string[],
   sent: [] as BackendHostOutboundMessage[],
@@ -22,7 +25,11 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
-  startNodePerformanceDiagnostics: () => undefined,
+  startNodePerformanceDiagnostics: () => ({
+    queueCapture: undefined,
+    observeIpcQueue: () => {},
+    stop: () => state.diagnosticsStop?.() ?? Promise.resolve(),
+  }),
 }));
 vi.mock("@/shared/secretStorage", () => ({ configureSecretStorageKey: state.configureKey }));
 vi.mock("@/host/db/databaseRpc", () => ({ callDatabaseRpc: () => null }));
@@ -43,6 +50,7 @@ vi.mock("./BackendHostCore", () => ({
       };
     }) {
       state.closed = false;
+      state.supervisorJoined = false;
       state.prepareLaunch = options.supervisor.prepareLaunch;
       state.resolveExtraEnv = options.supervisor.resolveExtraEnv;
     }
@@ -52,8 +60,15 @@ vi.mock("./BackendHostCore", () => ({
     async restartSupervisor() {
       await state.prepareLaunch!();
     }
-    disposeSupervisor = state.stopSupervisor;
+    // Mirrors the real contract: the supervisor joins first, and only then
+    // can the database close.
+    async disposeSupervisor() {
+      await state.stopSupervisor();
+      state.supervisorJoined = true;
+    }
     closeDatabase() {
+      if (!state.supervisorJoined)
+        throw new Error("Cannot close the database before supervisor work has joined.");
       state.closed = true;
       state.order.push("database-close");
     }
@@ -83,6 +98,8 @@ let deliver: (request: BackendHostRequest) => void;
 beforeEach(async () => {
   vi.resetModules();
   state.closed = false;
+  state.supervisorJoined = false;
+  state.diagnosticsStop = null;
   state.configureKey.mockClear();
   state.order = [];
   state.sent = [];
@@ -497,4 +514,146 @@ it("disposes an uninitialized host without requiring a live runtime", async () =
   await expect(reply("dispose")).resolves.toMatchObject({ ok: true });
   expect(state.stopSupervisor).not.toHaveBeenCalled();
   expect(state.order).not.toContain("database-close");
+});
+
+async function holdService(id: string): Promise<() => void> {
+  const admitted = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  state.service.mockImplementation(async () => {
+    admitted.resolve();
+    await release.promise;
+  });
+  initialize();
+  await reply("initialize");
+  deliver({
+    version: BACKEND_HOST_PROTOCOL_VERSION,
+    id,
+    operation: "call-service",
+    payload: { name: "getSharedSettings", payload: {} },
+  });
+  await admitted.promise;
+  return () => release.resolve();
+}
+
+it.each(["SIGINT", "SIGTERM"] as const)(
+  "%s during an in-flight stop commits the database and exits once its grace elapses",
+  async (event) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await holdService("held-service");
+    dispose();
+    const { SupervisorIpcSender } = await import("@/supervisor/supervisorIpcSender");
+    const flush = vi.spyOn(SupervisorIpcSender.prototype, "flushAndWait");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      signal(event);
+      await vi.advanceTimersByTimeAsync(LATE_SHUTDOWN_EXIT_MS - 1);
+      expect(process.exit).not.toHaveBeenCalled();
+      expect(state.closed).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+    } finally {
+      vi.useRealTimers();
+    }
+    // The supervisor joined, so everything it accepted is committed even
+    // though the admitted request never settled.
+    expect(process.exit).toHaveBeenCalledExactlyOnceWith(1);
+    expect(state.order.filter((step) => step === "database-close")).toHaveLength(1);
+    expect(flush).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["SIGINT", "SIGTERM"] as const)(
+  "%s during an in-flight stop leaves a stop that cannot commit yet to finish on its own",
+  async (event) => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const supervisorStopped = Promise.withResolvers<void>();
+    state.stopSupervisor.mockImplementation(() => supervisorStopped.promise);
+    const release = await holdService("held-service");
+    dispose();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      signal(event);
+      await vi.advanceTimersByTimeAsync(LATE_SHUTDOWN_EXIT_MS);
+      // The owner's forced kill is still ahead, so ending the stop here could
+      // only turn the clean close it may still reach into a lost one.
+      expect(process.exit).not.toHaveBeenCalled();
+      expect(state.closed).toBe(false);
+      supervisorStopped.resolve();
+      release();
+    } finally {
+      vi.useRealTimers();
+    }
+    await vi.waitFor(() => expect(process.exit).toHaveBeenCalledExactlyOnceWith(0));
+    expect(error).not.toHaveBeenCalled();
+    expect(state.closed).toBe(true);
+  },
+);
+
+it("escalates a stop that an earlier signal started", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  await holdService("held-service");
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    signal("SIGTERM");
+    signal("SIGTERM");
+    await vi.advanceTimersByTimeAsync(LATE_SHUTDOWN_EXIT_MS);
+  } finally {
+    vi.useRealTimers();
+  }
+  expect(process.exit).toHaveBeenCalledExactlyOnceWith(1);
+  expect(state.order.filter((step) => step === "database-close")).toHaveLength(1);
+});
+
+it("lets a stop that finishes inside the grace close its database and exit cleanly", async () => {
+  const release = await holdService("held-service");
+  dispose();
+  const { SupervisorIpcSender } = await import("@/supervisor/supervisorIpcSender");
+  const flush = vi.spyOn(SupervisorIpcSender.prototype, "flushAndWait");
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    signal("SIGTERM");
+    await vi.advanceTimersByTimeAsync(LATE_SHUTDOWN_EXIT_MS / 2);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(process.exit).toHaveBeenCalledExactlyOnceWith(0);
+    expect(state.closed).toBe(true);
+    // Nothing is flushed to an owner that stopped waiting.
+    expect(flush).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("flushes final messages to an owner that is still waiting on the stop", async () => {
+  const release = await holdService("held-service");
+  dispose();
+  const { SupervisorIpcSender } = await import("@/supervisor/supervisorIpcSender");
+  const flush = vi.spyOn(SupervisorIpcSender.prototype, "flushAndWait");
+  release();
+  await reply("dispose");
+  await vi.waitFor(() => expect(process.exit).toHaveBeenCalledExactlyOnceWith(0));
+  expect(state.closed).toBe(true);
+  expect(flush).toHaveBeenCalledOnce();
+});
+
+it("ends a stop that already committed once its remaining teardown is all that is left", async () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  state.diagnosticsStop = () => new Promise<void>(() => undefined);
+  const release = await holdService("held-service");
+  dispose();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    signal("SIGTERM");
+    await vi.advanceTimersByTimeAsync(LATE_SHUTDOWN_EXIT_MS / 2);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(state.closed).toBe(true);
+    expect(process.exit).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(LATE_SHUTDOWN_EXIT_MS / 2);
+  } finally {
+    vi.useRealTimers();
+  }
+  expect(error).not.toHaveBeenCalled();
+  expect(process.exit).toHaveBeenCalledExactlyOnceWith(0);
 });

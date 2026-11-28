@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BackendDatabaseCaller } from "@/shared/backendHostProtocol";
 import { BackendStateStore } from "./BackendStateStore";
-import { closeDesktopBackend } from "./desktopBackendShutdown";
+import { closeDesktopBackend, SHELL_STATE_QUIT_DRAIN_MS } from "./desktopBackendShutdown";
 
 beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] }));
 afterEach(() => {
@@ -10,20 +10,58 @@ afterEach(() => {
 });
 
 describe("desktop shell save/backend quit dependency", () => {
-  it("begins backend retirement before the outer quit deadline when a save hangs", async () => {
+  it("retires the backend at once when the final save never settles", async () => {
     const closed = Promise.withResolvers<void>();
     const backend = {
       disposeAsync: vi.fn<(options: { timeoutMs?: number }) => Promise<void>>(async () => {}),
     };
     const closing = closeDesktopBackend({ close: () => closed.promise }, backend, 10_000);
     try {
-      await vi.advanceTimersByTimeAsync(3_999);
+      await vi.advanceTimersByTimeAsync(SHELL_STATE_QUIT_DRAIN_MS - 1);
       expect(backend.disposeAsync).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1);
-      expect(backend.disposeAsync).toHaveBeenCalledExactlyOnceWith({ timeoutMs: 6_000 });
+      // No second wait for a backend that already failed to answer.
+      expect(backend.disposeAsync).toHaveBeenCalledExactlyOnceWith({ timeoutMs: 0 });
       closed.resolve();
       await closing;
       expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      closed.resolve();
+      await closing;
+    }
+  });
+
+  it("grants a save that settles inside the window the retirement time that is left", async () => {
+    const closed = Promise.withResolvers<void>();
+    const backend = {
+      disposeAsync: vi.fn<(options: { timeoutMs?: number }) => Promise<void>>(async () => {}),
+    };
+    const closing = closeDesktopBackend({ close: () => closed.promise }, backend, 10_000);
+    try {
+      await vi.advanceTimersByTimeAsync(SHELL_STATE_QUIT_DRAIN_MS - 1);
+      closed.resolve();
+      await closing;
+      expect(vi.getTimerCount()).toBe(0);
+      const [{ timeoutMs }] = backend.disposeAsync.mock.calls[0]!;
+      expect(timeoutMs).toBeGreaterThan(10_000 - SHELL_STATE_QUIT_DRAIN_MS - 1);
+      expect(timeoutMs).toBeLessThanOrEqual(10_000 - (SHELL_STATE_QUIT_DRAIN_MS - 1));
+    } finally {
+      closed.resolve();
+      await closing;
+    }
+  });
+
+  it("never waits for the saves longer than the caller's budget", async () => {
+    const closed = Promise.withResolvers<void>();
+    const backend = {
+      disposeAsync: vi.fn<(options: { timeoutMs?: number }) => Promise<void>>(async () => {}),
+    };
+    const closing = closeDesktopBackend({ close: () => closed.promise }, backend, 500);
+    try {
+      await vi.advanceTimersByTimeAsync(499);
+      expect(backend.disposeAsync).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(backend.disposeAsync).toHaveBeenCalledExactlyOnceWith({ timeoutMs: 0 });
     } finally {
       closed.resolve();
       await closing;

@@ -15,6 +15,7 @@ import {
 } from "./windowHardening";
 import { openDevToolsAfterStartup } from "./deferredDevTools";
 import { rectOverlapsWorkArea } from "./windowGeometry";
+import { windowsKeptHiddenForQuit } from "./showAndFocusWindow";
 
 interface WindowBounds {
   x?: number;
@@ -212,6 +213,9 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   });
 
   window.once("ready-to-show", () => {
+    // maximize() below shows the window as well, so a quit that already took
+    // the UI off screen leaves this one hidden before either can run.
+    if (windowsKeptHiddenForQuit()) return;
     if (saved?.isMaximized) {
       // Electron's maximize() also shows the window; defer it until the first
       // real show so a hidden start stays hidden.

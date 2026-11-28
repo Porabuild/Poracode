@@ -21,6 +21,7 @@ import type { ComposedHostEnvironments } from "@/host/environments/composeHostEn
 import { BackendNativeRequests } from "./BackendNativeRequests";
 import { createNativeThreadActivityProjection } from "./nativeThreadActivity";
 import { shutdownBackendHost } from "./shutdown";
+import { createShutdownEscalation } from "./shutdownEscalation";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { callDatabaseRpc } from "@/host/db/databaseRpc";
 import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
@@ -509,7 +510,10 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
         environments = null;
       },
       async () => {
-        if (flush && process.connected) await sender.flushAndWait(1_000);
+        // An escalated stop has no owner left to deliver final messages to,
+        // and the flush would only postpone the database close below it.
+        if (flush && process.connected && !shutdownSignals.isLate())
+          await sender.flushAndWait(1_000);
       },
       () => {
         if (backendHost && !runtimeWorkJoined)
@@ -532,10 +536,37 @@ process.on("disconnect", () => {
   void shutdown(0, false);
 });
 
-process.on("SIGINT", () => {
-  void shutdown(0, true);
+// A stop already in flight (the `dispose` request, or an earlier signal)
+// gets one bounded grace when the owner signals again. Once it elapses, what
+// the supervisor accepted is committed without waiting for the rest.
+const shutdownSignals = createShutdownEscalation({
+  isStopping: () => shuttingDown || runtimeStop !== null,
+  stop: () => void shutdown(0, true),
+  onGraceElapsed: endLateShutdown,
 });
+process.on("SIGINT", () => shutdownSignals.receive());
+process.on("SIGTERM", () => shutdownSignals.receive());
 
-process.on("SIGTERM", () => {
-  void shutdown(0, true);
-});
+/**
+ * The stop outlived the grace a repeated signal allowed: commit what the
+ * joined producers accepted and leave the rest of the stop behind.
+ */
+function endLateShutdown(): void {
+  // The graceful path may have reached its database close inside the grace;
+  // only its remaining diagnostics teardown is cut short then.
+  if (!backendHost) {
+    process.exit(0);
+    return;
+  }
+  try {
+    backendHost.closeDatabase();
+  } catch {
+    // Nothing was committed: either the supervisor has not joined yet, or the
+    // close itself was refused and has reported that. The stop keeps running:
+    // it may still close on its own before the owner's forced kill, which is
+    // the only end an exit here could offer it.
+    return;
+  }
+  console.error("[backend] shutdown outlived the owner's wait; committed and exiting");
+  process.exit(1);
+}
