@@ -98,7 +98,7 @@ final class NativeRecentHistoryTests: XCTestCase {
     let snapshot = try await read(makeClient())
     let parent = AdmissionRotatingParentGrant()
     let environment = RemoteEnvironmentContext(environmentId: "environment-a", expectedChildDesktopId: nil,
-      parentAuthorizationToken: { await parent.token() }, mintParentWebSocketTicket: { "unused" })
+      parentAuthorizationToken: { await parent.token() }, mintParentWebSocketTicket: { "unused" }, mintParentWebSocketTicketWithTimeout: { _ in "unused" })
     let client = try await makeClient(environment: environment)
     let context = try await client.beginRecentHistoryRead(threadID: "t1")
     do {
@@ -321,7 +321,7 @@ final class NativeRecentHistoryTests: XCTestCase {
     catch is CancellationError { }
     let parent = AdmissionRotatingParentGrant()
     let environment = RemoteEnvironmentContext(environmentId: "environment-a", expectedChildDesktopId: nil,
-      parentAuthorizationToken: { await parent.token() }, mintParentWebSocketTicket: { "unused" })
+      parentAuthorizationToken: { await parent.token() }, mintParentWebSocketTicket: { "unused" }, mintParentWebSocketTicketWithTimeout: { _ in "unused" })
     do {
       _ = try await makeClient(environment: environment).threadHistoryItem(threadID: "t1", itemID: "deferred")
       XCTFail("A retired parent grant cannot publish a detail")

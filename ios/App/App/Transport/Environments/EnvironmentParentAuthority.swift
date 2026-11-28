@@ -98,6 +98,13 @@ extension EnvironmentParentAuthorityStore {
                     parentConnectionId: parentConnectionId,
                     environmentId: environmentId
                 )
+            },
+            mintParentWebSocketTicketWithTimeout: { [self] timeout in
+                try await mintParentWebSocketTicket(
+                    parentConnectionId: parentConnectionId,
+                    environmentId: environmentId,
+                    timeout: timeout
+                )
             }
         )
     }

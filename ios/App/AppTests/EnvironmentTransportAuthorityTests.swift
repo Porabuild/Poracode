@@ -26,7 +26,8 @@ final class EnvironmentTransportAuthorityTests: XCTestCase {
             environmentId: "11111111-1111-4111-8111-111111111111",
             expectedChildDesktopId: childDesktopId,
             parentAuthorizationToken: { parentToken },
-            mintParentWebSocketTicket: { parentTicket }
+            mintParentWebSocketTicket: { parentTicket },
+            mintParentWebSocketTicketWithTimeout: { _ in parentTicket }
         )
     }
 

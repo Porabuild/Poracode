@@ -36,6 +36,15 @@ const DEFAULT_ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
  * it forced a monthly re-pair on every healthy device.
  */
 const REFRESH_INACTIVITY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+/**
+ * A rotation whose response never reached the client (a mobile network drop,
+ * an app suspended mid-request) must not turn the client's retry into a
+ * "reuse" that revokes a healthy pairing. While the successor pair is still
+ * untouched, the presented predecessor re-rotates the session for up to 24
+ * hours. Any use of the successor (a bearer request or a refresh rotation)
+ * closes the window. Reuse after that point revokes the pairing.
+ */
+const REFRESH_REPLAY_GRACE_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WEBSOCKET_TICKET_TTL_MS = 30 * 1000;
 /**
  * The managed renderer's session is memory-only (dies with this host process)
@@ -273,6 +282,20 @@ export class RemoteAuthStore {
     string,
     { readonly sessionId: string; readonly expiresAtMs: number; readonly ephemeral?: true }
   >();
+  /** Presented refresh hash -> the untouched successor its rotation produced
+   * ({@link REFRESH_REPLAY_GRACE_MS}). Memory only: after a restart a replay is
+   * treated as reuse, exactly as before. */
+  private readonly refreshReplayGrace = new Map<
+    string,
+    {
+      readonly sessionId: string;
+      readonly successorTokenHash: string;
+      readonly successorRefreshHash: string;
+      readonly rotatedAtMs: number;
+    }
+  >();
+  /** Successor access-token hash -> the presented hash whose grace it holds. */
+  private readonly replayGraceBySuccessorToken = new Map<string, string>();
   /** Last credential-refusal warn time (see {@link warnCredentialRefused}). */
   private lastRefusalWarnAtMs = 0;
 
@@ -420,12 +443,10 @@ export class RemoteAuthStore {
 
   /**
    * Gate 6 item 4.6 (S6): exchanges a live refresh token for a fresh
-   * 24-hour access token. The refresh token VALUE rotates on every use (old
-   * value stops working, so a captured refresh token window is one use), and
-   * its deadline is a SLIDING inactivity window: every successful rotation
-   * re-arms it, so a device in regular use never re-pairs and only an unused
-   * pairing lapses. Revoked refresh tokens are rejected even before their
-   * row would have been found.
+   * 24-hour access token. The refresh token value rotates on every use, with
+   * a bounded recovery window for an undelivered response. Its deadline is a
+   * sliding inactivity window. Every successful rotation re-arms it so only
+   * an unused pairing lapses. Revoked refresh tokens are rejected.
    */
   refreshAccessToken(input: {
     readonly refreshToken: string;
@@ -434,12 +455,17 @@ export class RemoteAuthStore {
     this.pruneExpired();
     const refreshTokenHash = hashCredential(input.refreshToken);
     const reused = this.rotatedRefreshHashes.get(refreshTokenHash);
+    let session: StoredAccessSession | undefined;
     if (reused && reused.expiresAtMs > Date.now()) {
-      throw new RefreshTokenReuseError(reused.sessionId);
+      session = this.replayableSuccessor(refreshTokenHash);
+      if (!session) throw new RefreshTokenReuseError(reused.sessionId);
+    } else {
+      session = [...this.accessSessions.values()].find(
+        (entry) => entry.refreshTokenHash === refreshTokenHash,
+      );
+      // Rotating the successor is its use: its predecessor's replay window closes.
+      if (session) this.closeReplayGraceForSuccessorRefresh(refreshTokenHash);
     }
-    const session = [...this.accessSessions.values()].find(
-      (entry) => entry.refreshTokenHash === refreshTokenHash,
-    );
     if (
       !session ||
       (session.refreshExpiresAtMs ?? 0) <= Date.now() ||
@@ -476,6 +502,12 @@ export class RemoteAuthStore {
         ...(session.ephemeral ? { ephemeral: true as const } : {}),
       });
     }
+    // The client that presented this refresh token may never see the reply:
+    // until the new pair is used, presenting the same token again re-rotates.
+    // A replay keeps its first rotation's clock, so repeated unused replays
+    // never stretch the window.
+    const priorGrace = this.refreshReplayGrace.get(refreshTokenHash);
+    this.openReplayGrace(refreshTokenHash, rotated, priorGrace?.rotatedAtMs);
     // A memory-only rotation changes nothing the file carries; the reuse entry
     // above stays in memory only.
     if (!rotated.ephemeral) {
@@ -489,6 +521,13 @@ export class RemoteAuthStore {
         this.accessSessions.delete(rotated.tokenHash);
         this.accessSessions.set(session.tokenHash, session);
         if (session.refreshTokenHash) this.rotatedRefreshHashes.delete(session.refreshTokenHash);
+        this.closeReplayGrace(refreshTokenHash);
+        // A failed replay restores the grace it replaced, so the client's
+        // next retry with the same token is still a re-rotation, not reuse.
+        if (priorGrace) {
+          this.refreshReplayGrace.set(refreshTokenHash, priorGrace);
+          this.replayGraceBySuccessorToken.set(priorGrace.successorTokenHash, refreshTokenHash);
+        }
         throw error;
       }
     }
@@ -502,6 +541,60 @@ export class RemoteAuthStore {
       refreshTokenExpiresAt: toIso(refreshExpiresAtMs),
       sessionId: rotated.id,
     };
+  }
+
+  /** The current session when `presentedHash` was rotated into a successor
+   * that is still untouched and within the grace window; otherwise undefined
+   * (the presentation is reuse). */
+  private replayableSuccessor(presentedHash: string): StoredAccessSession | undefined {
+    const grace = this.refreshReplayGrace.get(presentedHash);
+    if (!grace) return undefined;
+    if (Date.now() - grace.rotatedAtMs > REFRESH_REPLAY_GRACE_MS) {
+      this.closeReplayGrace(presentedHash);
+      return undefined;
+    }
+    const current = this.accessSessions.get(grace.successorTokenHash);
+    if (
+      !current ||
+      current.id !== grace.sessionId ||
+      current.refreshTokenHash !== grace.successorRefreshHash ||
+      this.isRevoked(current.tokenHash)
+    ) {
+      this.closeReplayGrace(presentedHash);
+      return undefined;
+    }
+    return current;
+  }
+
+  private openReplayGrace(
+    presentedHash: string,
+    successor: StoredAccessSession,
+    rotatedAtMs = Date.now(),
+  ): void {
+    this.closeReplayGrace(presentedHash);
+    if (!successor.refreshTokenHash) return;
+    this.refreshReplayGrace.set(presentedHash, {
+      sessionId: successor.id,
+      successorTokenHash: successor.tokenHash,
+      successorRefreshHash: successor.refreshTokenHash,
+      rotatedAtMs,
+    });
+    this.replayGraceBySuccessorToken.set(successor.tokenHash, presentedHash);
+  }
+
+  private closeReplayGrace(presentedHash: string): void {
+    const grace = this.refreshReplayGrace.get(presentedHash);
+    if (!grace) return;
+    this.refreshReplayGrace.delete(presentedHash);
+    if (this.replayGraceBySuccessorToken.get(grace.successorTokenHash) === presentedHash) {
+      this.replayGraceBySuccessorToken.delete(grace.successorTokenHash);
+    }
+  }
+
+  private closeReplayGraceForSuccessorRefresh(successorRefreshHash: string): void {
+    for (const [presentedHash, grace] of this.refreshReplayGrace) {
+      if (grace.successorRefreshHash === successorRefreshHash) this.closeReplayGrace(presentedHash);
+    }
   }
 
   /** Whether a token hash sits on the revocation list (unexpired). */
@@ -561,6 +654,10 @@ export class RemoteAuthStore {
         403,
       );
     }
+    // The successor's bearer is in use: the client has the new pair, so a
+    // later replay of its predecessor is reuse again.
+    const gracedPredecessor = this.replayGraceBySuccessorToken.get(tokenHash);
+    if (gracedPredecessor !== undefined) this.closeReplayGrace(gracedPredecessor);
     return toAuthenticatedSession(session);
   }
 
@@ -655,6 +752,9 @@ export class RemoteAuthStore {
       }
       for (const [rotatedHash, rotated] of this.rotatedRefreshHashes) {
         if (rotated.sessionId === sessionId) this.rotatedRefreshHashes.delete(rotatedHash);
+      }
+      for (const [presentedHash, grace] of this.refreshReplayGrace) {
+        if (grace.sessionId === sessionId) this.closeReplayGrace(presentedHash);
       }
       for (const [ticketHash, ticket] of this.websocketTickets) {
         if (ticket.sessionId === sessionId) {
@@ -802,6 +902,9 @@ export class RemoteAuthStore {
     }
     for (const [hash, rotated] of this.rotatedRefreshHashes) {
       if (rotated.expiresAtMs <= now) this.rotatedRefreshHashes.delete(hash);
+    }
+    for (const [presentedHash, grace] of this.refreshReplayGrace) {
+      if (now - grace.rotatedAtMs > REFRESH_REPLAY_GRACE_MS) this.closeReplayGrace(presentedHash);
     }
     if (accessSessionsChanged) {
       this.persistAccessSessions();

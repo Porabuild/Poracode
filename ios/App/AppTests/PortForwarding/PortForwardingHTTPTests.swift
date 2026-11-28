@@ -298,6 +298,10 @@ final class PortForwardingHTTPTests: XCTestCase {
         // test loudly if one ever did.
         throw RemoteClientError(
           message: "unused", status: 401, code: "environment_parent_ticket_missing")
+      },
+      mintParentWebSocketTicketWithTimeout: { _ in
+        throw RemoteClientError(
+          message: "unused", status: 401, code: "environment_parent_ticket_missing")
       }))
     let api = try makeAPI(
       browser: PortForwardingBrowserRecorder(),
@@ -329,6 +333,10 @@ final class PortForwardingHTTPTests: XCTestCase {
         expectedChildDesktopId: nil,
         parentAuthorizationToken: { parentToken },
         mintParentWebSocketTicket: {
+          throw RemoteClientError(
+            message: "unused", status: 401, code: "environment_parent_ticket_missing")
+        },
+        mintParentWebSocketTicketWithTimeout: { _ in
           throw RemoteClientError(
             message: "unused", status: 401, code: "environment_parent_ticket_missing")
         }))

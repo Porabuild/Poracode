@@ -241,6 +241,8 @@ protocol SessionLiveSocket: AnyObject {
     func start(lastSeenSeq: Int?) async
     /// `start` resuming a cached cursor still bound to its event-stream epoch.
     func start(lastSeenSeq: Int?, lastSeenEpoch: String?) async
+    /// `start` restoring offline baseline across background suspend so retries keep Offline.
+    func start(lastSeenSeq: Int?, lastSeenEpoch: String?, startsOffline: Bool) async
     func stop() async
     func suspendForBackground() async
     func resumeFromForeground() async
@@ -276,6 +278,10 @@ extension SessionLiveSocket {
     /// Sockets without an event-stream cursor ignore the epoch.
     func start(lastSeenSeq: Int?, lastSeenEpoch _: String?) async {
         await start(lastSeenSeq: lastSeenSeq)
+    }
+
+    func start(lastSeenSeq: Int?, lastSeenEpoch: String?, startsOffline _: Bool) async {
+        await start(lastSeenSeq: lastSeenSeq, lastSeenEpoch: lastSeenEpoch)
     }
 
     /// Sockets that do not carry Git-state interests ignore them.
@@ -318,6 +324,14 @@ final class RemoteWebSocketClientBox: SessionLiveSocket {
 
     func start(lastSeenSeq: Int?, lastSeenEpoch: String?) async {
         await client.start(lastSeenSeq: lastSeenSeq, lastSeenEpoch: lastSeenEpoch)
+    }
+
+    func start(lastSeenSeq: Int?, lastSeenEpoch: String?, startsOffline: Bool) async {
+        await client.start(
+            lastSeenSeq: lastSeenSeq,
+            lastSeenEpoch: lastSeenEpoch,
+            startsOffline: startsOffline
+        )
     }
 
     func stop() async {

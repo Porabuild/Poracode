@@ -76,6 +76,26 @@ export function isUnauthorizedRemoteError(error: unknown): error is RemoteClient
   return error instanceof RemoteClientError && (error.status === 401 || error.status === 403);
 }
 
+/**
+ * OAuth grant rejections a token endpoint returns for an unknown, expired, or
+ * revoked grant. Only these prove a refresh grant is dead; a proxy, origin or
+ * scope 401/403, a timeout or a 5xx never does.
+ */
+export const DEFINITIVE_GRANT_REJECTION_CODES: ReadonlySet<string> = new Set([
+  "invalid_grant",
+  "invalid_refresh_token",
+  "refresh_token_reused",
+]);
+
+/** The token endpoint definitely refused this refresh grant (re-pair needed). */
+export function isRefusedRefreshGrantError(error: unknown): error is RemoteClientError {
+  return (
+    error instanceof RemoteClientError &&
+    (error.status === 400 || error.status === 401) &&
+    DEFINITIVE_GRANT_REJECTION_CODES.has(error.code)
+  );
+}
+
 /** The host has no thread with the requested id (`404 thread_not_found`). */
 export function isRemoteThreadNotFoundError(error: unknown): error is RemoteClientError {
   return (

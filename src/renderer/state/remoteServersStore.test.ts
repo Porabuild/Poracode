@@ -1130,11 +1130,11 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore.getState().reconnectServer("d1");
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(environment).toHaveBeenCalledTimes(1);
-    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
-      status: "offline",
-      message: "Can't reach the remote server. Check that it is online, then reconnect it.",
-    });
+    // The restart wait gave up, and the host went back to the normal ladder
+    // (one more reachability probe) instead of waiting for a manual Reconnect;
+    // this fake host still answers its snapshot, so the ladder brings it back.
+    expect(environment).toHaveBeenCalledTimes(2);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
     expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
   });
 
@@ -1173,8 +1173,10 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore.getState().installHostUpdate("d1");
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(environment).toHaveBeenCalledTimes(2);
-    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("offline");
+    // The updated-version read, then the hand-back to the normal ladder, which
+    // brings this fake host (it still answers its snapshot) back online.
+    expect(environment).toHaveBeenCalledTimes(3);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
     expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
   });
 
@@ -3683,7 +3685,7 @@ describe("useRemoteServersStore", () => {
     expect(socketFactory).toHaveBeenCalledTimes(2);
   });
 
-  it("retries an unauthorized websocket ticket at the slower authorization interval while a grant is held", async () => {
+  it("retries an unauthorized websocket ticket on the normal ladder while a grant is held", async () => {
     useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const websocketTicket = vi
@@ -3708,14 +3710,59 @@ describe("useRemoteServersStore", () => {
       sockets[0]?.onclose?.();
       await vi.advanceTimersByTimeAsync(1_000);
       // A held grant can still recover on the next attempt: no terminal state.
-      expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "connecting" });
-
-      await vi.advanceTimersByTimeAsync(59_499);
       expect(websocketTicket).toHaveBeenCalledTimes(2);
+      expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "offline" });
       expect(socketFactory).toHaveBeenCalledTimes(1);
-      await vi.advanceTimersByTimeAsync(501);
+
+      // The host answered, so the retry rides the normal backoff (attempt 1:
+      // under 2 s) instead of parking a minute on "connecting".
+      await vi.advanceTimersByTimeAsync(2_000);
       expect(websocketTicket).toHaveBeenCalledTimes(3);
       expect(socketFactory).toHaveBeenCalledTimes(2);
+    } finally {
+      __forgetRefreshTokenForTest(connectionRefreshSubject("d1"));
+    }
+  });
+
+  it("slows repeated held-grant 401s while keeping the host Offline", async () => {
+    useFakeConnectionTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const websocketTicket = vi
+      .fn<RemoteDesktopClient["websocketTicket"]>()
+      .mockResolvedValueOnce("ticket-1")
+      .mockRejectedValue(new RemoteClientError("Missing access token.", 401, "unauthorized"));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ websocketTicket })));
+    useRemoteServersStore.getState().setSocketFactory(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+    rememberRefreshToken("d1", "grant-1");
+    const retries = () => websocketTicket.mock.calls.length - 1;
+
+    try {
+      sockets[0]?.onclose?.();
+      // The first refusals ride the normal backoff…
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(retries()).toBe(3);
+      // …then the ladder slows to the authorization interval.
+      await vi.advanceTimersByTimeAsync(53_000);
+      expect(retries()).toBe(3);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(retries()).toBe(4);
+      expect(useRemoteServersStore.getState().runtime.d1?.status).not.toBe("error");
+
+      // The count alone does not establish that a grant has expired.
+      await vi.advanceTimersByTimeAsync(8 * 61_000);
+      expect(retries()).toBeGreaterThanOrEqual(12);
+      expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+        status: "offline",
+        message: expect.not.stringContaining("Pairing expired"),
+      });
     } finally {
       __forgetRefreshTokenForTest(connectionRefreshSubject("d1"));
     }
@@ -3805,7 +3852,7 @@ describe("useRemoteServersStore", () => {
 
     await vi.advanceTimersByTimeAsync(1);
     expect(sockets[0]?.close).toHaveBeenCalledTimes(1);
-    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("offline");
 
     await vi.advanceTimersByTimeAsync(1_000);
     await Promise.resolve();

@@ -210,6 +210,7 @@ final class FakeLiveSocket: SessionLiveSocket {
   private(set) var interests: [String] = []
   private(set) var interestUpdates: [[String]] = []
   private(set) var startedWithSeq: Int?
+  private(set) var startedOffline: Bool?
   private(set) var stopCount = 0
   private(set) var reconnectNowCount = 0
   private(set) var resumeAfterResyncSeqs: [Int] = []
@@ -244,8 +245,13 @@ final class FakeLiveSocket: SessionLiveSocket {
   }
 
   func start(lastSeenSeq: Int?) async {
+    await start(lastSeenSeq: lastSeenSeq, lastSeenEpoch: nil, startsOffline: false)
+  }
+
+  func start(lastSeenSeq: Int?, lastSeenEpoch _: String?, startsOffline: Bool) async {
     if let startGate { await startGate.wait() }
     startedWithSeq = lastSeenSeq
+    startedOffline = startsOffline
     resyncSuspended = false
   }
 

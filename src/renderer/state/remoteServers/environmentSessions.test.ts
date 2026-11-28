@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
 import type { RemoteTokenLifecycle, RemoteTokenSnapshot } from "@/shared/remote/clientTypes";
 import { environmentImageRefKey } from "@/shared/remote/clientEnvironmentImages";
 import type { RemoteImageRefValue } from "@/shared/remote";
@@ -302,6 +302,29 @@ describe("environmentSessions", () => {
       onTokensRefreshed: () => undefined,
     });
     expect(session?.parentAuthority.accessToken()).toBe("parent-access");
+  });
+
+  it("keeps the environment grant until its current session gets a definitive refusal", () => {
+    const { environmentClients, refreshTokens } = setup([parentRecord(), environmentRecord()]);
+    const first = environmentSessionForServer(environmentRecord())!;
+    const retired = environmentClients[0]!.lifecycle!;
+    const grantKey = first.childGrantKey;
+    const parentKey = `refresh.${PARENT_KEY}`;
+    refreshTokens.set(parentKey, "parent-grant");
+    refreshTokens.set(grantKey, "child-grant");
+
+    disposeEnvironmentSession(CHILD_KEY);
+    environmentSessionForServer(environmentRecord());
+    const current = environmentClients[1]!.lifecycle!;
+    const definitiveRefusal = new RemoteClientError("Revoked.", 401, "invalid_refresh_token");
+    expect(retired.refreshToken()).toBeUndefined();
+    retired.onUnauthorized?.(definitiveRefusal);
+    current.onUnauthorized?.(new RemoteClientError("Temporary refusal.", 403, "forbidden"));
+    expect(current.refreshToken()).toBe("child-grant");
+
+    current.onUnauthorized?.(definitiveRefusal);
+    expect(current.refreshToken()).toBeUndefined();
+    expect(refreshTokens.get(parentKey)).toBe("parent-grant");
   });
 
   it("coalesces parent refresh across environments (single-flight)", async () => {

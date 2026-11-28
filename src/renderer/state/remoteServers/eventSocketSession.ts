@@ -45,7 +45,7 @@ import {
   noteBoundedCatalogChangesCapability,
 } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import { remoteConnectionKey } from "./types";
-import { refreshTokenForDesktop } from "./refreshTokens";
+import { holdsRemoteServerRefreshGrant } from "./failureMessage";
 import {
   prepareTerminalConnection,
   type TerminalConnectionCapabilities,
@@ -94,6 +94,22 @@ export interface StartRemoteServerEventStreamDeps {
       readonly terminalSize?: TerminalSize | undefined;
     },
   ) => OpenRemoteThread;
+}
+
+/** Consecutive attempts before ambiguous authorization refusals slow retries. */
+const UNAUTHORIZED_SLOWDOWN_ATTEMPTS = 3;
+
+/**
+ * Minimum spacing between evidence-driven early retries: the policy floor,
+ * doubling with each consecutive attempt that failed to become live and capped
+ * at the ladder's own maximum, so a host whose live channel stays blocked
+ * while HTTP works costs no more than the normal ladder.
+ */
+export function evidenceRetryFloorMs(failedAttempts: number): number {
+  return Math.min(
+    REMOTE_SOCKET_POLICY.reconnectMaxMs,
+    REMOTE_SOCKET_POLICY.evidenceRetryMinIntervalMs * 2 ** Math.max(0, failedAttempts - 1),
+  );
 }
 
 export async function startRemoteServerEventStream(
@@ -175,6 +191,14 @@ export async function startRemoteServerEventStream(
    * threads from authoritative snapshots after resuming from the last APPLIED
    * seq — the resume cursor never advances past a lost frame. */
   let resyncRequired = false;
+  /** Sockets of this session that completed their handshake. A socket that
+   * fails before it ever opened is a failed connection attempt, not a drop. */
+  const activatedSockets = new WeakSet<RemoteSocketLike>();
+  /** Consecutive attempts that never became a live socket; spaces out
+   * evidence-driven early retries the same way the ladder spaces its own. */
+  let failedAttempts = 0;
+  /** Consecutive ticket mints refused with the grant still held. */
+  let unauthorizedAttempts = 0;
 
   const isCurrent = () =>
     getRemoteServerEventSocketEntry(connectionKey) === entry &&
@@ -224,6 +248,14 @@ export async function startRemoteServerEventStream(
     setRemoteTerminalSocketSender(connectionKey, null);
     setAgentVisionSocketSender(connectionKey, null);
     syncDesktopBrowserBridgeClient(get());
+    if (!activatedSockets.has(socket)) {
+      // The attempt never opened (connect timeout, refused upgrade, network
+      // loss before the handshake). The live channel is down even if HTTP
+      // still answers: report the host unreachable instead of leaving it
+      // "connecting" while the ladder keeps retrying.
+      failedAttempts += 1;
+      setRemoteServerFailure(connectionKey, "offline", sharedMsg("remote.server.unreachable"));
+    }
     scheduleReconnect();
   };
 
@@ -348,6 +380,9 @@ export async function startRemoteServerEventStream(
       bindEventSocketMessages(ctx);
       const activateSocket = () => {
         if (!isCurrent() || entry.socket !== socket) return;
+        activatedSockets.add(socket);
+        failedAttempts = 0;
+        unauthorizedAttempts = 0;
         const prevRuntime = get().runtime[connectionKey];
         clearRemoteServerEventSocketConnectTimeout(entry);
         entry.reconnectPolicy.reset();
@@ -455,19 +490,26 @@ export async function startRemoteServerEventStream(
         return;
       }
       if (isUnauthorizedRemoteError(error)) {
-        // A refused or absent grant never recovers by retrying: retire the
-        // session and show the stable "pair again" state instead of a
-        // reconnect loop. With a grant still held, this attempt's refresh
-        // simply lost the race or hit a transient failure — keep the slow
-        // retry, the next attempt can recover.
-        if (refreshTokenForDesktop(connectionKey) === undefined) {
+        // A refused or absent grant needs re-pairing. Each environment child
+        // holds its own grant separately from its parent connection.
+        if (!holdsRemoteServerRefreshGrant(server)) {
           retireSession(sharedMsg("remote.session.expired"));
           return;
         }
-        setSocketStatus("connecting");
-        scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
+        // There is no live stream yet. A held grant can still recover, so
+        // keep trying and slow repeated refusals to protect the host's shared
+        // token-exchange budget.
+        unauthorizedAttempts += 1;
+        setRemoteServerFailure(connectionKey, "offline", sharedMsg("remote.server.unreachable"));
+        scheduleReconnect(
+          unauthorizedAttempts >= UNAUTHORIZED_SLOWDOWN_ATTEMPTS
+            ? REMOTE_SOCKET_POLICY.unauthorizedReconnectMs
+            : 0,
+        );
         return;
       }
+      failedAttempts += 1;
+      unauthorizedAttempts = 0;
       const transportFailure = isRemoteTransportFailure(error);
       setRemoteServerFailure(
         connectionKey,
@@ -479,6 +521,26 @@ export async function startRemoteServerEventStream(
       entry.connecting = false;
       if (isCurrent() && !entry.socket && !entry.reconnectTimer) scheduleReconnect();
     }
+  };
+
+  // Fresh evidence the host is reachable (an HTTP success, a foreground
+  // resume) runs the next attempt now instead of waiting out the backoff. The
+  // backoff itself keeps growing, and the floor keeps a host whose live
+  // channel keeps failing from being hammered.
+  let lastNudgeAt = Number.NEGATIVE_INFINITY;
+  entry.nudge = () => {
+    if (!isCurrent() || entry.connecting || entry.socket) return;
+    // A run of held-grant 401s owns its slower authorization interval: an HTTP
+    // success must not spend more of the host's token-exchange budget.
+    if (unauthorizedAttempts >= UNAUTHORIZED_SLOWDOWN_ATTEMPTS) return;
+    const now = Date.now();
+    if (now - lastNudgeAt < evidenceRetryFloorMs(failedAttempts)) return;
+    lastNudgeAt = now;
+    if (entry.reconnectTimer) {
+      clearTimeout(entry.reconnectTimer);
+      entry.reconnectTimer = null;
+    }
+    void connect();
   };
 
   if (options.deferInitialConnect) {

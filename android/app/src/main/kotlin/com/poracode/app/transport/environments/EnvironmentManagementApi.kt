@@ -11,6 +11,7 @@ import com.poracode.app.model.RemoteEnvironmentTrustProbeResult
 import com.poracode.app.model.RemoteEnvironmentUpdatePatch
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteWebSocketTicketResult
+import com.poracode.app.protocol.RemoteSocketPolicy
 import com.poracode.app.transport.RemoteApiClient
 import com.poracode.remote.v3.generated.RemoteContractMetadata
 import com.poracode.remote.v3.generated.RemoteRootCodec
@@ -189,6 +190,7 @@ suspend fun RemoteApiClient.environmentWebSocketTicket(
     val raw = requestText(
         EnvironmentProtocol.managementPath(environmentId, "websocket-ticket"),
         method = "POST",
+        timeoutMs = RemoteSocketPolicy.CONNECT_TIMEOUT_MS,
     )
     val canonical = GeneratedEnvironmentContract.websocketTicketResponse(raw)
     return RemoteJson.decodeFromString<RemoteWebSocketTicketResult>(canonical)

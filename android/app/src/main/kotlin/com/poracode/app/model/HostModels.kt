@@ -130,9 +130,6 @@ data class HostRegistryDocument(
     val selected: HostRecord?
         get() = hosts.firstOrNull { it.connectionId == selectedConnectionId }
 
-    val secondaryLru: ClientConnectionId?
-        get() = lru.firstOrNull { it != selectedConnectionId }
-
     fun host(id: ClientConnectionId): HostRecord? = hosts.firstOrNull { it.connectionId == id }
 
     fun touching(id: ClientConnectionId, nowEpochMs: Long): HostRegistryDocument {

@@ -155,6 +155,7 @@ class RemoteWebSocketClient(
         state.generationGate.invalidate()
         state.tearDownSocket()
         state.readyReceived.set(false)
+        state.failedBeforeSuspend.set(false)
         state.publish(ConnectionState.Reconnecting, "resync complete")
         connectionLoop.launchConnect()
     }
@@ -192,6 +193,8 @@ class RemoteWebSocketClient(
         state.suspended.set(false)
         state.sessionExpired.set(false)
         state.readyReceived.set(false)
+        state.failedBeforeSuspend.set(false)
+        state.lastPublished.set(null)
         state.backoff.reset()
         connectionLoop.launchConnect()
     }
@@ -215,6 +218,7 @@ class RemoteWebSocketClient(
         state.backoff.reset()
         state.generationGate.invalidate()
         state.tearDownSocket()
+        state.failedBeforeSuspend.set(false)
         state.publish(ConnectionState.Suspended)
     }
 
@@ -226,10 +230,15 @@ class RemoteWebSocketClient(
             state.cursor.clearResyncPending()
         }
         state.tearDownSocket()
+        state.failedBeforeSuspend.set(false)
         state.publish(ConnectionState.Idle)
     }
 
     override fun suspendForBackground() {
+        val prior = state.lastPublished.get()
+        if (prior != ConnectionState.Suspended) {
+            state.failedBeforeSuspend.set(prior == ConnectionState.Failed)
+        }
         state.suspended.set(true)
         state.generationGate.invalidate()
         state.cancelNetworkJobs()
@@ -242,11 +251,14 @@ class RemoteWebSocketClient(
         if (state.stopped.get()) return
         state.suspended.set(false)
         state.backoff.reset()
+        state.lastPublished.set(
+            if (state.failedBeforeSuspend.getAndSet(false)) ConnectionState.Failed else null,
+        )
         connectionLoop.launchConnect()
     }
 
     /** Explicit in-thread offline-banner retry through the same generation-safe ladder. */
-    override fun forceReconnect(reason: String) = connectionLoop.forceReconnect(reason)
+    override fun forceReconnect(reason: String) = connectionLoop.explicitReconnect()
 
     override fun setThreadItemInterests(threadIds: List<String>) {
         val unique = ThreadItemInterestDecisions.sortedUnique(threadIds)

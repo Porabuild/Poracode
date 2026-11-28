@@ -31,7 +31,8 @@ actor EnvironmentParentAuthorityStore {
     /// own management route. Never proxied, never derived from a child grant.
     func mintParentWebSocketTicket(
         parentConnectionId: ClientConnectionID,
-        environmentId: String
+        environmentId: String,
+        timeout: TimeInterval? = nil
     ) async throws -> String {
         guard let snapshot = try? await catalog.snapshot(),
               let parent = snapshot.document.host(id: parentConnectionId),
@@ -43,7 +44,10 @@ actor EnvironmentParentAuthorityStore {
             throw EnvironmentTransportError.parentNeedsRepair()
         }
         let client = RemoteAPIClient(endpoint: parent.httpBaseURL, accessToken: token)
-        return try await client.environmentWebSocketTicket(environmentId: environmentId)
+        return try await client.environmentWebSocketTicket(
+            environmentId: environmentId,
+            timeout: timeout
+        )
     }
 
     func noteParentToken(_ token: String, for parentConnectionId: ClientConnectionID) {

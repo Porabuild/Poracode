@@ -8,6 +8,10 @@ export const REMOTE_SOCKET_POLICY = {
   healthPingTimeoutMs: 5_000,
   resumeHealthPingTimeoutMs: 2_500,
   connectTimeoutMs: 15_000,
+  /** Floor between evidence-driven early reconnect attempts (an HTTP success
+   * or a foreground resume while the event socket is down), so a host whose
+   * live channel keeps failing is never hammered. */
+  evidenceRetryMinIntervalMs: 5_000,
 } as const;
 
 export const REMOTE_ACCESS_SESSION_EXPIRED_REASON = "Remote access session expired";

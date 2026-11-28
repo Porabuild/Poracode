@@ -125,6 +125,29 @@ async function bearerStatus(info: RemoteAccessServerInfo, accessToken: string): 
 }
 
 describe("RemoteAccessServer.revokeAccessSession teardown", () => {
+  it("re-rotates a retried refresh whose response was lost without revoking the pairing", async () => {
+    const { server, audits } = fixture();
+    const info = await server.start();
+    const paired = await pairWithSocket(info);
+    const refresh = () =>
+      fetch(new URL("/oauth/token", info.httpBaseUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ grantType: "refresh_token", refreshToken: paired.refreshToken }),
+      });
+    // The first rotation's response never reaches the client…
+    expect((await refresh()).status).toBe(200);
+    // …so it retries with the same refresh token, and the pairing survives.
+    const retried = await refresh();
+    expect(retried.status).toBe(200);
+    const { accessToken } = (await retried.json()) as { accessToken: string };
+    expect(await bearerStatus(info, accessToken)).toBe(200);
+    expect(paired.socket.readyState).toBe(paired.socket.OPEN);
+    expect(audits.filter((event) => event.kind === "refresh_reuse")).toEqual([]);
+    expect(server.listAccessSessions()).toHaveLength(1);
+    paired.socket.close();
+  });
+
   it("audits refresh reuse and preserves its 401 when revocation cannot persist", async () => {
     const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -137,7 +160,18 @@ describe("RemoteAccessServer.revokeAccessSession teardown", () => {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ grantType: "refresh_token", refreshToken: paired.refreshToken }),
         });
-      expect((await refresh()).status).toBe(200);
+      const rotated = await refresh();
+      expect(rotated.status).toBe(200);
+      // The new pair is in use, so presenting the old refresh token is reuse.
+      const { accessToken } = (await rotated.json()) as { accessToken: string };
+      expect(
+        (
+          await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
+            method: "POST",
+            headers: { authorization: `Bearer ${accessToken}` },
+          })
+        ).status,
+      ).toBe(200);
       const closed = closeOf(paired.socket);
       failPersistence();
 

@@ -2,91 +2,22 @@ package com.poracode.app.session
 
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostCatalogSnapshot
-import com.poracode.app.model.HostRecord
 import com.poracode.app.model.RemoteWebSocketServerMessage
 import com.poracode.app.protocol.ProtocolConstants
-import com.poracode.app.storage.HostMutationResult
 import com.poracode.app.storage.HostOperationKind
 import com.poracode.app.storage.MultiHostCredentialRepository
 import com.poracode.app.storage.SessionCredentialRepository
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.transport.RemoteApiGatewayFactory
-import com.poracode.app.transport.RemoteEventSocketFactory
 import com.poracode.app.transport.RemoteEventSocket
+import com.poracode.app.transport.RemoteEventSocketFactory
 import com.poracode.app.transport.RemoteWebSocketClient
 import com.poracode.app.transport.TlsCertPinStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-data class HostUiCatalog(
-    val hosts: List<HostRecord> = emptyList(),
-    val selectedConnectionId: ClientConnectionId? = null,
-    val lru: List<ClientConnectionId> = emptyList(),
-    val connectionStates: Map<ClientConnectionId, RemoteWebSocketClient.ConnectionState> =
-        emptyMap(),
-)
-
-/**
- * Legacy **direct** stores may hold several rows per endpoint; show one, most
- * recent first. Environment records are never compacted or hidden: two
- * different environment grants may normalize to one endpoint (A4), and the
- * fail-closed conflict is surfaced rather than one row silently disappearing.
- */
-internal fun compactHostsByEndpoint(snapshot: HostCatalogSnapshot): HostCatalogSnapshot {
-    val directEndpoints = snapshot.hosts.filter { it.environment == null }
-        .map { it.httpBaseUrl }
-    if (directEndpoints.distinct().size == directEndpoints.size) return snapshot
-    val byId = snapshot.hosts.associateBy { it.connectionId }
-    val ordered = snapshot.lru.mapNotNull(byId::get) +
-        snapshot.hosts.filter { it.connectionId !in snapshot.lru }
-    val seen = mutableSetOf<String>()
-    val hosts = ordered.filter { host -> host.environment != null || seen.add(host.httpBaseUrl) }
-    val ids = hosts.mapTo(mutableSetOf()) { it.connectionId }
-    return HostCatalogSnapshot(
-        snapshot.document.copy(
-            hosts = hosts,
-            lru = snapshot.lru.filter { it in ids },
-        ),
-        snapshot.registryExists,
-        snapshot.revision,
-    )
-}
-
-/**
- * Presents environment records with the endpoint derived from the **current**
- * parent record (residual 2). The stored URL on an environment record is only a
- * pairing-time snapshot. A missing/nested parent keeps the record visible with
- * its stored endpoint; every credential and authority read still fails closed
- * before any fetch, and no stale URL is ever dialed in its place.
- */
-internal fun deriveEnvironmentEndpoints(snapshot: HostCatalogSnapshot): HostCatalogSnapshot {
-    if (snapshot.hosts.none { it.environment != null }) return snapshot
-    val byId = snapshot.hosts.associateBy { it.connectionId }
-    val hosts = snapshot.hosts.map { host ->
-        val reference = host.environment ?: return@map host
-        val parent = byId[reference.parentConnectionId] ?: return@map host
-        if (parent.environment != null) return@map host
-        val endpoint = com.poracode.app.model.EnvironmentEndpoints
-            .proxyEndpoint(parent, reference.environmentId) ?: return@map host
-        val wsEndpoint = com.poracode.app.protocol.PairingUrl.toWebSocketBaseUrl(endpoint)
-        if (host.httpBaseUrl == endpoint && host.wsBaseUrl == wsEndpoint) {
-            host
-        } else {
-            host.copy(httpBaseUrl = endpoint, wsBaseUrl = wsEndpoint)
-        }
-    }
-    return if (hosts == snapshot.hosts) {
-        snapshot
-    } else {
-        snapshot.copy(document = snapshot.document.copy(hosts = hosts))
-    }
-}
 
 /** Safe host receipt/selection/removal/rename coordinator; all stale generations no-op. */
 class HostSessionController(
@@ -106,10 +37,25 @@ class HostSessionController(
     private val beforeRemove: suspend (ClientConnectionId, SessionCredentials) -> Unit = { _, _ -> },
 ) {
     private val repository = repository as? MultiHostCredentialRepository
-    private val snapshotLock = Any()
-    private val hostSnapshotJobs = mutableMapOf<ClientConnectionId, Job>()
+    private val offlineLock = Any()
+    /** Secondary host states preserved across background/foreground until Online. */
+    private val offlineBeforeSuspend =
+        mutableMapOf<ClientConnectionId, RemoteWebSocketClient.ConnectionState>()
     private val capabilityRefresh = this.repository?.let {
         HostCapabilityRefresh(it, apiFactory, ioDispatcher, isForeground, hasEndpointPermission)
+    }
+    private val peerSnapshots = this.repository?.let {
+        HostPeerSnapshotRefresher(
+            repository = it,
+            scope = scope,
+            ioDispatcher = ioDispatcher,
+            pool = pool,
+            apiFactory = apiFactory,
+            isForeground = isForeground,
+            hasEndpointPermission = hasEndpointPermission,
+            refreshCatalog = ::refreshCatalog,
+            updateState = updateState,
+        )
     }
 
     suspend fun refreshCatalog(): HostCatalogSnapshot? {
@@ -173,6 +119,7 @@ class HostSessionController(
                     repository.credentialsFor(connectionId)
                 } ?: return@launch surfaceStoreError()
                 if (!owner.isCurrent(operation)) return@launch
+                synchronized(offlineLock) { offlineBeforeSuspend.remove(connectionId) }
                 pool.forget(SessionPoolKey.Host(connectionId))
                 // Publish the new owner only after its credentials are ready. The
                 // synchronous install immediately clears the old selected snapshot.
@@ -210,7 +157,8 @@ class HostSessionController(
                     repository.removeHost(connectionId, receipt)
                 }
                 if (!result.didApply || !owner.isCurrent(operation)) return@launch
-                cancelHostSnapshotJob(connectionId)
+                peerSnapshots?.cancel(connectionId)
+                synchronized(offlineLock) { offlineBeforeSuspend.remove(connectionId) }
                 pool.forget(SessionPoolKey.Host(connectionId))
                 val snapshot = readCatalog() ?: return@launch
                 val selected = snapshot.selected ?: run {
@@ -280,14 +228,18 @@ class HostSessionController(
         val repository = repository ?: return
         if (!isForeground()) return
         val current = snapshot ?: refreshCatalog() ?: return
-        val secondaryId = current.document.secondaryLru ?: return
+        val secondaryId = secondaryLruId(current.selectedConnectionId, current.lru) ?: return
         val secondary = current.document.host(secondaryId) ?: return
-        if (secondary.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return
-        if (!hasEndpointPermission(secondary.httpBaseUrl)) return
+        if (secondary.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION ||
+            !hasEndpointPermission(secondary.httpBaseUrl)
+        ) {
+            clearRestoredSecondaryState(secondaryId)
+            return
+        }
         val key = SessionPoolKey.Host(secondaryId)
         if (pool.liveKeys().contains(key)) return
         val credentials = withContext(ioDispatcher) { repository.credentialsFor(secondaryId) }
-            ?: return
+            ?: return clearRestoredSecondaryState(secondaryId)
         val api = apiFactory.create(credentials.profile.httpBaseUrl, credentials.accessToken)
         val socket = socketFactory.create(api)
         val lease = pool.install(key, socket) ?: run {
@@ -308,111 +260,32 @@ class HostSessionController(
         socket.start(seq ?: 0, epoch)
     }
 
-    /**
-     * Fetches non-selected host snapshots concurrently with per-host coalescing
-     * so one offline/hanging host never stalls or duplicates online peers.
-     */
     suspend fun refreshHostSnapshots(snapshot: HostCatalogSnapshot? = null) {
-        val repository = repository ?: return
-        if (!isForeground()) return
-        val current = snapshot ?: refreshCatalog() ?: return
-        val peers = current.hosts
-            .filter { it.connectionId != current.selectedConnectionId }
-            .filter { it.protocolVersion == ProtocolConstants.REMOTE_PROTOCOL_VERSION }
-            .filter { hasEndpointPermission(it.httpBaseUrl) }
-            .filter { "session:read" in it.scopes }
-        if (peers.isEmpty()) return
-        coroutineScope {
-            peers.forEach { host ->
-                launch {
-                    refreshPeerHostSnapshot(repository, host)
-                }
-            }
-        }
-    }
-
-    private suspend fun refreshPeerHostSnapshot(
-        repository: MultiHostCredentialRepository,
-        host: HostRecord,
-    ) {
-        val existingJob = synchronized(snapshotLock) { hostSnapshotJobs[host.connectionId] }
-        if (existingJob != null && existingJob.isActive) {
-            existingJob.join()
-            return
-        }
-        val expectedBaseUrl = host.httpBaseUrl
-        lateinit var launched: Job
-        val job = scope.launch(start = CoroutineStart.LAZY) {
-            try {
-                val credentials = withContext(ioDispatcher) {
-                    repository.credentialsFor(host.connectionId)
-                } ?: return@launch
-                if (credentials.profile.httpBaseUrl != expectedBaseUrl) return@launch
-                val remoteSnapshot = try {
-                    withContext(ioDispatcher) {
-                        apiFactory.create(
-                            credentials.profile.httpBaseUrl,
-                            credentials.accessToken,
-                        ).snapshot()
-                    }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    return@launch
-                }
-                updateState { currentState ->
-                    val currentRecord = currentState.hostCatalog.hosts.firstOrNull {
-                        it.connectionId == host.connectionId
-                    }
-                    if (currentRecord == null || currentRecord.httpBaseUrl != expectedBaseUrl) {
-                        currentState
-                    } else {
-                        currentState.copy(
-                            hostSnapshots = currentState.hostSnapshots +
-                                (host.connectionId to remoteSnapshot),
-                        )
-                    }
-                }
-                val key = SessionPoolKey.Host(host.connectionId)
-                pool.updateCache(key, pool.cache(key).copy(snapshot = remoteSnapshot))
-            } finally {
-                synchronized(snapshotLock) {
-                    if (hostSnapshotJobs[host.connectionId] === launched) {
-                        hostSnapshotJobs.remove(host.connectionId)
-                    }
-                }
-            }
-        }
-        launched = job
-        val activeToJoin = synchronized(snapshotLock) {
-            val active = hostSnapshotJobs[host.connectionId]
-            if (active != null && active.isActive) {
-                active
-            } else {
-                hostSnapshotJobs[host.connectionId] = job
-                null
-            }
-        }
-        if (activeToJoin != null) {
-            job.cancel()
-            activeToJoin.join()
-            return
-        }
-        job.start()
-        job.join()
-    }
-
-    private fun cancelHostSnapshotJob(connectionId: ClientConnectionId) {
-        synchronized(snapshotLock) {
-            hostSnapshotJobs.remove(connectionId)?.cancel()
-        }
+        peerSnapshots?.refreshAll(snapshot)
     }
 
     fun onBackground() {
-        val jobsToCancel = synchronized(snapshotLock) {
-            hostSnapshotJobs.values.toList().also { hostSnapshotJobs.clear() }
+        peerSnapshots?.cancelAll()
+        val currentState = state()
+        val secondaryId = secondaryLruId(
+            currentState.hostCatalog.selectedConnectionId,
+            currentState.hostCatalog.lru,
+        )
+        synchronized(offlineLock) {
+            currentState.hostCatalog.connectionStates.forEach { (id, connState) ->
+                if (id != currentState.hostCatalog.selectedConnectionId &&
+                    secondaryId != null &&
+                    id == secondaryId &&
+                    (connState == RemoteWebSocketClient.ConnectionState.Failed ||
+                        connState == RemoteWebSocketClient.ConnectionState.SessionExpired)
+                ) {
+                    offlineBeforeSuspend[id] = connState
+                } else {
+                    offlineBeforeSuspend.remove(id)
+                }
+            }
+            offlineBeforeSuspend.keys.retainAll { secondaryId != null && it == secondaryId }
         }
-        jobsToCancel.forEach { it.cancel() }
         updateState { current ->
             current.copy(
                 hostCatalog = current.hostCatalog.copy(connectionStates = emptyMap()),
@@ -424,11 +297,70 @@ class HostSessionController(
     fun onForeground() {
         state().hostCatalog.hosts
             .filterNot { hasEndpointPermission(it.httpBaseUrl) }
-            .forEach { pool.forget(SessionPoolKey.Host(it.connectionId)) }
-        pool.onForeground()
+            .forEach { host ->
+                synchronized(offlineLock) { offlineBeforeSuspend.remove(host.connectionId) }
+                pool.forget(SessionPoolKey.Host(host.connectionId))
+            }
+        val currentState = state()
+        val selectedId = currentState.hostCatalog.selectedConnectionId
+        val secondaryIdNow = secondaryLruId(selectedId, currentState.hostCatalog.lru)
+        val retainedIdsNow = currentState.hostCatalog.hosts.mapTo(mutableSetOf()) { it.connectionId }
+        val restoredOfflineStates = synchronized(offlineLock) {
+            offlineBeforeSuspend.keys.retainAll { id ->
+                isRetainedSecondary(id, retainedIdsNow, selectedId, secondaryIdNow)
+            }
+            offlineBeforeSuspend.toMap()
+        }
+        if (restoredOfflineStates.isNotEmpty()) {
+            updateState { current ->
+                val secondaryId = secondaryLruId(
+                    current.hostCatalog.selectedConnectionId,
+                    current.hostCatalog.lru,
+                )
+                val retainedIds = current.hostCatalog.hosts.mapTo(mutableSetOf()) { it.connectionId }
+                val restored = restoredOfflineStates.filterKeys { id ->
+                    isRetainedSecondary(
+                        id,
+                        retainedIds,
+                        current.hostCatalog.selectedConnectionId,
+                        secondaryId,
+                    )
+                }
+                if (restored.isEmpty()) current
+                else current.copy(
+                    hostCatalog = current.hostCatalog.copy(
+                        connectionStates = restored + current.hostCatalog.connectionStates,
+                    ),
+                )
+            }
+        }
+        pool.onForeground { key, socket, lease ->
+            if (key is SessionPoolKey.Host && key.id != selectedId) {
+                socket.setListener(SecondaryHostListener(key.id, lease))
+            }
+        }
         scope.launch {
             warmSecondary()
             refreshHostSnapshots()
+        }
+    }
+
+    private fun isRetainedSecondary(
+        id: ClientConnectionId,
+        retainedIds: Set<ClientConnectionId>,
+        selectedId: ClientConnectionId?,
+        secondaryId: ClientConnectionId?,
+    ): Boolean = id in retainedIds && id != selectedId && secondaryId != null && id == secondaryId
+
+    private fun clearRestoredSecondaryState(connectionId: ClientConnectionId) {
+        synchronized(offlineLock) { offlineBeforeSuspend.remove(connectionId) }
+        updateState { current ->
+            if (connectionId !in current.hostCatalog.connectionStates) current
+            else current.copy(
+                hostCatalog = current.hostCatalog.copy(
+                    connectionStates = current.hostCatalog.connectionStates - connectionId,
+                ),
+            )
         }
     }
 
@@ -439,6 +371,12 @@ class HostSessionController(
         pool.updatePolicy(snapshot.selectedConnectionId, snapshot.lru)
         val canonical = compactHostsByEndpoint(deriveEnvironmentEndpoints(snapshot))
         val retained = canonical.hosts.mapTo(mutableSetOf()) { it.connectionId }
+        val secondaryId = secondaryLruId(canonical.selectedConnectionId, canonical.lru)
+        synchronized(offlineLock) {
+            offlineBeforeSuspend.keys.retainAll { id ->
+                isRetainedSecondary(id, retained, canonical.selectedConnectionId, secondaryId)
+            }
+        }
         for (host in canonical.hosts) {
             // Pins are owned by the direct parent record: an environment record
             // resolves the same host:port, so re-registering its (possibly stale)
@@ -454,7 +392,7 @@ class HostSessionController(
                     selectedConnectionId = canonical.selectedConnectionId,
                     lru = canonical.lru,
                     connectionStates = it.hostCatalog.connectionStates.filterKeys { id ->
-                        id == canonical.document.secondaryLru
+                        id == secondaryId
                     },
                 ),
                 hostSnapshots = it.hostSnapshots.filterKeys(retained::contains),
@@ -475,12 +413,31 @@ class HostSessionController(
             detail: String?,
         ) {
             if (!pool.isValid(lease)) return
+            val effectiveState = synchronized(offlineLock) {
+                val savedState = offlineBeforeSuspend[connectionId]
+                if (savedState == null) {
+                    state
+                } else when (state) {
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Reconnecting -> savedState
+                    RemoteWebSocketClient.ConnectionState.Online -> {
+                        offlineBeforeSuspend.remove(connectionId)
+                        state
+                    }
+                    RemoteWebSocketClient.ConnectionState.Failed,
+                    RemoteWebSocketClient.ConnectionState.SessionExpired -> {
+                        offlineBeforeSuspend[connectionId] = state
+                        state
+                    }
+                    else -> state
+                }
+            }
             updateState { current ->
                 if (current.hostCatalog.hosts.none { it.connectionId == connectionId }) current
                 else current.copy(
                     hostCatalog = current.hostCatalog.copy(
                         connectionStates = current.hostCatalog.connectionStates +
-                            (connectionId to state),
+                            (connectionId to effectiveState),
                     ),
                 )
             }

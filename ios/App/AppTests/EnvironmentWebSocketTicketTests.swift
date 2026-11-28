@@ -29,7 +29,8 @@ final class EnvironmentWebSocketTicketTests: XCTestCase {
             environmentId: "11111111-1111-4111-8111-111111111111",
             expectedChildDesktopId: "child-desktop",
             parentAuthorizationToken: { "parent-token" },
-            mintParentWebSocketTicket: parentTicket
+            mintParentWebSocketTicket: parentTicket,
+            mintParentWebSocketTicketWithTimeout: { _ in try await parentTicket() }
         )
         return RemoteAPIClient(
             endpoint: proxyEndpoint,

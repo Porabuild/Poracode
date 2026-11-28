@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 import {
   isRemoteTransportFailure,
+  isRefusedRefreshGrantError,
   isUnauthorizedRemoteError,
   RemoteClientError,
   RemoteDesktopClient,
@@ -39,6 +40,20 @@ describe("remote error classification", () => {
         new RemoteClientError("desktop unavailable", 503, "desktop_unavailable"),
       ),
     ).toBe(false);
+  });
+
+  it("treats only the token endpoint's definite refusals as a dead refresh grant", () => {
+    const err = (status: number, code: string) => new RemoteClientError("x", status, code);
+    expect(isRefusedRefreshGrantError(err(401, "invalid_refresh_token"))).toBe(true);
+    expect(isRefusedRefreshGrantError(err(401, "refresh_token_reused"))).toBe(true);
+    expect(isRefusedRefreshGrantError(err(400, "invalid_grant"))).toBe(true);
+    // A policy 403, a proxy or markerless 401, a timeout or a 5xx proves nothing.
+    expect(isRefusedRefreshGrantError(err(403, "origin_not_allowed"))).toBe(false);
+    expect(isRefusedRefreshGrantError(err(401, "invalid_access_token"))).toBe(false);
+    expect(isRefusedRefreshGrantError(err(401, "request_failed"))).toBe(false);
+    expect(isRefusedRefreshGrantError(err(0, "timeout"))).toBe(false);
+    expect(isRefusedRefreshGrantError(err(503, "host_busy"))).toBe(false);
+    expect(isRefusedRefreshGrantError(new Error("vault"))).toBe(false);
   });
 
   it("recognizes authorization failures without treating other HTTP errors as expired", () => {

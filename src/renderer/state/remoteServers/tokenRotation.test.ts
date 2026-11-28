@@ -55,7 +55,7 @@ function host(refreshGate: Promise<void> = Promise.resolve()) {
   let accessToken = "access-0";
   let refreshToken = "refresh-0";
   let refreshAttempts = 0;
-  let refreshMode: "ok" | "refused" | "rate" = "ok";
+  let refreshMode: "ok" | "refused" | "rate" | "forbidden" = "ok";
   /** The session is dead server-side in a way a rotation cannot heal: the
    * grant exchange still succeeds, but every bearer is refused. */
   let refuseAllBearers = false;
@@ -93,6 +93,9 @@ function host(refreshGate: Promise<void> = Promise.resolve()) {
       }
       if (refreshMode === "rate") {
         return json(429, { error: { code: "rate_limited", message: "Too many attempts." } });
+      }
+      if (refreshMode === "forbidden") {
+        return json(403, { error: { code: "origin_not_allowed", message: "Origin refused." } });
       }
       if (refreshAttempts > 20) {
         return json(429, { error: { code: "rate_limited", message: "Too many attempts." } });
@@ -146,6 +149,10 @@ function host(refreshGate: Promise<void> = Promise.resolve()) {
     },
     rateLimitRefresh: () => {
       refreshMode = "rate";
+    },
+    /** A proxy or origin policy refuses the exchange: not the grant's verdict. */
+    forbidRefresh: () => {
+      refreshMode = "forbidden";
     },
     /** Rotations commit, yet no bearer is ever accepted (the rotation healed
      * nothing): the hook's null path. */
@@ -329,8 +336,10 @@ describe("persisted connection token rotation", () => {
         if (stage === "reconnect") {
           await useRemoteServersStore.getState().connectAll();
         }
+        // An unreadable vault leaves the host offline and retrying, never a
+        // terminal error.
         expect(useRemoteServersStore.getState().runtime[CONNECTION_ID]?.status).toBe(
-          stage === "reconnect" ? "error" : undefined,
+          stage === "reconnect" ? "offline" : undefined,
         );
         expect(escaped).toEqual([]);
       } finally {
@@ -631,6 +640,26 @@ describe("persisted connection token rotation", () => {
 
     // A rate-limited refresh is not a dead grant: custody keeps it so the
     // next attempt (or the reconnect ladder) can recover normally.
+    expect(refreshTokenForSubject(subject)).toBe("refresh-0");
+    expect(useRemoteServersStore.getState().runtime["paired-desktop"]?.status).not.toBe("error");
+  });
+
+  it("keeps the grant and shows no re-pair state when the refresh exchange is refused by policy, not the grant", async () => {
+    const server = host();
+    await loadReleasedPairing(server.fetch);
+    useRemoteServersStore.setState((state) => ({
+      runtime: {
+        ...state.runtime,
+        "paired-desktop": { status: "online", projects: [], threads: [] },
+      },
+    }));
+    server.expireAccessToken();
+    server.forbidRefresh();
+
+    await expect(ticket()).rejects.toMatchObject({ status: 401 });
+
+    // Only the token endpoint's definite refusal (invalid_refresh_token,
+    // refresh_token_reused, invalid_grant) proves the grant dead.
     expect(refreshTokenForSubject(subject)).toBe("refresh-0");
     expect(useRemoteServersStore.getState().runtime["paired-desktop"]?.status).not.toBe("error");
   });

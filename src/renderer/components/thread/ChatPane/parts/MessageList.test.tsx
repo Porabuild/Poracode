@@ -702,6 +702,33 @@ describe("MessageList", () => {
     );
   });
 
+  it("estimates a resumed assistant row that started without content instead of crashing", () => {
+    // A resumed stream may start an assistant message with `{}`; reading it
+    // must not take the whole chat down.
+    useAppStore.getState().applyRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "resumed",
+        itemType: "assistant_message",
+        payload: {},
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "resumed",
+        stream: "assistant_text",
+        delta: "Resumed reply",
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "resumed" },
+    ] as never);
+    const entries = makeEntries(["resumed"]);
+    render(<MessageList threadId="thread-1" entries={entries} />);
+
+    const props = latestLegendProps.current as MockLegendProps;
+    expect(() => props.getItemType(entries[0]!, 0)).not.toThrow();
+  });
+
   it("marks only the current empty thought as live while the turn is active", () => {
     const threadId = "thread-1";
     seedStartedItem(threadId, "old-thought", "reasoning");

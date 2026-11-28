@@ -5,6 +5,7 @@ export {
   REMOTE_REQUEST_CANCELLED_STATUS,
   RemoteClientError,
   isUnauthorizedRemoteError,
+  isRefusedRefreshGrantError,
   isRemoteThreadNotFoundError,
   isRemoteTransportFailure,
   remoteMutationMayHaveCommitted,

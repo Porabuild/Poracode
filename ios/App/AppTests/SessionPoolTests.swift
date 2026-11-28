@@ -343,6 +343,210 @@ final class SessionPoolTests: XCTestCase {
         XCTAssertNotNil(session.sessionPool.socket(for: .host(b)))
     }
 
+    func testOfflineHostBeforeBackgroundSuspendRestartsOfflineWithoutConnecting() async throws {
+        let keychain = InMemoryKeychainIO()
+        let catalog = HostCatalog.ephemeralForTests(vaultIO: keychain, sourceKeychain: keychain)
+        defer { Task { await catalog.wipeForTests() } }
+        let repo = SessionCredentialRepository(
+            suiteName: "poracode.tests.pool.offlinesuspend.\(UUID().uuidString)",
+            keychain: keychain
+        )
+        let session = AppSession(
+            dependencies: .testing(
+                credentialStore: repo,
+                hostCatalog: catalog,
+                makeAPI: { endpoint, token in self.makeAPI(endpoint: endpoint, token: token) },
+                makeSocket: { _ in FakeLiveSocket() }
+            )
+        )
+        let onlineID = ClientConnectionID()
+        let offlineID = ClientConnectionID()
+        let onlineRecord = HostRecord(
+            connectionId: onlineID,
+            profile: makeProfile(desktopId: "online", endpoint: "https://online.test")
+        )
+        let offlineRecord = HostRecord(
+            connectionId: offlineID,
+            profile: makeProfile(desktopId: "offline", endpoint: "https://offline.test")
+        )
+        assertTrue(try await catalog.activate(id: 1, kind: .add))
+        _ = try await catalog.pairAdd(record: onlineRecord, token: "t-on", owning: 1)
+        assertTrue(try await catalog.activate(id: 2, kind: .add))
+        _ = try await catalog.pairAdd(record: offlineRecord, token: "t-off", owning: 2)
+        session.applyCatalogSnapshot(try await catalog.snapshot())
+        session.state.selectedConnectionId = onlineID
+        session.state.hostsLRU = [onlineID, offlineID]
+        let onlineAPI = makeAPI(endpoint: "https://online.test", token: "t-on")
+        let offlineAPI = makeAPI(endpoint: "https://offline.test", token: "t-off")
+        session.state.api = onlineAPI
+        _ = session.state.operationOwner.bumpWorkGeneration()
+        let gen = session.state.workGeneration
+
+        _ = await session.sessionPool.startSocket(
+            key: .host(onlineID),
+            api: onlineAPI,
+            workGeneration: gen,
+            lastSeenSeq: 0
+        )
+        _ = await session.sessionPool.startSocket(
+            key: .host(offlineID),
+            api: offlineAPI,
+            workGeneration: gen,
+            lastSeenSeq: 0
+        )
+        session.recordSocketState(.online, for: .host(onlineID))
+        session.recordSocketState(.failed("connect timeout"), for: .host(offlineID))
+
+        session.sessionPool.noteBackgroundGate()
+        await session.sessionPool.stopAllForBackgroundSuspend(
+            capturedBackgroundGeneration: session.sessionPool.backgroundGeneration,
+            capturedWorkGeneration: gen
+        )
+        XCTAssertEqual(session.sessionPool.liveSocketCount(), 0)
+        XCTAssertTrue(session.state.hostSocketStates.isEmpty)
+
+        session.state.liveLifecycle = LiveSessionLifecycle()
+        await session.sessionPool.handleForeground(startLiveSession: true, workGeneration: gen)
+
+        let resumedOnline = try XCTUnwrap(
+            session.sessionPool.socket(for: .host(onlineID)) as? FakeLiveSocket
+        )
+        let resumedOffline = try XCTUnwrap(
+            session.sessionPool.socket(for: .host(offlineID)) as? FakeLiveSocket
+        )
+        XCTAssertEqual(resumedOnline.startedOffline, false)
+        XCTAssertEqual(resumedOffline.startedOffline, true)
+        guard case .failed = session.state.hostSocketStates[offlineID] else {
+            return XCTFail(
+                "expected .failed immediately on foreground resume for offline host, got \(String(describing: session.state.hostSocketStates[offlineID]))"
+            )
+        }
+
+        // Recorded offline set is cleared after foreground resume so a subsequent
+        // non-suspend start (e.g. fresh start / explicit stopAll) starts normally.
+        await session.sessionPool.stopAll()
+        await session.sessionPool.startForCurrentHost(api: onlineAPI, workGeneration: gen)
+        let freshSecondary = try XCTUnwrap(
+            session.sessionPool.socket(for: .host(offlineID)) as? FakeLiveSocket
+        )
+        XCTAssertEqual(freshSecondary.startedOffline, false)
+    }
+
+    func testSelectedOfflineHostBeforeBackgroundSuspendRestartsOffline() async throws {
+        let keychain = InMemoryKeychainIO()
+        let catalog = HostCatalog.ephemeralForTests(vaultIO: keychain, sourceKeychain: keychain)
+        defer { Task { await catalog.wipeForTests() } }
+        let repo = SessionCredentialRepository(
+            suiteName: "poracode.tests.pool.selectedoffline.\(UUID().uuidString)",
+            keychain: keychain
+        )
+        let session = AppSession(
+            dependencies: .testing(
+                credentialStore: repo,
+                hostCatalog: catalog,
+                makeAPI: { endpoint, token in self.makeAPI(endpoint: endpoint, token: token) },
+                makeSocket: { _ in FakeLiveSocket() }
+            )
+        )
+        let selectedID = ClientConnectionID()
+        let record = HostRecord(
+            connectionId: selectedID,
+            profile: makeProfile(desktopId: "selected", endpoint: "https://selected.test")
+        )
+        assertTrue(try await catalog.activate(id: 1, kind: .add))
+        _ = try await catalog.pairAdd(record: record, token: "t-sel", owning: 1)
+        session.applyCatalogSnapshot(try await catalog.snapshot())
+        session.state.selectedConnectionId = selectedID
+        session.state.hostsLRU = [selectedID]
+        let api = makeAPI(endpoint: "https://selected.test", token: "t-sel")
+        session.state.api = api
+        _ = session.state.operationOwner.bumpWorkGeneration()
+        let gen = session.state.workGeneration
+
+        _ = await session.sessionPool.startSocket(
+            key: .host(selectedID),
+            api: api,
+            workGeneration: gen,
+            lastSeenSeq: 0
+        )
+        session.recordSocketState(.failed("offline"), for: .host(selectedID))
+
+        session.sessionPool.noteBackgroundGate()
+        await session.sessionPool.stopAllForBackgroundSuspend(
+            capturedBackgroundGeneration: session.sessionPool.backgroundGeneration,
+            capturedWorkGeneration: gen
+        )
+
+        session.state.liveLifecycle = LiveSessionLifecycle()
+        await session.sessionPool.handleForeground(startLiveSession: true, workGeneration: gen)
+
+        let resumed = try XCTUnwrap(
+            session.sessionPool.socket(for: .host(selectedID)) as? FakeLiveSocket
+        )
+        XCTAssertEqual(resumed.startedOffline, true)
+        guard case .failed = session.state.socketState,
+              case .failed = session.state.hostSocketStates[selectedID]
+        else {
+            return XCTFail(
+                "expected selected host state to stay .failed on foreground resume, got socketState=\(session.state.socketState) hostSocketState=\(String(describing: session.state.hostSocketStates[selectedID]))"
+            )
+        }
+    }
+
+    func testStopAllWithoutBackgroundSuspendClearsOfflineBeforeSuspend() async throws {
+        let keychain = InMemoryKeychainIO()
+        let catalog = HostCatalog.ephemeralForTests(vaultIO: keychain, sourceKeychain: keychain)
+        defer { Task { await catalog.wipeForTests() } }
+        let repo = SessionCredentialRepository(
+            suiteName: "poracode.tests.pool.stopallclear.\(UUID().uuidString)",
+            keychain: keychain
+        )
+        let session = AppSession(
+            dependencies: .testing(
+                credentialStore: repo,
+                hostCatalog: catalog,
+                makeAPI: { endpoint, token in self.makeAPI(endpoint: endpoint, token: token) },
+                makeSocket: { _ in FakeLiveSocket() }
+            )
+        )
+        let hostID = ClientConnectionID()
+        let record = HostRecord(
+            connectionId: hostID,
+            profile: makeProfile(desktopId: "h", endpoint: "https://h.test")
+        )
+        assertTrue(try await catalog.activate(id: 1, kind: .add))
+        _ = try await catalog.pairAdd(record: record, token: "t", owning: 1)
+        session.applyCatalogSnapshot(try await catalog.snapshot())
+        session.state.selectedConnectionId = hostID
+        let api = makeAPI(endpoint: "https://h.test", token: "t")
+        session.state.api = api
+        _ = session.state.operationOwner.bumpWorkGeneration()
+        let gen = session.state.workGeneration
+
+        _ = await session.sessionPool.startSocket(
+            key: .host(hostID),
+            api: api,
+            workGeneration: gen,
+            lastSeenSeq: 0
+        )
+        session.recordSocketState(.failed("offline"), for: .host(hostID))
+
+        session.sessionPool.noteBackgroundGate()
+        await session.sessionPool.stopAllForBackgroundSuspend(
+            capturedBackgroundGeneration: session.sessionPool.backgroundGeneration,
+            capturedWorkGeneration: gen
+        )
+        // Explicit stopAll (e.g. unpair / durable reconcile) clears prior suspend state.
+        await session.sessionPool.stopAll()
+        session.state.liveLifecycle = LiveSessionLifecycle()
+        await session.sessionPool.handleForeground(startLiveSession: true, workGeneration: gen)
+
+        let restarted = try XCTUnwrap(
+            session.sessionPool.socket(for: .host(hostID)) as? FakeLiveSocket
+        )
+        XCTAssertEqual(restarted.startedOffline, false)
+    }
+
     func testBackgroundDuringAttachCannotResurrectSocket() async throws {
         let gate = AsyncGate()
         let socket = FakeLiveSocket()

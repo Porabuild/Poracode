@@ -115,10 +115,14 @@ extension RemoteAPIClient {
     }
 
     /// Parent environment-bound WS upgrade ticket. Never proxied.
-    func environmentWebSocketTicket(environmentId: String) async throws -> String {
+    func environmentWebSocketTicket(
+        environmentId: String,
+        timeout: TimeInterval? = nil
+    ) async throws -> String {
         let data = try await requestData(
             path: try environmentPath(environmentId, suffix: "/websocket-ticket"),
-            method: "POST"
+            method: "POST",
+            timeout: timeout
         )
         let canonical = try GeneratedRemoteV3Contract.environmentWebSocketTicketResponse(data)
         let result = try JSONDecoding.decode(RemoteWebSocketTicketResult.self, from: canonical)

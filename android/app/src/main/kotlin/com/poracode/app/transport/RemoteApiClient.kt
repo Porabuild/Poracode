@@ -17,6 +17,7 @@ import com.poracode.app.protocol.GeneratedRemoteV3Contract
 import com.poracode.app.protocol.PairingException
 import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.RemoteAccessScopes
+import com.poracode.app.protocol.RemoteSocketPolicy
 import com.poracode.app.protocol.settings.GeneratedRemoteV3SettingsContract
 import com.poracode.app.protocol.settings.SettingsRouteId
 import com.poracode.app.transport.environments.EnvironmentRequestCoordinator
@@ -372,6 +373,7 @@ class RemoteApiClient(
         val data = requestText(
             path = ProtocolConstants.WEBSOCKET_TICKET_PATH,
             method = "POST",
+            timeoutMs = RemoteSocketPolicy.CONNECT_TIMEOUT_MS,
         )
         val result = RemoteV3TransportAdapters.websocketTicket(data)
         environment.pairParentTicket(result.ticket)

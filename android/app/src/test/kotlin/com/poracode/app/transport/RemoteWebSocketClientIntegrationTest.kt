@@ -7,9 +7,14 @@ import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteShellSnapshot
 import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.transport.ws.WsClientState
+import com.poracode.app.transport.ws.WsConnectionLoop
+import com.poracode.app.transport.ws.WsFrameRouter
+import com.poracode.app.transport.ws.WsHealthLoop
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
@@ -566,5 +571,571 @@ class RemoteWebSocketClientIntegrationTest {
         assertTrue(ready.await(5, TimeUnit.SECONDS))
         assertTrue(received.any { it.contains("t-open") })
         client.destroy()
+    }
+
+    @Test
+    fun connectTimeoutBeforeReadyPublishesFailedNotReconnecting() {
+        // Upgrade opens without sending `ready`; the connect deadline fires before ready.
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : okhttp3.WebSocketListener() {}))
+        val secondAttemptGate = CompletableDeferred<Unit>()
+        val attempts = AtomicInteger(0)
+        val baseApi = api()
+        val gatedApi = object : RemoteApiGateway by baseApi {
+            override suspend fun websocketTicket(): String {
+                if (attempts.incrementAndGet() >= 2) {
+                    secondAttemptGate.await()
+                }
+                return baseApi.websocketTicket()
+            }
+        }
+        val state = WsClientState()
+        val events = CopyOnWriteArrayList<Pair<RemoteWebSocketClient.ConnectionState, String?>>()
+        val failed = CountDownLatch(1)
+        state.stopped.set(false)
+        state.listenerRef.set(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                events += state to detail
+                if (state == RemoteWebSocketClient.ConnectionState.Failed) {
+                    failed.countDown()
+                }
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        lateinit var loop: WsConnectionLoop
+        val healthLoop = WsHealthLoop(state = state, scope = scopes) { reason ->
+            loop.forceReconnect(reason)
+        }
+        val router = WsFrameRouter(state = state) { gen ->
+            healthLoop.markReadyAndGoOnline(gen)
+        }
+        loop = WsConnectionLoop(
+            api = gatedApi,
+            state = state,
+            scope = scopes,
+            resolveHttpClient = {
+                OkHttpClient.Builder()
+                    .connectTimeout(2, TimeUnit.SECONDS)
+                    .readTimeout(0, TimeUnit.MILLISECONDS)
+                    .build()
+            },
+            frameRouter = router,
+            handleSessionExpired = {},
+            networkGate = gate,
+            connectTimeoutMs = 150L,
+        )
+        try {
+            loop.launchConnect()
+            assertTrue("expected Failed on connect timeout within 5s", failed.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting to null,
+                    RemoteWebSocketClient.ConnectionState.Failed to "connect timeout",
+                ),
+                events.toList(),
+            )
+            assertFalse(events.any { it.first == RemoteWebSocketClient.ConnectionState.Reconnecting })
+        } finally {
+            state.stopped.set(true)
+            state.cancelNetworkJobs()
+            state.tearDownSocket()
+            secondAttemptGate.cancel()
+        }
+    }
+
+    @Test
+    fun closeBeforeReadyPublishesFailed() {
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.close(1001, "going away")
+                    }
+                },
+            ),
+        )
+        val secondAttemptGate = CompletableDeferred<Unit>()
+        val attempts = AtomicInteger(0)
+        val baseApi = api()
+        val gatedApi = object : RemoteApiGateway by baseApi {
+            override suspend fun websocketTicket(): String {
+                if (attempts.incrementAndGet() >= 2) {
+                    secondAttemptGate.await()
+                }
+                return baseApi.websocketTicket()
+            }
+        }
+        val client = RemoteWebSocketClient(
+            api = gatedApi,
+            scope = scopes,
+            endpoint = null,
+            httpClient = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build(),
+            networkGate = gate,
+        )
+        val events = CopyOnWriteArrayList<Pair<RemoteWebSocketClient.ConnectionState, String?>>()
+        val failed = CountDownLatch(1)
+        client.setListener(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                events += state to detail
+                if (state == RemoteWebSocketClient.ConnectionState.Failed) {
+                    failed.countDown()
+                }
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        try {
+            client.start(lastSeenSeq = 0)
+            assertTrue("expected Failed on pre-ready close within 5s", failed.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting to null,
+                    RemoteWebSocketClient.ConnectionState.Failed to "closed 1001",
+                ),
+                events.toList(),
+            )
+        } finally {
+            client.destroy()
+            secondAttemptGate.cancel()
+        }
+    }
+
+    @Test
+    fun automaticRetryAfterFailedSkipsConnectingAndPublishesOnlineOnReady() {
+        // Attempt 1 closes before ready -> Failed; attempt 2 sends ready -> Online without Connecting.
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.close(1001, "offline")
+                    }
+                },
+            ),
+        )
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.send("""{"type":"ready","seq":2}""")
+                    }
+                },
+            ),
+        )
+        val client = RemoteWebSocketClient(
+            api = api(),
+            scope = scopes,
+            endpoint = null,
+            httpClient = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build(),
+            networkGate = gate,
+        )
+        val states = CopyOnWriteArrayList<RemoteWebSocketClient.ConnectionState>()
+        val online = CountDownLatch(1)
+        client.setListener(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                states += state
+                if (state == RemoteWebSocketClient.ConnectionState.Online) {
+                    online.countDown()
+                }
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        try {
+            client.start(lastSeenSeq = 0)
+            assertTrue("expected Online on automatic retry within 5s", online.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Failed,
+                    RemoteWebSocketClient.ConnectionState.Online,
+                ),
+                states.toList(),
+            )
+        } finally {
+            client.destroy()
+        }
+    }
+
+    @Test
+    fun explicitForceReconnectAfterFailedPublishesConnectingBeforeOnline() {
+        // Attempt 1 fails -> Failed; explicit user retry clears sticky Failed and shows Connecting.
+        server.enqueue(MockResponse().setResponseCode(503))
+        val client = RemoteWebSocketClient(
+            api = api(),
+            scope = scopes,
+            endpoint = null,
+            httpClient = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build(),
+            networkGate = gate,
+        )
+        val states = CopyOnWriteArrayList<RemoteWebSocketClient.ConnectionState>()
+        val failed = CountDownLatch(1)
+        val online = CountDownLatch(1)
+        client.setListener(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                states += state
+                if (state == RemoteWebSocketClient.ConnectionState.Failed) failed.countDown()
+                if (state == RemoteWebSocketClient.ConnectionState.Online) online.countDown()
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        try {
+            client.start(lastSeenSeq = 0)
+            assertTrue("expected Failed on attempt 1 within 5s", failed.await(5, TimeUnit.SECONDS))
+            server.enqueue(
+                MockResponse().withWebSocketUpgrade(
+                    object : okhttp3.WebSocketListener() {
+                        override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                            webSocket.send("""{"type":"ready","seq":9}""")
+                        }
+                    },
+                ),
+            )
+            client.forceReconnect("user requested reconnect")
+            assertTrue("expected Online after explicit reconnect within 5s", online.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Failed,
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Online,
+                ),
+                states.toList(),
+            )
+        } finally {
+            client.destroy()
+        }
+    }
+
+    @Test
+    fun readyConnectionCloseKeepsExistingReconnectBehavior() {
+        val serverWs = AtomicReference<okhttp3.WebSocket?>(null)
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        serverWs.set(webSocket)
+                        webSocket.send("""{"type":"ready","seq":1}""")
+                    }
+                },
+            ),
+        )
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.send("""{"type":"ready","seq":1}""")
+                    }
+                },
+            ),
+        )
+        val client = RemoteWebSocketClient(
+            api = api(),
+            scope = scopes,
+            endpoint = null,
+            httpClient = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build(),
+            networkGate = gate,
+        )
+        val states = CopyOnWriteArrayList<RemoteWebSocketClient.ConnectionState>()
+        val firstOnline = CountDownLatch(1)
+        val secondOnline = CountDownLatch(2)
+        client.setListener(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                states += state
+                if (state == RemoteWebSocketClient.ConnectionState.Online) {
+                    firstOnline.countDown()
+                    secondOnline.countDown()
+                }
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        try {
+            client.start(lastSeenSeq = 1)
+            assertTrue("expected first Online within 5s", firstOnline.await(5, TimeUnit.SECONDS))
+            serverWs.get()!!.close(1001, "restart")
+            assertTrue("expected second Online after ready close within 5s", secondOnline.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Online,
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Online,
+                ),
+                states.toList(),
+            )
+        } finally {
+            client.destroy()
+        }
+    }
+
+    @Test
+    fun readyForceReconnectPublishesReconnectingBeforeReconnect() {
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.send("""{"type":"ready","seq":1}""")
+                    }
+                },
+            ),
+        )
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.send("""{"type":"ready","seq":1}""")
+                    }
+                },
+            ),
+        )
+        val state = WsClientState()
+        val events = CopyOnWriteArrayList<Pair<RemoteWebSocketClient.ConnectionState, String?>>()
+        val firstOnline = CountDownLatch(1)
+        val secondOnline = CountDownLatch(2)
+        state.stopped.set(false)
+        state.listenerRef.set(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                events += state to detail
+                if (state == RemoteWebSocketClient.ConnectionState.Online) {
+                    firstOnline.countDown()
+                    secondOnline.countDown()
+                }
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        lateinit var loop: WsConnectionLoop
+        val healthLoop = WsHealthLoop(state = state, scope = scopes) { reason ->
+            loop.forceReconnect(reason)
+        }
+        val router = WsFrameRouter(state = state) { gen ->
+            healthLoop.markReadyAndGoOnline(gen)
+        }
+        loop = WsConnectionLoop(
+            api = api(),
+            state = state,
+            scope = scopes,
+            resolveHttpClient = {
+                OkHttpClient.Builder()
+                    .connectTimeout(2, TimeUnit.SECONDS)
+                    .readTimeout(0, TimeUnit.MILLISECONDS)
+                    .build()
+            },
+            frameRouter = router,
+            handleSessionExpired = {},
+            networkGate = gate,
+        )
+        try {
+            loop.launchConnect()
+            assertTrue("expected first Online within 5s", firstOnline.await(5, TimeUnit.SECONDS))
+            loop.forceReconnect("health ping timeout")
+            assertTrue("expected second Online within 5s", secondOnline.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting to null,
+                    RemoteWebSocketClient.ConnectionState.Online to null,
+                    RemoteWebSocketClient.ConnectionState.Reconnecting to "health ping timeout",
+                    RemoteWebSocketClient.ConnectionState.Connecting to null,
+                    RemoteWebSocketClient.ConnectionState.Online to null,
+                ),
+                events.toList(),
+            )
+        } finally {
+            state.stopped.set(true)
+            state.cancelNetworkJobs()
+            state.tearDownSocket()
+        }
+    }
+
+    @Test
+    fun failedSuspendResumeSkipsConnectingBeforeOnline() {
+        server.enqueue(MockResponse().setResponseCode(503))
+        val resumed = AtomicBoolean(false)
+        val resumeGate = CompletableDeferred<Unit>()
+        val baseApi = api()
+        val gatedApi = object : RemoteApiGateway by baseApi {
+            override suspend fun websocketTicket(): String {
+                if (!resumed.get() && server.requestCount >= 1) {
+                    resumeGate.await()
+                }
+                return baseApi.websocketTicket()
+            }
+        }
+        val client = RemoteWebSocketClient(
+            api = gatedApi,
+            scope = scopes,
+            endpoint = null,
+            httpClient = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build(),
+            networkGate = gate,
+        )
+        val states = CopyOnWriteArrayList<RemoteWebSocketClient.ConnectionState>()
+        val failed = CountDownLatch(1)
+        val suspended = CountDownLatch(1)
+        val online = CountDownLatch(1)
+        client.setListener(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                states += state
+                when (state) {
+                    RemoteWebSocketClient.ConnectionState.Failed -> failed.countDown()
+                    RemoteWebSocketClient.ConnectionState.Suspended -> suspended.countDown()
+                    RemoteWebSocketClient.ConnectionState.Online -> online.countDown()
+                    else -> Unit
+                }
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        try {
+            client.start(lastSeenSeq = 0)
+            assertTrue("expected Failed on attempt 1 within 5s", failed.await(5, TimeUnit.SECONDS))
+            client.suspendForBackground()
+            assertTrue("expected Suspended within 5s", suspended.await(5, TimeUnit.SECONDS))
+
+            server.enqueue(
+                MockResponse().withWebSocketUpgrade(
+                    object : okhttp3.WebSocketListener() {
+                        override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                            webSocket.send("""{"type":"ready","seq":3}""")
+                        }
+                    },
+                ),
+            )
+            resumed.set(true)
+            resumeGate.complete(Unit)
+            client.resumeFromForeground()
+            assertTrue("expected Online after resume within 5s", online.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Failed,
+                    RemoteWebSocketClient.ConnectionState.Suspended,
+                    RemoteWebSocketClient.ConnectionState.Online,
+                ),
+                states.toList(),
+            )
+        } finally {
+            resumeGate.cancel()
+            client.destroy()
+        }
+    }
+
+    @Test
+    fun onlineSuspendResumePublishesConnectingBeforeOnline() {
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.send("""{"type":"ready","seq":1}""")
+                    }
+                },
+            ),
+        )
+        val client = RemoteWebSocketClient(
+            api = api(),
+            scope = scopes,
+            endpoint = null,
+            httpClient = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build(),
+            networkGate = gate,
+        )
+        val states = CopyOnWriteArrayList<RemoteWebSocketClient.ConnectionState>()
+        val firstOnline = CountDownLatch(1)
+        val suspended = CountDownLatch(1)
+        val secondOnline = CountDownLatch(2)
+        client.setListener(object : RemoteEventSocket.Listener {
+            override fun onStateChanged(
+                state: RemoteWebSocketClient.ConnectionState,
+                detail: String?,
+            ) {
+                states += state
+                when (state) {
+                    RemoteWebSocketClient.ConnectionState.Online -> {
+                        firstOnline.countDown()
+                        secondOnline.countDown()
+                    }
+                    RemoteWebSocketClient.ConnectionState.Suspended -> suspended.countDown()
+                    else -> Unit
+                }
+            }
+            override fun onMessage(message: com.poracode.app.model.RemoteWebSocketServerMessage) = Unit
+            override fun onResyncRequired(reason: String) = Unit
+            override fun onSessionExpired(reason: String) = Unit
+        })
+        try {
+            client.start(lastSeenSeq = 0)
+            assertTrue("expected first Online within 5s", firstOnline.await(5, TimeUnit.SECONDS))
+            client.suspendForBackground()
+            assertTrue("expected Suspended within 5s", suspended.await(5, TimeUnit.SECONDS))
+
+            server.enqueue(
+                MockResponse().withWebSocketUpgrade(
+                    object : okhttp3.WebSocketListener() {
+                        override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                            webSocket.send("""{"type":"ready","seq":2}""")
+                        }
+                    },
+                ),
+            )
+            client.resumeFromForeground()
+            assertTrue("expected second Online after resume within 5s", secondOnline.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Online,
+                    RemoteWebSocketClient.ConnectionState.Suspended,
+                    RemoteWebSocketClient.ConnectionState.Connecting,
+                    RemoteWebSocketClient.ConnectionState.Online,
+                ),
+                states.toList(),
+            )
+        } finally {
+            client.destroy()
+        }
     }
 }

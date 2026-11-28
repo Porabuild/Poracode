@@ -32,7 +32,8 @@ final class EnvironmentManagementAPITests: XCTestCase {
             environmentId: environmentId,
             expectedChildDesktopId: "child-desktop",
             parentAuthorizationToken: { "parent-token" },
-            mintParentWebSocketTicket: { "parent-ticket" }
+            mintParentWebSocketTicket: { "parent-ticket" },
+            mintParentWebSocketTicketWithTimeout: { _ in "parent-ticket" }
         )
         return RemoteAPIClient(
             endpoint: proxyEndpoint,

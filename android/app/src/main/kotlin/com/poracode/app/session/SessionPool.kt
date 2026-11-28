@@ -159,9 +159,15 @@ class SessionPool {
     }
 
     @Synchronized
-    fun onForeground() {
+    fun onForeground(
+        beforeResume: ((SessionPoolKey, RemoteEventSocket, SessionLease) -> Unit)? = null,
+    ) {
         backgroundGated = false
         evictLocked()
+        slots.forEach { (key, slot) ->
+            val socket = slot.socket ?: return@forEach
+            beforeResume?.invoke(key, socket, SessionLease(key, slot.generation))
+        }
         slots.values.mapNotNull { it.socket }.forEach(RemoteEventSocket::resumeFromForeground)
     }
 
