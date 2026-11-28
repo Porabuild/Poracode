@@ -11,6 +11,7 @@ import { captureMainException } from "./diagnostics/sentry";
 import { createTray } from "./tray";
 import { getAppName } from "@/shared/appName";
 import { saveWindowBounds } from "./window/createMainWindow";
+import { concealAppUiForQuit } from "./window/quitUiConceal";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { safeStorageHealth } from "./safeStorageHealth";
 import type { BackendHostClient } from "./backend/BackendHostClient";
@@ -111,6 +112,9 @@ export function registerDesktopAppLifecycle(deps: DesktopLifecycleDeps): void {
   }
 
   app.on("activate", () => {
+    // A quit in progress brings nothing back and opens no window: both would
+    // be attached to a backend that is retiring.
+    if (desktopApp.isQuitting) return;
     if (desktopApp.mainWindow && !desktopApp.mainWindow.isDestroyed()) {
       showAndFocusWindow(desktopApp.mainWindow);
       return;
@@ -131,9 +135,6 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
     if (desktopApp.mainWindow && !desktopApp.mainWindow.isDestroyed()) {
       saveWindowBounds(desktopApp.mainWindow, deps.shellState, "window-bounds");
     }
-    desktopApp.quickComposerShortcutManager?.dispose();
-    desktopApp.quickComposerShortcutManager = null;
-    desktopApp.quickComposerLifecycle?.dispose();
     // The composed host services own the ingress set (embedded browser MCP,
     // computer-use MCP, chrome MCP, chrome bridge). Null the individual
     // fields first so late readers see the shutdown exactly like before.
@@ -141,33 +142,53 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
     desktopApp.hostServices = null;
     desktopApp.browserMcpIngress = null;
     desktopApp.computerUseMcpIngress = null;
-    desktopApp.computerUseDesktopOverlay?.dispose();
-    desktopApp.computerUseDesktopOverlay = null;
     desktopApp.chromeMcpIngress = null;
     desktopApp.chromeBridgeServer = null;
-    // Disposal starts here (not in the join below) to match the previous
-    // ingress shutdown timing relative to window/panel teardown.
-    const ingressDispose = hostServicesToClose?.dispose();
-    desktopApp.browserExtractWindow?.close();
-    desktopApp.browserExtractWindow = null;
-    desktopApp.quickComposerWindow?.close();
-    desktopApp.quickComposerWindow = null;
-    desktopApp.browserPanelManager?.dispose();
-    desktopApp.browserPanelManager = null;
-    void deps.disposeBrowserGateway();
-    desktopApp.sleepInhibitor.dispose();
-    desktopApp.screenLockInhibitor.dispose();
-    desktopApp.tray?.destroy();
-    desktopApp.tray = null;
     // Backend disposal joins control, admitted administration and provider
     // retirement before releasing data custody. Main joins the native offer.
     const adoptionToDispose = desktopApp.hostCredentialAdoption;
     desktopApp.hostCredentialAdoption = null;
+    let ingressDispose: Promise<void> | undefined;
+    try {
+      // The joins below retire agents and close the database before the
+      // process exits, which takes seconds when a child is slow. The UI leaves
+      // now, so the close is seen immediately instead of after those joins.
+      concealAppUiForQuit();
+      desktopApp.quickComposerShortcutManager?.dispose();
+      desktopApp.quickComposerShortcutManager = null;
+      desktopApp.quickComposerLifecycle?.dispose();
+      desktopApp.computerUseDesktopOverlay?.dispose();
+      desktopApp.computerUseDesktopOverlay = null;
+      // Disposal starts here (not in the join below) to match the previous
+      // ingress shutdown timing relative to window/panel teardown.
+      ingressDispose = hostServicesToClose?.dispose();
+      desktopApp.browserExtractWindow?.close();
+      desktopApp.browserExtractWindow = null;
+      desktopApp.quickComposerWindow?.close();
+      desktopApp.quickComposerWindow = null;
+      desktopApp.browserPanelManager?.dispose();
+      desktopApp.browserPanelManager = null;
+      void deps.disposeBrowserGateway();
+      desktopApp.sleepInhibitor.dispose();
+      desktopApp.screenLockInhibitor.dispose();
+      desktopApp.tray?.destroy();
+      desktopApp.tray = null;
+    } catch (error) {
+      // The exit is armed below whatever happens above. Once the UI has left
+      // for it, a step that throws is skipped and reported, never allowed to
+      // cancel the quit and strand a hidden app.
+      captureMainException(error, { "poracode.feature_area": "main-shutdown" });
+    }
     const finishQuit = async () => {
-      desktopApp.windowsJobObjectManager?.dispose();
-      desktopApp.windowsJobObjectManager = null;
-      await desktopApp.performanceDiagnostics?.stop();
-      app.quit();
+      try {
+        desktopApp.windowsJobObjectManager?.dispose();
+        desktopApp.windowsJobObjectManager = null;
+        await desktopApp.performanceDiagnostics?.stop();
+      } catch (error) {
+        captureMainException(error, { "poracode.feature_area": "main-shutdown" });
+      } finally {
+        app.quit();
+      }
     };
     const cleanup = joinRuntimeShutdown(
       [

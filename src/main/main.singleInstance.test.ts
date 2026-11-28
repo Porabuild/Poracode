@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
     poracodePaths: { settingsPath: "/profiles/poracode/shared-settings.json" },
     standaloneAttachShellState: null,
     deferredStandaloneProbe: null,
+    isQuitting: false,
   },
   reportSingleInstanceRefusal: vi.fn<(userDataDir: string) => string>(),
   ensureMainWindow: vi.fn<() => Partial<BrowserWindow>>(),
@@ -76,6 +77,7 @@ beforeEach(() => {
   vi.resetModules();
   vi.spyOn(process, "on").mockReturnValue(process);
   mocks.app.requestSingleInstanceLock.mockReturnValue(false);
+  mocks.desktopApp.isQuitting = false;
   mocks.window.isMinimized.mockReturnValue(false);
   mocks.window.isVisible.mockReturnValue(false);
   mocks.ensureMainWindow.mockReturnValue(mocks.window);
@@ -117,6 +119,20 @@ describe("desktop single-instance launch", () => {
     expect(mocks.window.focus).toHaveBeenCalledOnce();
     expect(mocks.dialog.showErrorBox).not.toHaveBeenCalled();
     expect(mocks.app.quit).not.toHaveBeenCalled();
+  });
+
+  it("brings nothing back on screen while the running instance is quitting", async () => {
+    mocks.app.requestSingleInstanceLock.mockReturnValue(true);
+    mocks.desktopApp.isQuitting = true;
+    await import("./main");
+
+    const onSecondInstance = mocks.app.on.mock.calls.find(([event]) => event === "second-instance");
+    expect(onSecondInstance).toBeDefined();
+    onSecondInstance![1]({}, ["poracode.exe"]);
+
+    expect(mocks.ensureMainWindow).not.toHaveBeenCalled();
+    expect(mocks.window.show).not.toHaveBeenCalled();
+    expect(mocks.window.focus).not.toHaveBeenCalled();
   });
 
   it.runIf(process.platform === "win32")(

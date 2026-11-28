@@ -60,6 +60,7 @@ afterEach(() => {
   desktopApp.mainWindow = null;
   desktopApp.quickComposerLifecycle = null;
   desktopApp.pendingThreadOpenRequest = null;
+  desktopApp.isQuitting = false;
   hoisted.createMainWindow.mockReset();
 });
 
@@ -97,6 +98,22 @@ describe("returning a thread to the main window", () => {
       IPC_EVENT_CHANNELS.threadOpenRequested,
       { threadId: "thread-a" },
     );
+  });
+
+  it("opens nothing while the app is quitting", () => {
+    attachLifecycle();
+    const main = { ...fakeWindow(), focus: vi.fn<() => void>() };
+    desktopApp.mainWindow = main as unknown as BrowserWindow;
+    desktopApp.isQuitting = true;
+
+    openThreadFromTray("thread-a");
+
+    expect(main.focus).not.toHaveBeenCalled();
+    expect(main.webContents.send).not.toHaveBeenCalled();
+    expect(desktopApp.pendingThreadOpenRequest).toBeNull();
+    desktopApp.mainWindow = null;
+    openThreadFromTray("thread-b");
+    expect(hoisted.createMainWindow).not.toHaveBeenCalled();
   });
 
   it("recreates a closed attach-mode main window on the attach shell state", () => {

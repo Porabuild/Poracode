@@ -348,4 +348,17 @@ describe("createMainWindow", () => {
     expect(window.maximize).toHaveBeenCalledOnce();
     expect(window.show).toHaveBeenCalledOnce();
   });
+
+  it("keeps a window hidden that becomes ready after a quit took the UI off screen", async () => {
+    // Fresh modules: the reveal guard is one-way for the rest of the process.
+    vi.resetModules();
+    const { keepWindowsHiddenForQuit } = await import("./showAndFocusWindow");
+    keepWindowsHiddenForQuit();
+    const window = await createWindowWithSavedMaximizedBounds(true);
+
+    windowOnceHandlers["ready-to-show"]?.({} as never);
+
+    expect(window.maximize).not.toHaveBeenCalled();
+    expect(window.show).not.toHaveBeenCalled();
+  });
 });
