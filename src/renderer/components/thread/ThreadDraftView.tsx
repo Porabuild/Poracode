@@ -12,6 +12,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject } from "@/shared/homeScope";
+import { defaultSharedSettings } from "@/shared/settings";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { resolveNewThreadMcpConfig } from "@/shared/contracts";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
@@ -23,7 +24,7 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { useHostSetting } from "@/renderer/state/pairedHostSettings";
+import { usePairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { useCrewLibrary } from "@/renderer/state/crewLibrary";
 import type { DraftContent } from "@/renderer/state/slices/types";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -218,8 +219,18 @@ export function ThreadDraftView(props: {
     : (composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig);
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
-  const settingsHost = isRemoteSession() ? undefined : project.location.remoteServerId;
-  const disabledAgents = useHostSetting(settingsHost, "disabledAgents");
+  const remoteSession = isRemoteSession();
+  const settingsHost = remoteSession ? undefined : project.location.remoteServerId;
+  const remoteDraft = remoteSession || project.remoteServerId !== undefined;
+  const pairedHostSettings = usePairedHostSettings(settingsHost);
+  const localDisabledAgents = useSharedSettings((settings) => settings.disabledAgents);
+  const localHiddenModels = useSharedSettings((settings) => settings.hiddenModels);
+  const disabledAgents = settingsHost
+    ? (pairedHostSettings?.settings?.disabledAgents ?? defaultSharedSettings.disabledAgents)
+    : localDisabledAgents;
+  const hiddenModels = settingsHost
+    ? (pairedHostSettings?.settings?.hiddenModels ?? defaultSharedSettings.hiddenModels)
+    : localHiddenModels;
   const crewMachineKey = machineKeyForLocation(project.location);
   const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
   const helperOptions = useCrewHelperOptions(crewMachineKey);
@@ -245,6 +256,8 @@ export function ThreadDraftView(props: {
   const remoteConnectionMessage = useRemoteServersStore((state) =>
     project.remoteServerId ? state.runtime[project.remoteServerId]?.message : undefined,
   );
+  const awaitingHostVisibility =
+    settingsHost !== undefined && remoteConnection === "online" && !pairedHostSettings;
 
   // Debugging showed config-only edits were rebuilding the provider/model
   // payload. Keep the installed-agent list stable unless the source inputs
@@ -387,6 +400,40 @@ export function ThreadDraftView(props: {
     () => (selectedAgent ? agentWithCapabilities(selectedAgent, presentationMode) : undefined),
     [selectedAgent, presentationMode],
   );
+  const hiddenModelIds = selectedAgentForConfig
+    ? hiddenModels[
+        modelVisibilityKey(
+          selectedAgentForConfig.kind,
+          presentationMode,
+          selectedAgentForConfig.capabilities.runtimeLabel,
+        )
+      ]
+    : undefined;
+  const selectedAgentFilteredCapabilities = useMemo(
+    () =>
+      selectedAgentForConfig
+        ? filterHiddenModels(selectedAgentForConfig.capabilities, hiddenModelIds)
+        : undefined,
+    [selectedAgentForConfig, hiddenModelIds],
+  );
+  const selectedAgentForDefaults = useMemo(
+    () =>
+      remoteDraft &&
+      selectedAgentForConfig &&
+      selectedAgentFilteredCapabilities?.models.length &&
+      selectedAgentFilteredCapabilities !== selectedAgentForConfig.capabilities &&
+      !isIsolatedSelection &&
+      !draftCrew
+        ? { ...selectedAgentForConfig, capabilities: selectedAgentFilteredCapabilities }
+        : selectedAgentForConfig,
+    [
+      remoteDraft,
+      selectedAgentForConfig,
+      selectedAgentFilteredCapabilities,
+      isIsolatedSelection,
+      draftCrew,
+    ],
+  );
   const previousPresentationAgentKindRef = useRef<AgentStatus["kind"] | undefined>(
     selectedAgent?.kind,
   );
@@ -526,6 +573,9 @@ export function ThreadDraftView(props: {
       composerDraftStorage()?.saveSelection("project", project.id, selection);
       pendingClientSelectionRef.current = undefined;
     }
+    // A remote catalog can start out stale or incomplete. A model picked
+    // automatically for display must never replace the host's remembered draft.
+    if (remoteDraft && !persistClientSelection) return;
     updateProjectDraftConfig(project.id, selection);
   }
 
@@ -640,24 +690,37 @@ export function ThreadDraftView(props: {
   }, [agentKind, effectiveAgentKind]);
 
   useEffect(() => {
-    if (!selectedAgentForConfig || !effectiveAgentKind) {
+    if (!selectedAgentForConfig || !selectedAgentForDefaults || !effectiveAgentKind) {
       return;
     }
 
     const explicitSelection = pendingClientSelectionRef.current === effectiveAgentKind;
-    if (lastAppliedAgentKindRef.current === effectiveAgentKind && !explicitSelection) {
+    const alreadyApplied = lastAppliedAgentKindRef.current === effectiveAgentKind;
+    if (awaitingHostVisibility && !explicitSelection && !hasLocalConfigEditRef.current) return;
+    if (
+      alreadyApplied &&
+      !explicitSelection &&
+      (!remoteDraft || hasLocalConfigEditRef.current || isIsolatedSelection || draftCrew)
+    ) {
       return;
     }
     // An empty catalog resolves the model to "". Committing that sets
     // lastAppliedAgentKindRef, and this effect re-runs when the status object
     // changes, so the latch would ignore the catalog when it arrives.
-    if (selectedAgentForConfig.capabilities.models.length === 0) {
+    if (selectedAgentForDefaults.capabilities.models.length === 0) {
       return;
     }
 
+    const savedProjectModelIsAvailable =
+      remoteDraft &&
+      lastDraftConfig?.agentKind === effectiveAgentKind &&
+      Boolean(lastDraftConfig.model.trim()) &&
+      selectedAgentForConfig.capabilities.models.some(
+        (candidate) => candidate.id === lastDraftConfig.model,
+      );
     const initialIsolated = isolatedSelectionRef.current?.initial;
     const saved =
-      explicitSelection && lastAppliedAgentKindRef.current === effectiveAgentKind
+      explicitSelection && alreadyApplied
         ? draftConfig
         : isIsolatedSelection
           ? effectiveAgentKind === initialIsolated?.agentKind && initialIsolated
@@ -670,20 +733,31 @@ export function ThreadDraftView(props: {
               providerModelPreferencesRef.current,
               // Surface-aware restoration: a saved family member keeps its own
               // carriers; unscoped per-model preferences are never replayed onto it.
-              selectedAgentForConfig.capabilities,
+              savedProjectModelIsAvailable
+                ? selectedAgentForConfig.capabilities
+                : selectedAgentForDefaults.capabilities,
             );
-    // Persist per-provider config app-wide, last-used provider per project.
-    commitDraftConfigRef.current(
-      effectiveAgentKind,
-      resolveProviderDraftConfig(selectedAgentForConfig, saved),
-      undefined,
-      explicitSelection,
+    const resolved = resolveProviderDraftConfig(
+      explicitSelection || savedProjectModelIsAvailable
+        ? selectedAgentForConfig
+        : selectedAgentForDefaults,
+      saved,
     );
+    // Revisit an untouched default when the host's catalog or visibility
+    // changes. Ordinary control normalization is handled by the next effect.
+    if (alreadyApplied && !explicitSelection && resolved.model === model) return;
+    // Persist per-provider config app-wide, last-used provider per project.
+    commitDraftConfigRef.current(effectiveAgentKind, resolved, undefined, explicitSelection);
   }, [
+    awaitingHostVisibility,
     draftConfig,
+    draftCrew,
     effectiveAgentKind,
     isIsolatedSelection,
+    model,
+    remoteDraft,
     selectedAgentForConfig,
+    selectedAgentForDefaults,
     project.id,
     lastDraftConfig,
     effectiveWorktreeMode,
@@ -706,6 +780,15 @@ export function ThreadDraftView(props: {
     }
 
     const nextModel = resolveModelValue(selectedAgentForConfig, model);
+    if (
+      nextModel !== model &&
+      remoteDraft &&
+      !hasLocalConfigEditRef.current &&
+      !isIsolatedSelection &&
+      !draftCrew
+    ) {
+      return;
+    }
     if (
       nextModel === model &&
       modelFamilyForModel(selectedAgentForConfig.capabilities, nextModel)
@@ -762,6 +845,9 @@ export function ThreadDraftView(props: {
     }
   }, [
     effort,
+    draftCrew,
+    isIsolatedSelection,
+    remoteDraft,
     contextSize,
     fast,
     thinking,
@@ -865,7 +951,7 @@ export function ThreadDraftView(props: {
   ]);
 
   useEffect(() => {
-    if (isIsolatedSelection || isHomeScope || !sharedSettingsHydrated) {
+    if (isIsolatedSelection || isHomeScope || !sharedSettingsHydrated || awaitingHostVisibility) {
       return;
     }
     if (!selectedAgentForConfig || !effectiveAgentKind) {
@@ -934,15 +1020,27 @@ export function ThreadDraftView(props: {
       return;
     }
 
+    const savedProjectModelIsAvailable =
+      hasInitialProjectDraft &&
+      selectedAgentForConfig.capabilities.models.some(
+        (candidate) => candidate.id === initialLastDraftConfig?.model,
+      );
     const saved = resolveSavedProviderDraftConfig(
       effectiveAgentKind,
       hasInitialProjectDraft ? initialLastDraftConfig : undefined,
       providerConfigs,
       providerModelPreferences,
       // Same surface-aware restoration contract as the provider-switch effect.
-      selectedAgentForConfig.capabilities,
+      savedProjectModelIsAvailable
+        ? selectedAgentForConfig.capabilities
+        : (selectedAgentForDefaults ?? selectedAgentForConfig).capabilities,
     );
-    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
+    const resolved = resolveProviderDraftConfig(
+      savedProjectModelIsAvailable
+        ? selectedAgentForConfig
+        : (selectedAgentForDefaults ?? selectedAgentForConfig),
+      saved,
+    );
     const nextModel = resolved.model;
     const nextEffort = resolved.effort ?? "";
     const nextContext = resolved.contextSize;
@@ -991,9 +1089,11 @@ export function ThreadDraftView(props: {
       worktreeMode: effectiveWorktreeMode,
     });
   }, [
+    awaitingHostVisibility,
     isIsolatedSelection,
     sharedSettingsHydrated,
     selectedAgentForConfig,
+    selectedAgentForDefaults,
     effectiveAgentKind,
     lastDraftConfig,
     draftConfig,
@@ -1013,24 +1113,7 @@ export function ThreadDraftView(props: {
     setProviderConfig,
   ]);
 
-  const hiddenModels = useHostSetting(settingsHost, "hiddenModels");
-  const hiddenModelIds = selectedAgent
-    ? hiddenModels[
-        modelVisibilityKey(
-          selectedAgent.kind,
-          presentationMode,
-          selectedAgentForConfig?.capabilities.runtimeLabel,
-        )
-      ]
-    : undefined;
   const allHiddenModels = hiddenModels;
-  const selectedAgentFilteredCapabilities = useMemo(
-    () =>
-      selectedAgentForConfig
-        ? filterHiddenModels(selectedAgentForConfig.capabilities, hiddenModelIds)
-        : undefined,
-    [selectedAgentForConfig, hiddenModelIds],
-  );
   const providerModelProviders = useMemo(
     () =>
       buildProviderModelMenuProviders(installedAgents, {
